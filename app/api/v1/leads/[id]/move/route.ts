@@ -11,10 +11,14 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  */
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
+import { z } from "zod";
 import { audit } from "@/lib/audit";
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
+import { extractBearer } from "@/lib/mcp/auth";
+import { moveLeadHandler } from "../../_handler";
 import { moveLeadSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { emitLeadActivity, stageChangeReason } from "@/lib/leads/activity-emitter";
@@ -46,6 +50,10 @@ export async function POST(
 
   const requestId = randomUUID();
   const { id: leadId } = await ctx.params;
+
+  if (extractBearer(req.headers.get("authorization"))) {
+    return moverPorToken(req, leadId, requestId);
+  }
 
   const supabase = await createClient();
   // spec 13 §4: escrita é agent+ (viewer é read-only).
@@ -352,4 +360,89 @@ export async function POST(
   });
 
   return ok(ocultarProvaMetaNaResposta(finalLead as Record<string, unknown>), { requestId });
+}
+
+/**
+ * Corpo do MOVER POR TOKEN. Mais curto que o do board de propósito: o board
+ * manda `position_in_stage` (onde o card caiu) e `expected_updated_at` (a OCC
+ * do arrasto), e um ERP não tem nenhum dos dois — ele só sabe "o pedido foi
+ * faturado, vai para a etapa X". A posição, sem valor, é a do handler (topo da
+ * etapa nova). `.strict()`: `custom_fields` e `expected_updated_at` são
+ * recusados em vez de descartados, porque um integrador que os mandasse
+ * acharia que tiveram efeito — campos do card se mudam por `PATCH /leads/{id}`.
+ */
+const moverPorTokenSchema = z
+  .object({
+    stage_id: z.string().uuid(),
+    position_in_stage: z.number().finite().optional(),
+    reason: z.string().max(500).optional(),
+    lost_reason: z.string().max(500).optional(),
+    won_reason: z.string().max(500).optional(),
+  })
+  .strict();
+
+/**
+ * MOVER CARD POR TOKEN (`Bearer dsk_…` com `mcp:write`, papel `agent` — o
+ * mesmo da tool MCP `crm_move_lead_stage`). Existe para integração de servidor
+ * (ERP), que até aqui só mudava etapa pelo envelope JSON-RPC do MCP.
+ *
+ * O ramo da sessão acima confia na RLS (o client é o do usuário) e por isso
+ * NÃO serve ao token, cujo client ignora a RLS. Este ramo vai pelo
+ * `moveLeadHandler` — o caminho que lote, IA, automação e MCP já usam —, que
+ * confere lead e etapa contra a org do token e faz as MESMAS perguntas do
+ * board (reabertura #1538, campos exigidos e motivo de ganho #1536, motivo da
+ * perda #917), além de timeline, evento e auditoria.
+ */
+async function moverPorToken(
+  req: NextRequest,
+  leadId: string,
+  requestId: string,
+): Promise<Response> {
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "crm_leads",
+    role: "agent",
+    scope: "mcp:write",
+  });
+  if (!authz.ok) return authz.response;
+
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "leads", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
+  let input;
+  try {
+    input = await validateRequest(moverPorTokenSchema, req);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, {
+        details: err.details as Record<string, unknown> | undefined,
+        requestId,
+      });
+    }
+    throw err;
+  }
+
+  try {
+    const lead = await moveLeadHandler(
+      authz.supabase,
+      { organization_id: authz.organizationId, actor: authz.actor, requestId },
+      leadId,
+      {
+        to_stage_id: input.stage_id,
+        position_in_stage: input.position_in_stage,
+        reason: input.reason,
+        lost_reason: input.lost_reason,
+        won_reason: input.won_reason,
+      },
+    );
+    return ok(lead, { requestId });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, {
+        details: err.details as Record<string, unknown> | undefined,
+        requestId,
+      });
+    }
+    throw err;
+  }
 }

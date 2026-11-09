@@ -148,6 +148,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   // Ancorado com `$`: os irmãos `/api/v1/leads/bulk`, `/import` etc. seguem
   // só-sessão.
   /^\/api\/v1\/leads$/,
+  // MOVER CARD DE ETAPA SERVER-TO-SERVER (ERP). Sessão (o board) OU Bearer
+  // `dsk_…` + `mcp:write` (`moverPorToken` em `.../leads/[id]/move/route.ts`).
+  // Forma de UUID e âncora `$`: `/clone`, `/win`, `/lose` e os demais seguem
+  // só-sessão.
+  /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/move$/i,
   // LER FUNIS E ETAPAS SERVER-TO-SERVER (ERP). Sessão OU Bearer `dsk_…` com
   // `mcp:read`, resolvidos por `lib/api/auth-dual.ts` no `GET` de
   // `app/api/v1/pipelines/route.ts` e de `.../[id]/stages/route.ts`. Sem estas
