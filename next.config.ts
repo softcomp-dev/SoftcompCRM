@@ -70,6 +70,11 @@ const nextConfig: NextConfig = {
       "./node_modules/.pnpm/@napi-rs+canvas-*/node_modules/@napi-rs/*/*.node",
       // pdfjs-dist em si (ver comentário acima).
       "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/**",
+      // A especificação OpenAPI que a tela /app/docs exibe. É lida com
+      // `readFile` em runtime (`lib/api/documentacao.ts`), e o tracer só segue
+      // import — sem esta linha a imagem sai sem o arquivo e a tela responde
+      // 500 na VPS, com tudo verde no `next dev`.
+      "./docs/api/openapi.yaml",
     ],
   },
   reactStrictMode: true,
