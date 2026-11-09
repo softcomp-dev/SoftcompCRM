@@ -85,6 +85,7 @@ jobs:
           git push origin "refs/tags/${TAG}"
 
       - name: Publicar as imagens da tag e esperar
+        id: imagens
         if: steps.versao.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,10 +112,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.versao.outputs.tag }}
-        run: gh release create "${TAG}" --title "${TAG}" --generate-notes --latest
+        # Três tentativas: na v1.104.3 a criação falhou com as imagens JÁ
+        # publicadas, e a versão ficou sem Release até alguém criá-la à mão.
+        # Se a Release já existe (criada à mão ou numa tentativa anterior que
+        # respondeu erro depois de criar), não há o que refazer.
+        run: |
+          set -uo pipefail
+          for tentativa in 1 2 3; do
+            if gh release view "${TAG}" >/dev/null 2>&1; then
+              echo "a Release ${TAG} existe"; exit 0
+            fi
+            if gh release create "${TAG}" --title "${TAG}" --generate-notes --latest; then
+              exit 0
+            fi
+            echo "::warning::tentativa ${tentativa} de criar a Release ${TAG} falhou"
+            sleep $((tentativa * 20))
+          done
+          echo "::error::A Release ${TAG} não foi criada. As imagens existem: crie a Release à mão em ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/new?tag=${TAG}"
+          exit 1
 
-      - name: Desfazer a tag se a publicação falhou
-        if: failure() && steps.versao.outputs.tag != ''
+      # Só quando a PUBLICAÇÃO falhou: aí a tag aponta para uma versão sem
+      # imagem, e o `agent.sh` (que oferece a maior tag `v*`) a ofereceria ao
+      # servidor. Se o que falhou foi só a Release, as imagens existem e a tag
+      # fica — apagá-la, como a primeira versão deste arquivo fazia, deixou a
+      # v1.104.3 publicada e sem tag.
+      - name: Desfazer a tag se as imagens não saíram
+        if: failure() && steps.versao.outputs.tag != '' && steps.imagens.outcome == 'failure'
         env:
           TAG: ${{ steps.versao.outputs.tag }}
         run: |
