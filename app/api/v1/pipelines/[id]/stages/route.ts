@@ -22,6 +22,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { respostaDeRecusa } from "@/lib/api/recusa";
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { criarEtapa } from "@/lib/leads/stage-operations";
@@ -61,14 +62,30 @@ const bodySchema = z
  * dizer "quem está em Perdido". Quem escolhe etapa de NASCIMENTO é recusado
  * antes, pela regra de que card não nasce fechado.
  */
-export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
+//
+// Aceita sessão (manager+) OU `Bearer dsk_…` com `mcp:read`: um ERP precisa do
+// `stage_id` para criar e mover card por REST, e sem esta leitura a única porta
+// era a tool MCP `crm_list_stages`. O token exige o mesmo papel da tool
+// (`agent`). Com o token o client ignora a RLS — os dois `organization_id`
+// abaixo (aqui e em `carregaFluxosPorEtapa`) são o que separa os tenants.
+export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const requestId = randomUUID();
-  const authz = await requireRole("manager", { requestId, resource: "pipeline_stages" });
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "pipeline_stages",
+    role: "manager",
+    scope: "mcp:read",
+    tokenRole: "agent",
+  });
   if (!authz.ok) return authz.response;
-  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const t = (texto: string) => traduzir(texto, authz.idioma ?? "pt-BR");
   const { id } = await ctx.params;
 
-  const supabase = await createClient();
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "pipelines_leitura", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
+  const supabase = authz.supabase;
+  const orgId = authz.organizationId;
   const { data, error } = await supabase
     .from("crm_stages")
     // A janela de esfriando, a chance de fechamento e o aviso de equipe entram
@@ -80,7 +97,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .select(
       "id, name, position, is_won, is_lost, expected_duration_hours, win_probability, avisar_na_central",
     )
-    .eq("organization_id", authz.org.orgId)
+    .eq("organization_id", orgId)
     .eq("pipeline_id", id)
     .eq("is_archived", false)
     .order("position", { ascending: true });
@@ -93,7 +110,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
   // derrubar uma listagem de etapas que já foi lida com sucesso.
   let fluxos: Awaited<ReturnType<typeof carregaFluxosPorEtapa>> | null = null;
   try {
-    fluxos = await carregaFluxosPorEtapa(supabase, authz.org.orgId);
+    fluxos = await carregaFluxosPorEtapa(supabase, orgId);
   } catch {
     fluxos = null;
   }

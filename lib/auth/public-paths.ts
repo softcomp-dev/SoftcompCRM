@@ -143,6 +143,16 @@ export const PUBLIC_PATHS: RegExp[] = [
   // `reactivations`) que `[^/]+$` alcançaria por engano, tornando-os "públicos"
   // (proxy não decide) quando nenhum deles tem suporte a Bearer.
   /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  // LER FUNIS E ETAPAS SERVER-TO-SERVER (ERP). Sessão OU Bearer `dsk_…` com
+  // `mcp:read`, resolvidos por `lib/api/auth-dual.ts` no `GET` de
+  // `app/api/v1/pipelines/route.ts` e de `.../[id]/stages/route.ts`. Sem estas
+  // leituras um integrador não tem de onde tirar `pipeline_id`/`stage_id` para
+  // criar ou mover card por REST. O `POST` dos mesmos paths (criar funil, criar
+  // etapa) segue só-sessão: o proxy filtra por PATH, quem decide o método é a
+  // rota. O id do funil é FORMA DE UUID — `/api/v1/pipelines/` tem irmão
+  // literal (`default`) que `[^/]+` alcançaria.
+  /^\/api\/v1\/pipelines$/,
+  /^\/api\/v1\/pipelines\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/stages$/i,
   // MARCAR/REMARCAR/CANCELAR COMPROMISSO SERVER-TO-SERVER. Mesma dualidade dos
   // dois de cima: sessão OU Bearer `dsk_…`, resolvidos por `lib/api/auth-dual.ts`
   // DENTRO da rota (`app/api/v1/agenda/agendamentos/route.ts`, função

@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
@@ -27,17 +28,36 @@ import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+/**
+ * GET — os funis vivos da organização.
+ *
+ * Aceita sessão (manager+) OU `Bearer dsk_…` com `mcp:read`: um ERP precisa do
+ * `pipeline_id` para criar card por `POST /api/v1/leads`, e sem esta leitura a
+ * única porta era a tool MCP `crm_list_pipelines`. O token exige o mesmo papel
+ * da tool (`agent`), não o da tela — senão a rota REST seria mais dura que a
+ * tool que lê exatamente a mesma coisa. A org sai da linha do token, e
+ * `listPipelinesHandler` filtra `organization_id` explicitamente (o client do
+ * token ignora a RLS).
+ */
+export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
-  const authz = await requireRole("manager", { requestId, resource: "pipelines" });
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "pipelines",
+    role: "manager",
+    scope: "mcp:read",
+    tokenRole: "agent",
+  });
   if (!authz.ok) return authz.response;
-  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const t = (texto: string) => traduzir(texto, authz.idioma ?? "pt-BR");
 
-  const supabase = await createClient();
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "pipelines_leitura", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
   try {
-    const { pipelines } = await listPipelinesHandler(supabase, {
-      organization_id: authz.org.orgId,
-      actor: { type: "user", id: authz.user.id },
+    const { pipelines } = await listPipelinesHandler(authz.supabase, {
+      organization_id: authz.organizationId,
+      actor: authz.actor,
       requestId,
     });
     return ok(pipelines, { requestId });
