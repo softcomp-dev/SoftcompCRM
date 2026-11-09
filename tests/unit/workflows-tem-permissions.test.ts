@@ -52,6 +52,12 @@ const DIR = join(process.cwd(), ".github/workflows");
  * acrescente, e acrescentar sem razão é visível em code review.
  */
 const ESCRITA_JUSTIFICADA: Record<string, string> = {
+  "versao-automatica-do-fork.yml::contents: write":
+    "só no fork softcomp-dev (o job tem `if: github.repository`): empurra a tag vX.Y.Z do " +
+    "commit da main e cria a Release que o botão Atualizar do servidor procura",
+  "versao-automatica-do-fork.yml::actions: write":
+    "só no fork softcomp-dev: dispara o publish-image.yml na tag nova (tag empurrada com o " +
+    "GITHUB_TOKEN não dispara workflow) e acompanha a execução até as imagens existirem",
   "publish-image.yml::packages: write":
     "publica a imagem do app no GHCR — é o artefato que o self-hoster instala",
   "vigia-de-colisao.yml::pull-requests: write":

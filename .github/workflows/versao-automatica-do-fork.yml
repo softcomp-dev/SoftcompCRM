@@ -1,0 +1,122 @@
+name: Versão automática do fork
+
+# VERSÃO A CADA PUSH NA `main` — EXCLUSIVO DO FORK softcomp-dev/SoftcompCRM.
+#
+# O servidor da Softcomp atualiza pelo botão "Atualizar" (ou `update.sh`), que
+# procura a última Release do GitHub e instala as imagens com aquele número
+# (`hostgator-setup-kit/update.sh`, `VERSAO_ALVO`). No produto original, quem
+# corta versão é o `release.yml`, com um GitHub App cujos segredos o fork não
+# tem. Aqui o corte é automático: todo push com código na `main` vira a versão
+# seguinte (só o último número sobe: v1.104.1 → v1.104.2), para a próxima
+# versão do produto original continuar sendo maior que a do fork.
+#
+# Por que este job chama o `publish-image.yml` em vez de só empurrar a tag: tag
+# empurrada com o GITHUB_TOKEN NÃO dispara outro workflow (regra do GitHub
+# contra laço). `workflow_dispatch` é a exceção à regra. Chamado numa tag, o
+# `publish-image` publica `X.Y.Z` e `X.Y` normalmente, e a guarda
+# `a-tag-veio-da-main` vale do mesmo jeito (ela olha `ref_type`, não o evento).
+# Só o canal `stable` não se move (`promover-stable` exige push de tag) — e o
+# atualizador do fork usa o número, não o canal.
+#
+# A Release só nasce DEPOIS das imagens publicadas: o servidor nunca é
+# convidado a instalar uma versão cuja imagem não existe. Se a publicação
+# falhar, a tag é apagada, porque o `agent.sh` oferece a MAIOR tag `v*`.
+
+on:
+  push:
+    branches: [main]
+    # Documentação não muda o que roda no servidor; não vale uma versão.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".changes/**"
+
+# Um corte por vez. Push novo enquanto um corte roda espera; se chegarem
+# vários, o GitHub mantém só o mais recente na fila — e ele já contém os
+# commits dos anteriores.
+concurrency:
+  group: versao-automatica-do-fork
+  cancel-in-progress: false
+
+jobs:
+  versionar:
+    # O workflow vive na árvore, e a árvore pode voltar ao produto original num
+    # PR: lá ele não pode cortar versão nenhuma.
+    if: github.repository == 'softcomp-dev/SoftcompCRM'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    # contents: empurrar a tag e criar a Release.
+    # actions: disparar o publish-image.yml e acompanhar a execução.
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Qual é a próxima versão?
+        id: versao
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet
+          if atual=$(git describe --tags --exact-match HEAD 2>/dev/null); then
+            echo "este commit já é a versão ${atual} — nada a fazer"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ultima=$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -z "${ultima}" ]; then
+            echo "::error::Nenhuma tag vX.Y.Z no repositório para servir de base."
+            exit 1
+          fi
+          IFS=. read -r maior menor correcao <<< "${ultima#v}"
+          nova="v${maior}.${menor}.$((correcao + 1))"
+          echo "última ${ultima} → nova ${nova}"
+          echo "tag=${nova}" >> "$GITHUB_OUTPUT"
+
+      - name: Criar e enviar a tag
+        if: steps.versao.outputs.tag != ''
+        env:
+          TAG: ${{ steps.versao.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git tag "${TAG}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${TAG}"
+
+      - name: Publicar as imagens da tag e esperar
+        if: steps.versao.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versao.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-image.yml --ref "${TAG}"
+          execucao=""
+          for _ in $(seq 1 30); do
+            sleep 10
+            execucao=$(gh run list --workflow publish-image.yml --event workflow_dispatch \
+              --commit "${GITHUB_SHA}" --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "${execucao}" ] && break
+          done
+          if [ -z "${execucao}" ]; then
+            echo "::error::A publicação das imagens de ${TAG} não apareceu em 5 minutos."
+            exit 1
+          fi
+          echo "acompanhando a publicação: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${execucao}"
+          gh run watch "${execucao}" --exit-status --interval 30
+
+      - name: Criar a Release (o "Atualizar" passa a oferecer a versão)
+        if: steps.versao.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versao.outputs.tag }}
+        run: gh release create "${TAG}" --title "${TAG}" --generate-notes --latest
+
+      - name: Desfazer a tag se a publicação falhou
+        if: failure() && steps.versao.outputs.tag != ''
+        env:
+          TAG: ${{ steps.versao.outputs.tag }}
+        run: |
+          git push origin --delete "refs/tags/${TAG}" || true
+          echo "::error::${TAG} foi apagada: sem imagem publicada, o servidor não pode recebê-la. O próximo push tenta de novo."

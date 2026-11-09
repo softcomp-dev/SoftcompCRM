@@ -271,6 +271,14 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
       "boas-vindas de robô; sem a de dono, o fork de cada self-hoster herda um bot que fala pela " +
       "gente no repositório dele, prometendo um prazo que ninguém lá concordou em cumprir.",
   },
+  "versao-automatica-do-fork.yml::versionar": {
+    condicao: "github.repository == 'softcomp-dev/SoftcompCRM'",
+    efeito:
+      "Este job corta a versão do FORK softcomp-dev a cada push com código na main: tag, " +
+      "imagens e Release que o botão Atualizar do servidor da Softcomp procura. Desligá-lo " +
+      "faz o servidor parar de receber versão nova, sem erro em lugar nenhum. A condição de " +
+      "repositório existe para o workflow nunca cortar versão no produto original.",
+  },
   "relogio.yml::tick": {
     condicao: "vars.RELOGIO_LIGADO == '1' || github.event_name == 'workflow_dispatch'",
     efeito:
