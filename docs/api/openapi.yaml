@@ -1,0 +1,2231 @@
+openapi: 3.1.0
+info:
+  title: DeskcommCRM — API para integrações (Bearer dsk_)
+  version: 0.1.0
+  description: |
+    Rotas do CRM que um sistema externo (ERP, e-commerce, automação) consegue chamar
+    **sem sessão de navegador**, mais o webhook de captação e o servidor MCP.
+
+    Este arquivo lista **só** o que aceita token hoje. Uma rota entra aqui quando as
+    duas condições valem: o handler usa `lib/api/auth-dual.ts` (ou o ramo inline de
+    `GET /api/v1/contacts`) **e** o caminho está em `lib/auth/public-paths.ts` — sem a
+    segunda, o proxy recusa todo Bearer com 401 antes do handler. As demais rotas de
+    `/api/v1` só aceitam a sessão do navegador.
+
+    Para conferir no código em vez de confiar nesta lista:
+    `git grep -ln "auth-dual" -- app/api/v1` cruzado com `lib/auth/public-paths.ts`.
+
+    ## Autenticação
+    Crie o token em **Configurações › API Tokens** (`/app/settings/api-tokens`, só
+    administrador). O texto do token (`dsk_…`) aparece **uma vez**. Envie sempre no
+    cabeçalho `Authorization: Bearer dsk_…`, nunca na URL. A organização sai da linha
+    do token no banco — não existe parâmetro de organização.
+
+    **Escopos** (marcados ao criar o token):
+
+    | Escopo | Libera |
+    |---|---|
+    | `mcp:read` | Leituras (contatos, tipos de agenda, prospecção, follow-ups, agentes, MCP de leitura) |
+    | `mcp:write` | Escritas (mensagens, leads, conversas, agenda, prospecção, MCP de escrita) |
+    | `config:read` / `config:write` | Configuração de agentes e roteadores de IA (exige `role:admin`) |
+    | `contacts:read` | Foto do contato (`/contacts/{id}/avatar`) |
+    | `messages:on_behalf` | Enviar mensagem em nome de um atendente (`on_behalf_of_user_id`) |
+    | `role:manager` / `role:admin` | Papel do token. Sem nenhum, o token vale `agent` |
+
+    Hierarquia de papéis: `viewer` < `agent` < `ai_operator` < `manager` < `admin`.
+    Cada operação diz, no campo `x-escopos` e `x-papel-minimo-do-token`, o que exige.
+    Faltando escopo **ou** papel, a resposta é `403 forbidden_role`.
+
+    ## Envelope
+    - Sucesso: `{ "data": ..., "meta"?: { "cursor", "has_more", "total" } }`
+    - Erro: `{ "error": { "code", "message", "details"? } }`
+    - Toda resposta JSON leva o cabeçalho `X-Request-Id` (o mesmo da auditoria).
+    - JSON em snake_case, ids UUID, datas ISO-8601, dinheiro em centavos (`*_cents`).
+
+    ## Limites
+    Escritas por token: **30 por minuto por token** e **600 por minuto por
+    organização**, contadas por recurso. Ao estourar: `429 rate_limited` com
+    `Retry-After: 60`. Não há cabeçalhos `X-RateLimit-*` nestas rotas.
+
+    ## Peculiaridades conhecidas (medidas no código)
+    - Excesso de tentativas com token inválido responde **429**, e falha ao consultar
+      o token responde **500**, ambos com `code: "forbidden"`.
+    - Algumas rotas usam `validation_error` e outras `validation_failed` para o mesmo
+      tipo de recusa. Trate os dois como erro de validação.
+    - Campos desconhecidos no corpo são **descartados em silêncio**, salvo onde a
+      operação diz que o corpo é estrito.
+  contact:
+    name: DeskcommCRM
+  license:
+    name: Ver LICENSE do repositório
+
+servers:
+  - url: https://{dominio}
+    description: A sua instalação do CRM
+    variables:
+      dominio:
+        default: crm.suaempresa.com.br
+
+security:
+  - bearerDsk: []
+
+tags:
+  - name: Contatos
+  - name: Conversas
+  - name: Mensagens
+  - name: Leads
+    description: Cards do funil. Criar card por token é pelo webhook de entrada ou pela ferramenta MCP `crm_create_lead`.
+  - name: Agenda
+  - name: Prospecção
+  - name: Agentes de IA
+  - name: Follow-up
+  - name: Roteadores de IA
+  - name: Webhook de entrada
+  - name: MCP
+
+paths:
+  # ───────────────────────────── Contatos ─────────────────────────────
+  /api/v1/contacts:
+    get:
+      tags: [Contatos]
+      operationId: listarContatos
+      summary: Listar contatos
+      description: |
+        Lista os contatos (pessoas) da organização, com busca, filtros e paginação por
+        cursor. Contatos mesclados e grupos ficam de fora. O CPF nunca sai — só
+        `cpf_available`. Leitura sem teto de requisições.
+
+        Busca com menos de 2 caracteres úteis não é erro: devolve lista vazia.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: search, in: query, schema: { type: string }, description: "Nome, e-mail ou telefone." }
+        - name: tag
+          in: query
+          description: Etiqueta. Repita o parâmetro para várias (máx. 20).
+          schema: { type: array, items: { type: string }, maxItems: 20 }
+          style: form
+          explode: true
+        - { name: modo, in: query, schema: { type: string, enum: [e, ou] }, description: Combinação das etiquetas. }
+        - { name: source, in: query, schema: { type: string }, description: Origem do contato. }
+        - { name: pessoais, in: query, schema: { type: string, enum: ["true", "false"], default: "false" }, description: Incluir contatos marcados como pessoais. }
+        - { name: blocked, in: query, schema: { type: string, enum: ["yes", "no"] } }
+        - { name: cursor, in: query, schema: { type: string }, description: Valor de `meta.cursor` da página anterior. }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - name: order_by
+          in: query
+          schema: { type: string, enum: [last_activity_at, created_at, display_name, email, phone_number], default: last_activity_at }
+        - { name: order_dir, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        "200":
+          description: Página de contatos.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Contato" } }
+                  meta: { $ref: "#/components/schemas/MetaCursor" }
+              example:
+                data:
+                  - id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10
+                    organization_id: 9b2e4c7a-0d3f-4e1a-8b6c-5a4d3c2b1a00
+                    name: Maria Exemplo
+                    display_name: Maria Exemplo
+                    email: maria@exemplo.com
+                    phone_number: "5511900000000"
+                    cpf_available: false
+                    is_blocked: false
+                    is_personal: false
+                    is_anonymized: false
+                    tags: [erp]
+                    source: erp
+                    custom_fields: { codigo_cliente: "C-1001" }
+                    created_at: "2026-11-01T12:00:00Z"
+                    updated_at: "2026-11-01T12:00:00Z"
+                    last_activity_at: "2026-11-05T15:30:00Z"
+                meta: { cursor: eyJzb3J0IjoiMjAyNi0xMS0wNSIsImlkIjoiLi4uIn0, has_more: true }
+        "400": { $ref: "#/components/responses/CursorInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/contacts/{id}/avatar:
+    get:
+      tags: [Contatos]
+      operationId: redirecionarAvatarDoContato
+      summary: Foto do contato
+      description: |
+        Redireciona (307) para uma URL assinada, válida por 5 minutos, com a foto do
+        contato. Contato inexistente, sem foto ou anonimizado responde **404 com corpo
+        vazio** (sem JSON e sem `X-Request-Id`). Conta no teto de 30/min por token.
+      x-escopos: [contacts:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      responses:
+        "307":
+          description: Redirecionamento para a imagem.
+          headers:
+            Location: { schema: { type: string, format: uri }, description: URL assinada do storage. }
+            Cache-Control: { schema: { type: string }, example: "private, max-age=240" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { description: Sem foto disponível. Corpo vazio. }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+
+  # ───────────────────────────── Conversas ─────────────────────────────
+  /api/v1/conversations/open-with-contact:
+    post:
+      tags: [Conversas]
+      operationId: abrirConversaComContato
+      summary: Abrir conversa com um contato
+      description: |
+        Abre (ou reabre) a conversa 1:1 com um contato, por `contact_id` ou por
+        telefone. Se o telefone não tiver contato, o contato é criado. Sem
+        `channel_session_id`, o CRM escolhe a conexão de WhatsApp. Não envia mensagem:
+        use o `conversation_id` devolvido em `POST /api/v1/messages`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Informe `contact_id` ou `phone_number`.
+              properties:
+                contact_id: { type: string, format: uuid }
+                phone_number: { type: string, minLength: 8, maxLength: 32, description: Com DDI. }
+                name: { type: string, minLength: 1, maxLength: 200, description: "Nome do contato, se ele for criado agora." }
+                channel_session_id: { type: string, format: uuid, description: Conexão de WhatsApp a usar. }
+            example: { phone_number: "5511900000000", name: Maria Exemplo }
+      responses:
+        "200":
+          description: Conversa aberta.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [conversation_id, contact_id]
+                    properties:
+                      conversation_id: { type: string, format: uuid }
+                      contact_id: { type: string, format: uuid }
+              example: { data: { conversation_id: 7d0e2f4a-3c1b-4a9e-8f6d-1e2c3b4a5d60, contact_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10 } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/conversations/{id}/drafts:
+    post:
+      tags: [Conversas]
+      operationId: criarRascunhoNaConversa
+      summary: Sugerir rascunho de resposta
+      description: |
+        Cria um rascunho de resposta numa conversa e devolve o link para a caixa de
+        entrada. **Não envia nada**: um atendente revisa e envia pela tela.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [texto]
+              properties:
+                texto: { type: string, minLength: 1, maxLength: 4096 }
+                origem: { type: string, minLength: 1, maxLength: 64, default: integracao }
+                expira_em_horas: { type: integer, minimum: 1, maximum: 720, default: 24 }
+            example: { texto: "Olá! Seu pedido 12345 foi faturado e sai amanhã.", origem: erp }
+      responses:
+        "201":
+          description: Rascunho criado (ou recibo repetido da mesma Idempotency-Key).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [draft_id, url]
+                    properties:
+                      draft_id: { type: string, format: uuid }
+                      url: { type: string, description: Caminho relativo da caixa de entrada. }
+              example: { data: { draft_id: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d, url: "/app/inbox?id=7d0e2f4a-3c1b-4a9e-8f6d-1e2c3b4a5d60&rascunho=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d" } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/ConflitoDeIdempotencia" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+
+  /api/v1/conversations/{id}/media:
+    post:
+      tags: [Conversas]
+      operationId: subirMidiaDaConversa
+      summary: Subir arquivo para enviar
+      description: |
+        Primeiro passo para enviar mídia: sobe o arquivo (até 50 MB) para o storage
+        privado da conversa e devolve `storage_path`. Depois chame
+        `POST /api/v1/messages` com `media_storage_path` igual a esse valor.
+        Responde **200**, não 201.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: "Imagem, vídeo, áudio ou documento. Máx. 52.428.800 bytes." }
+                nota_de_voz: { type: string, enum: ["1"], description: Converte o áudio para nota de voz (opus). }
+      responses:
+        "200":
+          description: Arquivo gravado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [storage_path, media_mime, media_size_bytes, kind]
+                    properties:
+                      storage_path: { type: string }
+                      media_mime: { type: string }
+                      media_size_bytes: { type: integer }
+                      kind: { type: string, enum: [image, video, audio, document] }
+              example: { data: { storage_path: "9b2e.../7d0e.../out-1a2b.pdf", media_mime: application/pdf, media_size_bytes: 48213, kind: document } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "413": { $ref: "#/components/responses/MuitoGrande" }
+        "415": { $ref: "#/components/responses/TipoNaoSuportado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Mensagens ─────────────────────────────
+  /api/v1/messages:
+    post:
+      tags: [Mensagens]
+      operationId: enviarMensagem
+      summary: Enviar mensagem
+      description: |
+        Envia uma mensagem numa conversa (texto, mídia, cartão de contato ou template).
+
+        **201 não quer dizer entregue.** A linha volta com `status`, que pode ser
+        `queued` (canal fora do ar; ver `metadata.queued_reason`) ou `failed` (com
+        `error_code`). Falha do canal vira status, não erro HTTP.
+
+        **Janela de 24 h:** por token, fora da janela de atendimento só sai `template`;
+        os demais tipos recebem `422 janela_fechada`.
+
+        Para mídia: suba antes com `POST /api/v1/conversations/{id}/media` e passe
+        `media_storage_path`.
+      x-escopos: [mcp:write]
+      x-escopos-opcionais: { messages:on_behalf: "necessário para usar on_behalf_of_user_id" }
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnvioDeMensagem" }
+            examples:
+              texto:
+                summary: Texto simples
+                value: { conversation_id: 7d0e2f4a-3c1b-4a9e-8f6d-1e2c3b4a5d60, type: text, body: "Seu pedido 12345 foi faturado." }
+              documento:
+                summary: Documento já enviado por /media
+                value: { conversation_id: 7d0e2f4a-3c1b-4a9e-8f6d-1e2c3b4a5d60, type: document, body: "Segue a nota fiscal.", media_storage_path: "9b2e.../7d0e.../out-1a2b.pdf", media_mime: application/pdf }
+      responses:
+        "201":
+          description: Mensagem registrada (ver `status`).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Mensagem" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/ConflitoDeIdempotencia" }
+        "422":
+          description: |
+            Validação ou regra de envio. Códigos: `validation_error`, `janela_fechada`,
+            `unsafe_media_url`, `invalid_media_path`, `contact_anonymized`,
+            `missing_phone_number`, `invalid_payload`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+              example:
+                error:
+                  code: janela_fechada
+                  message: A janela de 24 h desta conversa está fechada. Use um template.
+                  details: { use: template, codigo_plataforma: "131047" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Leads ─────────────────────────────
+  /api/v1/leads/{id}:
+    patch:
+      tags: [Leads]
+      operationId: atualizarLead
+      summary: Atualizar card do funil
+      description: |
+        Atualiza um lead (card). Envie só os campos que mudam. Um lead tem um único
+        dono: `owner_user_id` **ou** `owner_agent_id`. `custom_fields` é validado
+        contra os campos do funil.
+
+        Para **mudar de etapa** use a ferramenta MCP `crm_move_lead_stage`; esta rota
+        não recebe `stage_id`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AtualizacaoDeLead" }
+            example: { value_cents: 150000, currency: BRL, tags: [erp, faturado], custom_fields: { pedido: "12345" } }
+      responses:
+        "200":
+          description: Lead atualizado (linha completa de `crm_leads`).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Lead" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422":
+          description: |
+            Validação. Códigos: `validation_error`, `validation_failed`,
+            `custom_field_pattern_invalid`, `custom_field_pattern_mismatch`,
+            `custom_field_value_not_in_list`.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Agenda ─────────────────────────────
+  /api/v1/agenda/agendamentos:
+    post:
+      tags: [Agenda]
+      operationId: marcarCompromisso
+      summary: Marcar compromisso
+      description: |
+        Marca um compromisso num horário livre de um tipo de atendimento. Por token,
+        só marca **dentro da grade livre**. A listagem (`GET`) desta rota só aceita
+        sessão de navegador.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: ai_operator
+      x-observacao: Na tela de tokens isso significa marcar role:manager ou role:admin.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MarcacaoDeCompromisso" }
+            example: { event_type_id: 2c4e6a8b-0d1f-4a3c-9e5b-7d9f1a3c5e70, starts_at: "2026-11-20T14:00:00-03:00", contact_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10, notes: "Visita técnica do pedido 12345" }
+      responses:
+        "201":
+          description: Compromisso criado. Com `participants`, inclui `appointments`.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Compromisso" }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/ConflitoDeIdempotencia" }
+        "422":
+          description: |
+            Validação ou agenda. Códigos incluem `validation_failed`,
+            `agenda_horario_indisponivel`, `agenda_fora_da_jornada`,
+            `agenda_sem_responsavel`, `agenda_tipo_desativado`,
+            `agenda_duracao_invalida`, `agenda_duracao_do_servico`,
+            `agenda_equipe_no_servico`, `agenda_disponibilidade_invalida`.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Agenda]
+      operationId: alterarCompromisso
+      summary: Remarcar ou alterar compromisso
+      description: |
+        Altera um compromisso. O `id` vai **no corpo**. Informe pelo menos um de:
+        `confirmation_next_at`, `starts_at`, `status`, `notes`, `guest_email`,
+        `team_guest_user_ids`, `title`. Por token não dá para registrar presença
+        (`completed`/`no_show`). Sem mudança, devolve `{ id, inalterado: true }`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: ai_operator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string, format: uuid }
+                revision: { type: integer, minimum: 1, description: "Se divergir da atual, 409." }
+                outcome_message_id: { type: string, format: uuid }
+                confirmation_next_at: { type: string, format: date-time }
+                starts_at: { type: string, format: date-time, description: Remarca mantendo a duração. }
+                status: { type: string, enum: [confirmed, completed, no_show] }
+                notes: { type: string, maxLength: 2000 }
+                guest_email: { type: string, description: E-mail do convidado; "" remove. }
+                team_guest_user_ids: { type: array, items: { type: string, format: uuid }, maxItems: 20 }
+                title: { type: string, minLength: 1, maxLength: 200 }
+            example: { id: 5e7a9c1b-3d5f-4b7a-9c1e-3f5a7b9c1d20, starts_at: "2026-11-21T10:00:00-03:00" }
+      responses:
+        "200":
+          description: Compromisso alterado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Compromisso" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    delete:
+      tags: [Agenda]
+      operationId: cancelarCompromisso
+      summary: Cancelar compromisso
+      description: |
+        Cancela um compromisso. **DELETE com corpo JSON** (`id` e `reason`). Cancelar
+        de novo não é erro: devolve `{ id, status: "cancelled", ja_estava: true }`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: ai_operator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, reason]
+              properties:
+                id: { type: string, format: uuid }
+                revision: { type: integer, minimum: 1 }
+                reason: { type: string, minLength: 3, maxLength: 500 }
+            example: { id: 5e7a9c1b-3d5f-4b7a-9c1e-3f5a7b9c1d20, reason: Pedido cancelado no ERP }
+      responses:
+        "200":
+          description: Compromisso cancelado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Compromisso" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/agenda/tipos:
+    get:
+      tags: [Agenda]
+      operationId: listarTiposDeAgendamento
+      summary: Listar tipos de agendamento
+      description: Lista os tipos de agendamento, inclusive os desativados. Use o `id` em `event_type_id` ao marcar.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      responses:
+        "200":
+          description: Tipos.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/TipoDeAgendamento" } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Agenda]
+      operationId: criarTipoDeAgendamento
+      summary: Criar tipo de agendamento
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CriacaoDeTipoDeAgendamento" }
+            example: { name: Visita técnica, category: visita, duration_minutes: 60, location_kind: in_person }
+      responses:
+        "201":
+          description: Tipo criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      slug: { type: string }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Agenda]
+      operationId: alterarTipoDeAgendamento
+      summary: Alterar tipo de agendamento
+      description: O `id` vai no corpo. Todos os campos da criação são opcionais aqui; não muda `is_active` nem o slug.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [id]
+                  properties:
+                    id: { type: string, format: uuid }
+                    reminder_body: { type: [string, "null"], maxLength: 1000 }
+                    reminder_bodies:
+                      type: object
+                      description: Texto por antecedência em minutos (chave numérica).
+                      additionalProperties: { type: string, maxLength: 1000 }
+                - $ref: "#/components/schemas/CamposDeTipoDeAgendamento"
+            example: { id: 2c4e6a8b-0d1f-4a3c-9e5b-7d9f1a3c5e70, duration_minutes: 90 }
+      responses:
+        "200":
+          description: Tipo alterado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/RespostaComId" } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    delete:
+      tags: [Agenda]
+      operationId: desativarTipoDeAgendamento
+      summary: Desativar tipo de agendamento
+      description: Desativa (não apaga) o tipo. **DELETE com corpo JSON** `{ id }`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Tipo desativado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/RespostaComId" } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/agenda/servicos:
+    post:
+      tags: [Agenda]
+      operationId: comandarServicoDeAgenda
+      summary: Configurar serviço de agenda
+      description: |
+        Comando único discriminado por `action`: `configure`, `block`,
+        `block_preview`, `unblock`, `resource`, `refresh`. A leitura (`GET`) desta
+        rota só aceita sessão de navegador. A forma de `data` depende da ação.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComandoDeServico" }
+            example:
+              action: block
+              input:
+                operation_key: 8f1e3d5c-7b9a-4c2e-8d6f-0a2c4e6f8a10
+                scope_kind: service
+                event_type_id: 2c4e6a8b-0d1f-4a3c-9e5b-7d9f1a3c5e70
+                starts_at: "2026-12-24T00:00:00-03:00"
+                ends_at: "2026-12-26T00:00:00-03:00"
+                reason: Recesso de fim de ano
+      responses:
+        "200":
+          description: Resultado do comando.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Prospecção ─────────────────────────────
+  /api/v1/prospecting:
+    get:
+      tags: [Prospecção]
+      operationId: lerProspeccao
+      summary: Estado da prospecção
+      description: Campanhas, candidatos, agentes, canais e etapas disponíveis para prospecção.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: admin
+      parameters:
+        - { name: ordenar, in: query, schema: { type: string, enum: [score] } }
+      responses:
+        "200":
+          description: Estado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      configured: { type: boolean }
+                      campaigns: { type: array, items: { type: object, additionalProperties: true }, maxItems: 50 }
+                      candidates: { type: array, items: { type: object, additionalProperties: true }, maxItems: 5000 }
+                      previa_padrao: { type: boolean }
+                      personalizacao: { type: object, additionalProperties: true }
+                      agents: { type: array, items: { type: object, properties: { id: { type: string, format: uuid }, name: { type: string } } } }
+                      channels: { type: array, items: { type: object, additionalProperties: true } }
+                      stages: { type: array, items: { type: object, properties: { id: { type: string }, name: { type: string }, pipeline_id: { type: string }, pipeline_name: { type: string } } } }
+                      organization_locale: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Prospecção]
+      operationId: comandarProspeccao
+      summary: Ação de prospecção
+      description: |
+        Comando discriminado por `action`. **Por token só são aceitas `configure`,
+        `search` e `pause`**; as demais respondem 403 e são feitas pela tela.
+        Corpo **estrito**: campo a mais responde 422.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [action, api_key]
+                  properties:
+                    action: { const: configure }
+                    api_key: { type: string, minLength: 10, maxLength: 500 }
+                - type: object
+                  additionalProperties: false
+                  required: [action, search, request_id]
+                  properties:
+                    action: { const: search }
+                    request_id: { type: string, format: uuid }
+                    search:
+                      type: object
+                      additionalProperties: false
+                      required: [name, niche, location]
+                      properties:
+                        name: { type: string, minLength: 2, maxLength: 120 }
+                        niche: { type: string, minLength: 2, maxLength: 120 }
+                        location: { type: string, minLength: 2, maxLength: 160 }
+                        limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+                        budget_usd: { type: number, minimum: 0.5, maximum: 10, default: 1 }
+                        enrich: { type: boolean, default: true }
+                        avaliar_site: { type: boolean, default: true }
+                        gerar_previa: { type: boolean, default: true }
+                - type: object
+                  additionalProperties: false
+                  required: [action, id]
+                  properties:
+                    action: { const: pause }
+                    id: { type: string, format: uuid }
+              discriminator: { propertyName: action }
+            example: { action: pause, id: 4b6d8f0a-2c4e-4a6b-8d0f-2a4c6e8a0b12 }
+      responses:
+        "200":
+          description: Resultado da ação.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, additionalProperties: true }
+              example: { data: { paused: true } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Agentes de IA ─────────────────────────────
+  /api/v1/ai/agents:
+    get:
+      tags: [Agentes de IA]
+      operationId: listarAgentes
+      summary: Listar agentes de IA
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: manager
+      parameters:
+        - { name: include_archived, in: query, schema: { type: string, enum: ["true"] }, description: Inclui arquivados. }
+      responses:
+        "200":
+          description: Agentes, mais novos primeiro.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Agente" } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Agentes de IA]
+      operationId: criarAgente
+      summary: Criar agente de IA
+      description: |
+        Dois formatos de corpo, ambos estritos:
+        - **Com `version`**: cria o agente e a versão 1 em rascunho. Resposta `{ agent, version }`.
+        - **Legado** (sem `version`): `name`, `description`, `model`, `system_prompt`. Resposta = o agente.
+
+        Nada é publicado: use `/publish` depois.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [name, version]
+                  properties:
+                    name: { type: string, minLength: 1, maxLength: 120 }
+                    description: { type: string, maxLength: 2000 }
+                    priority: { type: integer, minimum: 0, maximum: 1000, default: 0 }
+                    version: { $ref: "#/components/schemas/VersaoDoAgente" }
+                - type: object
+                  additionalProperties: false
+                  required: [name]
+                  properties:
+                    name: { type: string, minLength: 2, maxLength: 120 }
+                    description: { type: [string, "null"], maxLength: 500 }
+                    model: { type: string, enum: [anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5, anthropic/claude-opus-4-7] }
+                    system_prompt: { type: string, minLength: 20, maxLength: 10000 }
+            example:
+              name: Atendimento de pedidos
+              version:
+                system_prompt: Você atende clientes sobre o status de pedidos.
+                provider: anthropic
+                model: claude-sonnet-4-6
+                credential_id: null
+                channel_session_id: null
+      responses:
+        "201":
+          description: Agente criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    oneOf:
+                      - type: object
+                        properties:
+                          agent: { $ref: "#/components/schemas/Agente" }
+                          version: { $ref: "#/components/schemas/VersaoGravada" }
+                      - $ref: "#/components/schemas/Agente"
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/agents/{id}:
+    get:
+      tags: [Agentes de IA]
+      operationId: lerAgente
+      summary: Ler agente de IA
+      x-escopos: [config:read]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Agente.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/Agente" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Agentes de IA]
+      operationId: alterarAgente
+      summary: Alterar agente de IA
+      description: |
+        Altera dados do agente. Com versão publicada, `model` e `system_prompt` são
+        recusados (`409 state_conflict`): crie uma versão nova. Corpo estrito.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                description: { type: [string, "null"], maxLength: 500 }
+                is_active: { type: boolean }
+                priority: { type: integer, minimum: 0, maximum: 1000 }
+                operation_mode: { type: string, enum: [automatic, assisted] }
+                paused_at: { type: [string, "null"], format: date-time }
+                model: { type: string, enum: [anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5, anthropic/claude-opus-4-7] }
+                system_prompt: { type: string, minLength: 20, maxLength: 10000 }
+                config: { type: object, additionalProperties: true, description: "Mescla parcial: temperature, max_tokens, rag_top_k, knowledge_mode etc." }
+                guardrails: { type: array, maxItems: 50, items: { type: object, additionalProperties: true } }
+            example: { paused_at: "2026-11-09T18:00:00Z" }
+      responses:
+        "200":
+          description: Agente alterado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/Agente" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    delete:
+      tags: [Agentes de IA]
+      operationId: arquivarAgente
+      summary: Desativar ou arquivar agente
+      description: Arquiva o agente e tira a publicação. O agente padrão da organização não pode ser desativado (409).
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Agente desativado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      archived: { type: boolean }
+                      is_active: { const: false }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/agents/{id}/publish:
+    post:
+      tags: [Agentes de IA]
+      operationId: publicarVersaoDoAgente
+      summary: Publicar versão
+      description: Publica uma versão em rascunho; a anterior vira `superseded`. A partir daí o agente responde clientes.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version_id]
+              properties:
+                version_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Publicado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      agent_id: { type: string, format: uuid }
+                      version_id: { type: string, format: uuid }
+                      previous_version_id: { type: [string, "null"], format: uuid }
+                      published_at: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422":
+          description: |
+            A versão não pode ser publicada. Códigos: `validation_failed`, `tool_id_invalid`,
+            `agent_archived`, `version_invalid_state`, `existing_version_requires_review`,
+            `credential_missing`, `credential_not_found`, `credential_inactive`,
+            `credential_not_validated`, `credential_provider_mismatch`,
+            `channel_session_not_found`, `channel_session_offline`, `model_not_found`.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/agents/{id}/versions:
+    get:
+      tags: [Agentes de IA]
+      operationId: listarVersoesDoAgente
+      summary: Listar versões
+      description: Versões do agente, da mais nova para a mais antiga. Agente inexistente devolve lista vazia.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: manager
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Versões.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: "#/components/schemas/VersaoGravada" } } } } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Agentes de IA]
+      operationId: criarVersaoDoAgente
+      summary: Criar versão em rascunho
+      description: O corpo é a configuração inteira da versão, sem envelope. Corpo estrito.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VersaoDoAgente" }
+      responses:
+        "201":
+          description: Versão criada em rascunho.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/VersaoGravada" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/agents/{id}/versions/{vid}:
+    get:
+      tags: [Agentes de IA]
+      operationId: lerVersaoDoAgente
+      summary: Ler versão
+      x-escopos: [config:read]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }, { $ref: "#/components/parameters/VidUuid" }]
+      responses:
+        "200":
+          description: Versão.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/VersaoGravada" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Agentes de IA]
+      operationId: alterarVersaoDoAgente
+      summary: Alterar versão em rascunho
+      description: |
+        Só versões `draft` mudam (senão `409 version_immutable`). Envie só os campos
+        que mudam; `followup` é mesclado. `operator_*` é aceito mas ignorado.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }, { $ref: "#/components/parameters/VidUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf: [{ $ref: "#/components/schemas/CamposDaVersaoDoAgente" }]
+              minProperties: 1
+              description: Mesmos campos da criação, todos opcionais. Corpo estrito.
+            example: { system_prompt: Você atende clientes sobre pedidos e notas fiscais. }
+      responses:
+        "200":
+          description: Versão alterada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/VersaoGravada" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/agents/{id}/versions/{vid}/test:
+    post:
+      tags: [Agentes de IA]
+      operationId: testarVersaoDoAgente
+      summary: Testar versão
+      description: Roda a versão sobre uma mensagem de exemplo, sem enviar nada a ninguém. Cada chamada consome o modelo de IA.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }, { $ref: "#/components/parameters/VidUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sample_message]
+              properties:
+                sample_message: { type: string, minLength: 1, maxLength: 4000 }
+                sample_contact:
+                  type: object
+                  properties:
+                    name: { type: string, minLength: 1, maxLength: 120 }
+                    phone: { type: string, minLength: 3, maxLength: 40 }
+                sample_tags: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
+            example: { sample_message: "Meu pedido 12345 já saiu?" }
+      responses:
+        "200":
+          description: Resultado da prévia.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      run_id: { type: string, format: uuid }
+                      status: { type: string, enum: [ok, blocked] }
+                      latency_ms: { type: number }
+                      final_text: { type: string }
+                      tool_calls: { type: array, items: { type: object, additionalProperties: true } }
+                      guardrails: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+        "502": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Follow-up ─────────────────────────────
+  /api/v1/ai/followup-flows:
+    get:
+      tags: [Follow-up]
+      operationId: listarFluxosDeFollowup
+      summary: Listar fluxos de follow-up
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: surface, in: query, schema: { type: string, enum: [atendimento] }, description: "`atendimento` lista roteiros de atendimento; ausente lista os demais." }
+      responses:
+        "200":
+          description: Fluxos.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        status: { type: string, enum: [draft, active, disabled] }
+                        active_version_id: { type: [string, "null"], format: uuid }
+                        handoff_policy: { type: string, enum: [pause, cancel, allow] }
+                        updated_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Follow-up]
+      operationId: criarFluxoDeFollowup
+      summary: Criar fluxo de follow-up
+      description: Cria o fluxo em rascunho. Corpo estrito.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                surface: { type: string, enum: [followup, crm_automation, atendimento] }
+            example: { name: Cobrança de orçamento }
+      responses:
+        "201":
+          description: Fluxo criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/FluxoDeFollowup" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/followup-flows/from-model:
+    post:
+      tags: [Follow-up]
+      operationId: instalarModeloDeFollowup
+      summary: Instalar modelo pronto
+      description: |
+        Instala um modelo do catálogo como rascunho, sem publicar. Modelos que pedem
+        etapa exigem `stage_id`: `clinica-exame-marcar`, `clinica-cirurgia-decisao`.
+        Não pedem: `clinica-consulta-retomada`, `clinica-falta-remarcar`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [model_id]
+              properties:
+                model_id: { type: string, minLength: 1, maxLength: 80 }
+                stage_id: { type: string, format: uuid }
+                name: { type: string, minLength: 1, maxLength: 80 }
+            example: { model_id: clinica-consulta-retomada }
+      responses:
+        "201":
+          description: Fluxo instalado em rascunho.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/FluxoDeFollowup" } } } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Roteadores de IA ─────────────────────────────
+  /api/v1/ai/routers:
+    get:
+      tags: [Roteadores de IA]
+      operationId: listarRoteadores
+      summary: Listar roteadores de IA
+      x-escopos: [config:read]
+      x-papel-minimo-do-token: admin
+      responses:
+        "200":
+          description: Roteadores.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      routers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            channel_session_id: { type: string, format: uuid }
+                            is_active: { type: boolean }
+                            fallback_agent_id: { type: [string, "null"], format: uuid }
+                            updated_at: { type: string, format: date-time }
+                            member_count: { type: integer }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Roteadores de IA]
+      operationId: criarRoteador
+      summary: Criar roteador de IA
+      description: Um roteador escolhe qual agente responde numa conexão de WhatsApp. Só um ativo por conexão.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, channel_session_id]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                channel_session_id: { type: string, format: uuid }
+                fallback_agent_id: { type: [string, "null"], format: uuid }
+                config:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    context_message_count: { type: integer, minimum: 0, maximum: 16, default: 8 }
+      responses:
+        "201":
+          description: Roteador criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/RespostaComId" } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/routers/{id}:
+    get:
+      tags: [Roteadores de IA]
+      operationId: lerRoteador
+      summary: Ler roteador e intenções
+      x-escopos: [config:read]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Roteador e membros (intenções).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      router: { type: object, additionalProperties: true }
+                      members: { type: array, items: { $ref: "#/components/schemas/MembroDoRoteador" } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Roteadores de IA]
+      operationId: alterarRoteador
+      summary: Alterar roteador
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                is_active: { type: boolean }
+                fallback_agent_id: { type: [string, "null"], format: uuid }
+                config:
+                  type: object
+                  additionalProperties: true
+                  description: Mescla rasa sobre a atual. Aceita `context_message_count` (0–16) e `sender_routes` (até 100 `{ phone, agent_id }`).
+      responses:
+        "200":
+          description: Roteador alterado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/RespostaComId" } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    delete:
+      tags: [Roteadores de IA]
+      operationId: apagarRoteador
+      summary: Apagar roteador
+      description: Apaga o roteador e as intenções dele. Responde 200 com `{ id }`.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Apagado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/RespostaComId" } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/routers/{id}/members:
+    put:
+      tags: [Roteadores de IA]
+      operationId: substituirIntencoesDoRoteador
+      summary: Substituir intenções
+      description: Substitui a lista **inteira** de intenções. A ordem do array é a prioridade.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  items:
+                    type: object
+                    required: [agent_id, intent_name, intent_description]
+                    properties:
+                      agent_id: { type: string, format: uuid }
+                      intent_name: { type: string, minLength: 1, maxLength: 120 }
+                      intent_description: { type: string, minLength: 1, maxLength: 2000 }
+                      examples: { type: array, items: { type: string }, default: [] }
+                      flow_pointer_id: { type: [string, "null"], format: uuid }
+                      pipeline_id: { type: [string, "null"], format: uuid }
+                      stage_id: { type: [string, "null"], format: uuid, description: Exige pipeline_id. }
+      responses:
+        "200":
+          description: Intenções gravadas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, properties: { count: { type: integer } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/ai/routers/{id}/test:
+    post:
+      tags: [Roteadores de IA]
+      operationId: testarRoteador
+      summary: Simular roteamento
+      description: Diz qual intenção e agente o roteador escolheria para uma frase. Não grava decisão nem conversa.
+      x-escopos: [config:write]
+      x-papel-minimo-do-token: admin
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, minLength: 1, maxLength: 4000 }
+            example: { message: Quero a segunda via do boleto }
+      responses:
+        "200":
+          description: Simulação.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ia_consultada: { type: boolean }
+                      modo_roteador: { type: string }
+                      intent_name: { type: [string, "null"] }
+                      confidence: { type: [number, "null"] }
+                      min_confidence: { type: number }
+                      agent_id: { type: [string, "null"], format: uuid }
+                      agent_name: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Webhook de entrada ─────────────────────────────
+  /api/v1/webhooks/in/{token}:
+    post:
+      tags: [Webhook de entrada]
+      operationId: captarLeadPorWebhook
+      summary: Criar lead (card) por webhook
+      description: |
+        Cria contato e lead no funil e etapa configurados na fonte (tela **Webhooks**).
+        **Não usa Bearer**: quem autentica é o token do caminho, mais a assinatura
+        opcional.
+
+        **Mapeamento** (nomes sem diferença de maiúsculas; o mapa da fonte vem antes):
+        - nome: `name`, `nome`, `full_name`, `fullname`
+        - telefone: `phone`, `telefone`, `whatsapp`, `celular`, `phone_number`, `tel`
+        - e-mail: `email`, `e-mail`, `mail`
+        - `utm_*`, `gclid`, `fbclid` etc. vão para a origem; o resto (texto, número,
+          booleano) vira campo personalizado. Objetos e listas aninhados são ignorados.
+
+        **Campos reservados:** `external_id` (até 255; reenviar o mesmo id devolve o
+        lead existente, sem duplicar) e `stage` (id ou nome da etapa; só avança).
+
+        Pelo menos um de nome, telefone ou e-mail é obrigatório.
+
+        **Assinatura** (só se a fonte tiver segredo): cabeçalho `X-Deskcomm-Signature`
+        = HMAC-SHA256 em hex minúsculo do **corpo cru**, com o segredo da fonte. Sem
+        prefixo.
+
+        Limite: 60 requisições por minuto por token.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, minLength: 8 }
+          description: Token da fonte de webhook (copie da tela).
+        - name: X-Deskcomm-Signature
+          in: header
+          required: false
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+          description: Obrigatório quando a fonte tem segredo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                email: { type: string, format: email }
+                external_id: { type: string, maxLength: 255 }
+                stage: { type: string }
+            example: { name: Maria Exemplo, phone: "5511900000000", email: maria@exemplo.com, external_id: "PED-12345", pedido: "12345", valor: 1500 }
+          application/x-www-form-urlencoded:
+            schema: { type: object, additionalProperties: { type: string } }
+      responses:
+        "200":
+          description: Lead criado (ou existente, no reenvio com o mesmo `external_id`).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      lead_id: { type: string, format: uuid }
+              example: { data: { lead_id: 6c8e0a2b-4d6f-4b8a-9c0e-2b4d6f8a0c14 } }
+        "303":
+          description: Envio de formulário (`x-www-form-urlencoded`) numa fonte com página de retorno configurada.
+          headers: { Location: { schema: { type: string, format: uri } } }
+        "400": { $ref: "#/components/responses/RequisicaoInvalida" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── MCP ─────────────────────────────
+  /api/mcp:
+    post:
+      tags: [MCP]
+      operationId: chamarMcp
+      summary: Servidor MCP (JSON-RPC 2.0)
+      description: |
+        Servidor [MCP](https://modelcontextprotocol.io) em Streamable HTTP, **sem
+        sessão** (cada requisição é independente). Expõe o CRM como ferramentas, e é
+        por aqui que um token **cria card** (`crm_create_lead`), **muda etapa**
+        (`crm_move_lead_stage`) e lista funis (`crm_list_pipelines`,
+        `crm_list_stages`).
+
+        Envie `Accept: application/json, text/event-stream`. Métodos usuais:
+        `tools/list` (lista as ferramentas com o esquema de cada uma) e `tools/call`.
+
+        **Erros:** falha de autenticação volta como erro JSON-RPC (`-32001` com HTTP
+        401; `-32004` com HTTP 429). Erro **dentro** de uma ferramenta (falta de
+        escopo, papel, limite, validação) volta com **HTTP 200** e
+        `result.isError: true`, com a explicação em `result.content[0].text`.
+
+        Escopo por ferramenta: leitura exige `mcp:read`, escrita exige `mcp:write`.
+        Limites: 60 chamadas/min por token, 30 escritas/min por token, 600/min por
+        organização.
+      x-escopos: [mcp:read, mcp:write]
+      parameters:
+        - name: Accept
+          in: header
+          required: true
+          schema: { type: string, example: "application/json, text/event-stream" }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JsonRpcRequisicao" }
+            examples:
+              listarFerramentas:
+                summary: Listar ferramentas
+                value: { jsonrpc: "2.0", id: 1, method: tools/list }
+              criarCard:
+                summary: Criar card no funil
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: tools/call
+                  params:
+                    name: crm_create_lead
+                    arguments:
+                      pipeline_id: 0a2c4e6f-8b0d-4f2a-9c4e-6a8c0e2a4b16
+                      stage_id: 1b3d5f7a-9c1e-4a3b-8d5f-7b9d1f3a5c18
+                      title: Pedido 12345 - Maria Exemplo
+                      contact_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10
+                      value_cents: 150000
+                      tags: [erp]
+                      source: erp
+                      custom_fields: { pedido: "12345" }
+              moverEtapa:
+                summary: Mover card de etapa
+                value:
+                  jsonrpc: "2.0"
+                  id: 3
+                  method: tools/call
+                  params:
+                    name: crm_move_lead_stage
+                    arguments: { lead_id: 6c8e0a2b-4d6f-4b8a-9c0e-2b4d6f8a0c14, to_stage_id: 1b3d5f7a-9c1e-4a3b-8d5f-7b9d1f3a5c18, reason: Pedido faturado no ERP }
+      responses:
+        "200":
+          description: Resposta JSON-RPC (em JSON ou em `text/event-stream`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JsonRpcResposta" }
+            text/event-stream:
+              schema: { type: string }
+        "400":
+          description: "`Idempotency-Key` fora do formato UUID (JSON-RPC `-32602`)."
+          content: { application/json: { schema: { $ref: "#/components/schemas/JsonRpcResposta" } } }
+        "401":
+          description: Token ausente, inválido, revogado ou expirado (JSON-RPC `-32001`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/JsonRpcResposta" } } }
+        "429":
+          description: Muitas falhas de autenticação (JSON-RPC `-32004`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/JsonRpcResposta" } } }
+        "500":
+          description: Erro interno (JSON-RPC `-32603`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/JsonRpcResposta" } } }
+
+components:
+  securitySchemes:
+    bearerDsk:
+      type: http
+      scheme: bearer
+      bearerFormat: "dsk_…"
+      description: Token de **Configurações › API Tokens**. Os escopos de cada operação estão em `x-escopos`.
+
+  headers:
+    XRequestId:
+      description: Identificador da requisição, o mesmo do registro e da auditoria.
+      schema: { type: string }
+    RetryAfter:
+      description: Segundos até poder tentar de novo.
+      schema: { type: integer, example: 60 }
+
+  parameters:
+    IdUuid:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    VidUuid:
+      name: vid
+      in: path
+      required: true
+      description: Id da versão.
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        UUID gerado por você. Repetir a mesma chave com o mesmo corpo em até 24 h
+        devolve a resposta original sem repetir o efeito; com corpo diferente, 409.
+      schema: { type: string, format: uuid }
+
+  responses:
+    RequisicaoInvalida:
+      description: Requisição malformada (`invalid_request`, `body_malformed`, `validation_error`).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: invalid_request, message: Body JSON inválido. } } } }
+    CorpoMalformado:
+      description: JSON ilegível (`body_malformed`) ou `Idempotency-Key` fora do formato UUID.
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: body_malformed, message: JSON inválido. } } } }
+    CursorInvalido:
+      description: Cursor de paginação inválido (`invalid_cursor`).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    NaoAutenticado:
+      description: Token ausente, com formato errado, desconhecido, revogado ou expirado (`unauthenticated`).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: unauthenticated, message: Token not recognized. } } } }
+    Proibido:
+      description: |
+        `forbidden_role` (falta escopo ou papel no token), `org_suspended` (conta
+        suspensa) ou `forbidden` (regra de negócio, como contato pessoal ou bloqueado).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: forbidden_role, message: "Token missing required scope 'mcp:write'." } } } }
+    NaoEncontrado:
+      description: Recurso inexistente **nesta organização** (`not_found` ou código específico).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: not_found, message: Conversa não encontrada. } } } }
+    Conflito:
+      description: Estado não permite a operação (`conflict`, `state_conflict`, nome repetido etc.).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    ConflitoDeIdempotencia:
+      description: "`idempotency_conflict` (mesma chave, corpo diferente) ou `idempotency_in_progress`."
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    Validacao:
+      description: Campos inválidos (`validation_failed` ou `validation_error`), com detalhes por campo quando disponíveis.
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+          example: { error: { code: validation_error, message: Dados inválidos., details: { fieldErrors: { conversation_id: ["Invalid uuid"] } } } }
+    MuitoGrande:
+      description: Arquivo acima de 50 MB (`payload_too_large`).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    TipoNaoSuportado:
+      description: Tipo de arquivo não aceito (`unsupported_media_type`).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+    LimiteExcedido:
+      description: Teto de requisições (`rate_limited`). Espere o `Retry-After`.
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+        X-Request-Id: { $ref: "#/components/headers/XRequestId" }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" }, example: { error: { code: rate_limited, message: Too many requests. } } } }
+    ErroInterno:
+      description: Falha do servidor (`internal_error` ou código específico).
+      headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+
+  schemas:
+    Erro:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+
+    MetaCursor:
+      type: object
+      properties:
+        cursor: { type: [string, "null"] }
+        has_more: { type: boolean }
+
+    RespostaComId:
+      type: object
+      properties:
+        data:
+          type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+
+    Contato:
+      type: object
+      additionalProperties: true
+      required: [id, organization_id]
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: [string, "null"] }
+        display_name: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        phone_number: { type: [string, "null"] }
+        additional_phones: { type: [array, "null"], items: {} }
+        zip_code: { type: [string, "null"] }
+        street: { type: [string, "null"] }
+        number: { type: [string, "null"] }
+        complement: { type: [string, "null"] }
+        district: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        cpf_available: { type: boolean, description: O CPF em si nunca sai. }
+        birthdate: { type: [string, "null"], format: date }
+        is_blocked: { type: boolean }
+        blocked_reason: { type: [string, "null"] }
+        is_personal: { type: boolean }
+        ai_opt_out: { type: boolean }
+        is_anonymized: { type: boolean }
+        tags: { type: array, items: { type: string } }
+        source: { type: [string, "null"] }
+        source_metadata: { type: [object, "null"], additionalProperties: true }
+        custom_fields: { type: [object, "null"], additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_activity_at: { type: [string, "null"], format: date-time }
+        conversa:
+          type: [object, "null"]
+          properties:
+            id: { type: string, format: uuid }
+            preview: { type: [string, "null"] }
+            last_message_at: { type: [string, "null"], format: date-time }
+            unread: { type: [integer, boolean] }
+
+    EnvioDeMensagem:
+      type: object
+      required: [conversation_id]
+      description: Exige `body`, `media_url` ou `media_storage_path` (exceto `contact`, que usa `metadata`).
+      properties:
+        conversation_id: { type: string, format: uuid }
+        type: { type: string, enum: [text, image, audio, document, sticker, video, location, contact, template], default: text }
+        body: { type: string, minLength: 1, maxLength: 4096 }
+        media_url: { type: string, format: uri, description: URL pública (passa por proteção anti-SSRF). Prefira media_storage_path. }
+        media_storage_path: { type: string, minLength: 1, maxLength: 500, description: "Valor devolvido por /conversations/{id}/media." }
+        media_mime: { type: string }
+        media_size_bytes: { type: integer, minimum: 1 }
+        metadata:
+          type: object
+          additionalProperties: true
+          description: "Para `contact`: `shared_contact_id` ou `shared_contact: { name, phone_number }`."
+        template_name: { type: string, minLength: 1, maxLength: 512 }
+        template_language: { type: string, minLength: 2, maxLength: 16 }
+        template_values: { type: object, additionalProperties: { type: string } }
+        reply_to_message_id: { type: string, format: uuid, description: Mensagem desta conversa a citar. }
+        on_behalf_of_user_id: { type: string, format: uuid, description: Exige o escopo messages:on_behalf; o usuário precisa ser atendente ativo. }
+
+    Mensagem:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        channel_session_id: { type: [string, "null"], format: uuid }
+        contact_id: { type: string, format: uuid }
+        external_id: { type: [string, "null"] }
+        type: { type: string }
+        direction: { type: string, const: outbound }
+        status: { type: string, description: "Ex.: sending, queued, sent, delivered, read, failed." }
+        error_code: { type: [string, "null"] }
+        error_message: { type: [string, "null"] }
+        body: { type: [string, "null"] }
+        media_storage_path: { type: [string, "null"] }
+        media_mime: { type: [string, "null"] }
+        metadata: { type: [object, "null"], additionalProperties: true }
+        sent_via: { type: [string, "null"] }
+        sent_at: { type: [string, "null"], format: date-time }
+        delivered_at: { type: [string, "null"], format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+      example:
+        id: 0e2a4c6e-8a0c-4e2a-9c6e-0a2c4e6a8c20
+        conversation_id: 7d0e2f4a-3c1b-4a9e-8f6d-1e2c3b4a5d60
+        type: text
+        direction: outbound
+        status: sending
+        body: Seu pedido 12345 foi faturado.
+        created_at: "2026-11-09T18:00:00Z"
+
+    AtualizacaoDeLead:
+      type: object
+      properties:
+        title: { type: string, minLength: 2, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        contact_id: { type: [string, "null"], format: uuid }
+        value_cents: { type: [integer, "null"], minimum: 0 }
+        recurring_value_cents: { type: [integer, "null"], minimum: 0 }
+        recurring_period: { type: [string, "null"], enum: [monthly, null] }
+        recurring_months: { type: [integer, "null"], minimum: 1, maximum: 600 }
+        currency: { type: string, minLength: 3, maxLength: 3, description: ISO-4217. }
+        owner_user_id: { type: [string, "null"], format: uuid }
+        owner_agent_id: { type: [string, "null"], format: uuid }
+        expected_close_date: { type: [string, "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        tags: { type: array, items: { type: string } }
+        custom_fields: { type: object, additionalProperties: true }
+
+    Lead:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        pipeline_id: { type: string, format: uuid }
+        stage_id: { type: string, format: uuid }
+        contact_id: { type: [string, "null"], format: uuid }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        value_cents: { type: [integer, "null"] }
+        currency: { type: string }
+        owner_user_id: { type: [string, "null"], format: uuid }
+        owner_agent_id: { type: [string, "null"], format: uuid }
+        expected_close_date: { type: [string, "null"], format: date }
+        tags: { type: array, items: { type: string } }
+        custom_fields: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    MarcacaoDeCompromisso:
+      type: object
+      required: [event_type_id, starts_at]
+      properties:
+        event_type_id: { type: string, format: uuid, description: Id de GET /api/v1/agenda/tipos. }
+        starts_at: { type: string, format: date-time, description: ISO com fuso. }
+        owner_user_id: { type: string, format: uuid }
+        contact_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        notes: { type: string, maxLength: 2000 }
+        description: { type: string, maxLength: 2000 }
+        location_details: { type: string, maxLength: 300 }
+        guest_email: { type: string, maxLength: 320 }
+        team_guest_user_ids: { type: array, items: { type: string, format: uuid }, maxItems: 20 }
+        duration_minutes: { type: integer, minimum: 5, maximum: 1440 }
+        participant_name: { type: string, minLength: 1, maxLength: 120 }
+        participants: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 120 } }
+        space_id: { type: string, format: uuid }
+        party_size: { type: integer, minimum: 1, maximum: 100000 }
+        expected_service_revision: { type: integer, minimum: 1 }
+
+    Compromisso:
+      type: object
+      additionalProperties: true
+      description: Linha de `calendar_appointments`. A lista exata de colunas não está fixada neste documento.
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        revision: { type: integer }
+        inalterado: { type: boolean }
+        ja_estava: { type: boolean }
+
+    CamposDeTipoDeAgendamento:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        category: { type: string, enum: [consulta, procedimento, retorno, visita, vistoria, reuniao, call, orcamento, demonstracao, outro] }
+        duration_minutes: { type: integer, minimum: 5, maximum: 1440 }
+        location_kind: { type: string, enum: [in_person, phone, whatsapp, video_link, google_meet] }
+        description: { type: [string, "null"], maxLength: 500 }
+        location_details: { type: [string, "null"], maxLength: 300 }
+        default_owner_user_id: { type: [string, "null"], format: uuid }
+        requires_confirmation: { type: boolean }
+        buffer_before_minutes: { type: integer, minimum: 0, maximum: 720 }
+        buffer_after_minutes: { type: integer, minimum: 0, maximum: 720 }
+        minimum_notice_minutes: { type: integer, minimum: 0, maximum: 43200 }
+        booking_window_days: { type: integer, minimum: 1, maximum: 365 }
+        reminder_enabled: { type: boolean }
+        levar_dados_do_negocio: { type: boolean }
+        reminder_channel_session_id: { type: [string, "null"], format: uuid }
+        reminder_meta_template_id: { type: [string, "null"], format: uuid }
+        default_price_cents: { type: [integer, "null"], minimum: 0, maximum: 100000000 }
+        reminder_minutes_before: { type: integer, minimum: 15, maximum: 10080 }
+        reminder_extra_offsets_minutes: { type: array, maxItems: 20, items: { type: integer, minimum: 15, maximum: 10080 } }
+
+    CriacaoDeTipoDeAgendamento:
+      allOf:
+        - $ref: "#/components/schemas/CamposDeTipoDeAgendamento"
+        - type: object
+          required: [name, category, duration_minutes, location_kind]
+          properties:
+            service_draft: { type: boolean, description: Cria como serviço em rascunho. }
+
+    TipoDeAgendamento:
+      allOf:
+        - $ref: "#/components/schemas/CamposDeTipoDeAgendamento"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            slug: { type: string }
+            is_active: { type: boolean }
+            reminder_body: { type: [string, "null"] }
+            reminder_bodies: { type: object, additionalProperties: { type: string } }
+            service_enabled: { type: boolean }
+            booking_mode: { type: string }
+            service_capacity: { type: [integer, "null"] }
+            service_revision: { type: integer }
+            service_publication_mode: { type: string }
+
+    ComandoDeServico:
+      type: object
+      required: [action]
+      description: |
+        `configure` → `config` (configuração completa do serviço com `expected_revision`);
+        `block` / `block_preview` → `input` com `operation_key`, `scope_kind`
+        (service | professional | resource), `starts_at`, `ends_at`, `reason`;
+        `unblock` → `input: { archive_id, expected_revision }`;
+        `resource` → `input: { name, capacity, kind?, sector?, id?, expected_revision? }`;
+        `refresh` → `event_type_id`.
+      properties:
+        action: { type: string, enum: [configure, block, block_preview, unblock, resource, refresh] }
+        config: { type: object, additionalProperties: true }
+        input: { type: object, additionalProperties: true }
+        event_type_id: { type: string, format: uuid }
+
+    Agente:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        kind: { type: string }
+        is_active: { type: boolean }
+        is_default: { type: boolean }
+        priority: { type: integer }
+        published_version_id: { type: [string, "null"], format: uuid }
+        paused_at: { type: [string, "null"], format: date-time }
+        operation_mode: { type: string, enum: [automatic, assisted] }
+        archived_at: { type: [string, "null"], format: date-time }
+        config: { type: object, additionalProperties: true }
+        guardrails: { type: array, items: { type: object, additionalProperties: true } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        versao_publicada:
+          type: [object, "null"]
+          description: Só na listagem.
+          properties:
+            provider: { type: string }
+            model: { type: string }
+
+    VersaoDoAgente:
+      description: Configuração de uma versão. Corpo estrito no servidor (campo a mais responde 422).
+      allOf:
+        - $ref: "#/components/schemas/CamposDaVersaoDoAgente"
+        - required: [system_prompt, provider, model, credential_id, channel_session_id]
+
+    CamposDaVersaoDoAgente:
+      type: object
+      properties:
+        system_prompt: { type: string, minLength: 10, maxLength: 20000 }
+        provider: { type: string, enum: [anthropic, openai, google, openrouter, deepseek, requesty, custom] }
+        model: { type: string, minLength: 1, maxLength: 120 }
+        credential_id: { type: [string, "null"], format: uuid, description: null usa a chave da instalação. }
+        channel_session_id: { type: [string, "null"], format: uuid, description: Conexão de WhatsApp; null = ainda não escolhida. }
+        tool_ids: { type: array, maxItems: 27, items: { type: string }, default: [] }
+        trigger_config: { type: object, additionalProperties: true }
+        max_steps: { type: integer, minimum: 1, maximum: 25, default: 10 }
+        token_budget: { type: integer, minimum: 1000, maximum: 500000, default: 50000 }
+        cost_budget_cents: { type: integer, minimum: 1, maximum: 10000, default: 50 }
+        history_message_window: { type: integer, minimum: 0, maximum: 200, default: 20 }
+        history_token_window: { type: integer, minimum: 0, maximum: 50000, default: 8000 }
+        handoff_keywords: { type: array, maxItems: 20, items: { type: string }, default: [falar com humano, atendente, pessoa real] }
+        handoff_tool_enabled: { type: boolean, default: true }
+        handoff_legal_enabled: { type: boolean, default: true }
+        image_vision_enabled: { type: boolean, default: true }
+        proposal_ai_draft_enabled: { type: boolean, default: true }
+        cases_enabled: { type: boolean, default: false }
+        split_messages: { type: boolean, default: false }
+        split_max_chars: { type: integer, minimum: 80, maximum: 4000, default: 600 }
+        inbound_debounce_ms: { type: [integer, "null"], minimum: 0, maximum: 60000 }
+        reply_min_interval_ms: { type: [integer, "null"], minimum: 0, maximum: 600000 }
+        followup: { type: object, additionalProperties: true }
+        voz_enabled: { type: boolean, default: false }
+        voz_quando: { type: string, enum: [nunca, espelhar, sempre], default: espelhar }
+        operator_enabled: { type: boolean, default: false }
+        operator_model: { type: [string, "null"] }
+        operator_tool_ids: { type: array, maxItems: 27, items: { type: string } }
+        pipeline_ids: { type: array, items: { type: string, format: uuid }, default: [] }
+        knowledge_source_ids: { type: array, items: { type: string, format: uuid }, default: [] }
+        skill_names: { type: [array, "null"], maxItems: 100, items: { type: string } }
+
+    VersaoGravada:
+      allOf:
+        - $ref: "#/components/schemas/VersaoDoAgente"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            agent_id: { type: string, format: uuid }
+            version_number: { type: integer }
+            status: { type: string, enum: [draft, published, superseded] }
+            published_at: { type: [string, "null"], format: date-time }
+            created_at: { type: string, format: date-time }
+
+    FluxoDeFollowup:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { type: string, enum: [draft, active, disabled] }
+        surface: { type: string }
+        active_version_id: { type: [string, "null"], format: uuid }
+        handoff_policy: { type: string }
+        trigger_config: { type: object, additionalProperties: true }
+        draft_graph: { type: [object, "null"], additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    MembroDoRoteador:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        intent_name: { type: string }
+        intent_description: { type: string }
+        examples: { type: array, items: { type: string } }
+        position: { type: integer }
+        flow_pointer_id: { type: [string, "null"], format: uuid }
+        pipeline_id: { type: [string, "null"], format: uuid }
+        stage_id: { type: [string, "null"], format: uuid }
+
+    JsonRpcRequisicao:
+      type: object
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc: { const: "2.0" }
+        id: { type: [integer, string] }
+        method: { type: string, examples: [initialize, tools/list, tools/call] }
+        params:
+          type: object
+          properties:
+            name: { type: string, description: "Nome da ferramenta (tools/call)." }
+            arguments: { type: object, additionalProperties: true }
+
+    JsonRpcResposta:
+      type: object
+      properties:
+        jsonrpc: { const: "2.0" }
+        id: { type: [integer, string, "null"] }
+        result:
+          type: object
+          additionalProperties: true
+          properties:
+            content: { type: array, items: { type: object, properties: { type: { type: string }, text: { type: string } } } }
+            isError: { type: boolean }
+        error:
+          type: object
+          properties:
+            code: { type: integer, examples: [-32001, -32002, -32004, -32602, -32603] }
+            message: { type: string }
