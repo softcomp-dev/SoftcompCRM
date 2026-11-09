@@ -1,9 +1,9 @@
 /**
  * Core handlers para /api/v1/pipelines.
  *
- * Não há Route Handler REST para list pipelines no MVP — pipelines são
- * carregados em Server Components via cookie session. Este handler existe
- * para o MCP server (S-13.04) ler pipelines como uma tool de leitura.
+ * `listPipelinesHandler` tem dois chamadores: a tool MCP `crm_list_pipelines`
+ * e o `GET /api/v1/pipelines` (sessão ou Bearer `dsk_…`). Nos dois o client
+ * pode ser o admin, então o filtro de `organization_id` abaixo é obrigatório.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 

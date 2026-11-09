@@ -25,8 +25,8 @@ info:
 
     | Escopo | Libera |
     |---|---|
-    | `mcp:read` | Leituras (contatos, tipos de agenda, prospecção, follow-ups, agentes, MCP de leitura) |
-    | `mcp:write` | Escritas (mensagens, leads, conversas, agenda, prospecção, MCP de escrita) |
+    | `mcp:read` | Leituras (contatos, funis e etapas, tipos de agenda, prospecção, follow-ups, agentes, MCP de leitura) |
+    | `mcp:write` | Escritas (mensagens, cards — criar, mover, atualizar —, conversas, agenda, prospecção, MCP de escrita) |
     | `config:read` / `config:write` | Configuração de agentes e roteadores de IA (exige `role:admin`) |
     | `contacts:read` | Foto do contato (`/contacts/{id}/avatar`) |
     | `messages:on_behalf` | Enviar mensagem em nome de um atendente (`on_behalf_of_user_id`) |
@@ -73,8 +73,13 @@ tags:
   - name: Contatos
   - name: Conversas
   - name: Mensagens
+  - name: Funis
+    description: Funis e etapas — de onde saem o `pipeline_id` e o `stage_id` para criar e mover card.
   - name: Leads
-    description: Cards do funil. Criar card por token é pelo webhook de entrada ou pela ferramenta MCP `crm_create_lead`.
+    description: |
+      Cards do funil. Fluxo típico de um ERP: `GET /api/v1/pipelines` →
+      `GET /api/v1/pipelines/{id}/stages` (uma vez, guarde os ids) →
+      `POST /api/v1/leads` → `POST /api/v1/leads/{id}/move` / `PATCH /api/v1/leads/{id}`.
   - name: Agenda
   - name: Prospecção
   - name: Agentes de IA
@@ -396,7 +401,194 @@ paths:
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  # ───────────────────────────── Funis ─────────────────────────────
+  /api/v1/pipelines:
+    get:
+      tags: [Funis]
+      operationId: listarFunis
+      summary: Listar funis
+      description: |
+        Funis ativos da organização, na ordem da tela. Com token conta no limite de
+        30 leituras por minuto (compartilhado com a listagem de etapas). O `POST`
+        deste caminho (criar funil) só aceita sessão de navegador.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: agent
+      responses:
+        "200":
+          description: Funis.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Funil" } }
+              example:
+                data:
+                  - id: 0a2c4e6f-8b0d-4f2a-9c4e-6a8c0e2a4b16
+                    organization_id: 9b2e4c7a-0d3f-4e1a-8b6c-5a4d3c2b1a00
+                    name: Pedidos
+                    slug: pedidos
+                    description: null
+                    is_default: true
+                    is_archived: false
+                    position: 1000
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/pipelines/{id}/stages:
+    get:
+      tags: [Funis]
+      operationId: listarEtapasDoFunil
+      summary: Listar etapas de um funil
+      description: |
+        Etapas ativas do funil, na ordem do quadro, incluindo as de ganho e de perda.
+        Funil de outra organização devolve lista vazia. O `POST` deste caminho (criar
+        etapa) só aceita sessão de navegador.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      responses:
+        "200":
+          description: Etapas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Etapa" } }
+              example:
+                data:
+                  - { id: 1b3d5f7a-9c1e-4a3b-8d5f-7b9d1f3a5c18, name: Novo pedido, position: 1000, is_won: false, is_lost: false }
+                  - { id: 2c4e6a8b-0d1f-4a3c-9e5b-7d9f1a3c5e70, name: Faturado, position: 2000, is_won: false, is_lost: false }
+                  - { id: 3d5f7b9c-1e3a-4b5c-8f7a-9b1d3f5a7c92, name: Entregue, position: 3000, is_won: true, is_lost: false }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   # ───────────────────────────── Leads ─────────────────────────────
+  /api/v1/leads:
+    post:
+      tags: [Leads]
+      operationId: criarLead
+      summary: Criar card no funil
+      description: |
+        Cria um card (lead) no funil e etapa informados. A organização sai do token;
+        funil, etapa, contato e responsável são conferidos contra ela. Card não nasce
+        em etapa de ganho ou de perda.
+
+        Se o contato já tem um negócio **aberto** no mesmo funil, o card é criado
+        assim mesmo e a resposta avisa em `meta.avisos` (`negocio_aberto_existente`).
+
+        Dica: mande `source` (por exemplo `"erp"`); sem ele a origem fica `manual`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CriacaoDeLead" }
+            example:
+              pipeline_id: 0a2c4e6f-8b0d-4f2a-9c4e-6a8c0e2a4b16
+              stage_id: 1b3d5f7a-9c1e-4a3b-8d5f-7b9d1f3a5c18
+              title: Pedido 12345 - Maria Exemplo
+              contact_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10
+              value_cents: 150000
+              currency: BRL
+              tags: [erp]
+              source: erp
+              custom_fields: { pedido: "12345" }
+      responses:
+        "201":
+          description: Card criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Lead" }
+                  meta:
+                    type: object
+                    description: Só quando há aviso.
+                    properties:
+                      avisos: { type: array, items: { type: string, enum: [negocio_aberto_existente] } }
+                      negocio_aberto_existente: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422":
+          description: |
+            Validação. Códigos incluem `validation_error`, `validation_failed`,
+            `stage_pipeline_mismatch` e as recusas de campo personalizado.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/{id}/move:
+    post:
+      tags: [Leads]
+      operationId: moverLeadDeEtapa
+      summary: Mudar card de etapa
+      description: |
+        Move o card para outra etapa **do mesmo funil**. Valem as regras da tela:
+        campos exigidos pela etapa, motivo de ganho e de perda (do vocabulário do
+        funil) e reabertura de negócio encerrado.
+
+        Por token o corpo é **estrito**: `custom_fields` e `expected_updated_at`
+        são recusados com 422. Campos do card mudam por `PATCH /api/v1/leads/{id}`.
+        Sem `position_in_stage`, o card entra no topo da etapa nova.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [stage_id]
+              properties:
+                stage_id: { type: string, format: uuid, description: Etapa de destino, no mesmo funil. }
+                position_in_stage: { type: number, description: Posição na coluna (opcional). }
+                reason: { type: string, maxLength: 500, description: Nota que entra na linha do tempo. }
+                lost_reason: { type: string, maxLength: 500, description: Obrigatório ao mover para etapa de perda. }
+                won_reason: { type: string, maxLength: 500, description: "Exigido em etapa de ganho, se o funil pedir." }
+            example: { stage_id: 2c4e6a8b-0d1f-4a3c-9e5b-7d9f1a3c5e70, reason: Pedido faturado no ERP }
+      responses:
+        "200":
+          description: Card movido.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Lead" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409":
+          description: Negócio encerrado que o funil não reabre por aqui (ver `details.use`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "422":
+          description: |
+            Validação ou regra do funil: etapa de outro funil, campos exigidos
+            faltando (`details.faltando`), motivo de ganho ou de perda ausente ou
+            fora do vocabulário.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /api/v1/leads/{id}:
     patch:
       tags: [Leads]
@@ -407,8 +599,8 @@ paths:
         dono: `owner_user_id` **ou** `owner_agent_id`. `custom_fields` é validado
         contra os campos do funil.
 
-        Para **mudar de etapa** use a ferramenta MCP `crm_move_lead_stage`; esta rota
-        não recebe `stage_id`.
+        Para **mudar de etapa** use `POST /api/v1/leads/{id}/move`; esta rota não
+        recebe `stage_id`.
       x-escopos: [mcp:write]
       x-papel-minimo-do-token: agent
       parameters:
@@ -1655,10 +1847,11 @@ paths:
       summary: Servidor MCP (JSON-RPC 2.0)
       description: |
         Servidor [MCP](https://modelcontextprotocol.io) em Streamable HTTP, **sem
-        sessão** (cada requisição é independente). Expõe o CRM como ferramentas, e é
-        por aqui que um token **cria card** (`crm_create_lead`), **muda etapa**
-        (`crm_move_lead_stage`) e lista funis (`crm_list_pipelines`,
-        `crm_list_stages`).
+        sessão** (cada requisição é independente). Expõe o CRM como ferramentas
+        (umas 80) — é a porta pensada para agentes de IA, e serve a qualquer
+        programa que fale JSON-RPC. Para funil e cards há rotas REST equivalentes
+        (`/api/v1/pipelines`, `/api/v1/leads`, `/api/v1/leads/{id}/move`), mais
+        simples para um ERP.
 
         Envie `Accept: application/json, text/event-stream`. Métodos usuais:
         `tools/list` (lista as ferramentas com o esquema de cada uma) e `tools/call`.
@@ -1955,6 +2148,57 @@ components:
         status: sending
         body: Seu pedido 12345 foi faturado.
         created_at: "2026-11-09T18:00:00Z"
+
+    Funil:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, "null"] }
+        is_default: { type: boolean }
+        is_archived: { type: boolean }
+        position: { type: number }
+        vocabulary: { type: [object, "null"], additionalProperties: true }
+        settings: { type: [object, "null"], additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Etapa:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        position: { type: number }
+        is_won: { type: boolean }
+        is_lost: { type: boolean }
+        expected_duration_hours: { type: [number, "null"] }
+        win_probability: { type: [number, "null"] }
+        avisar_na_central: { type: boolean }
+
+    CriacaoDeLead:
+      type: object
+      required: [pipeline_id, stage_id, title]
+      properties:
+        pipeline_id: { type: string, format: uuid }
+        stage_id: { type: string, format: uuid, description: Etapa do mesmo funil; não pode ser de ganho ou perda. }
+        title: { type: string, minLength: 2, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        contact_id: { type: [string, "null"], format: uuid }
+        value_cents: { type: [integer, "null"], minimum: 0 }
+        recurring_value_cents: { type: [integer, "null"], minimum: 0 }
+        recurring_period: { type: [string, "null"], enum: [monthly, null] }
+        recurring_months: { type: [integer, "null"], minimum: 1, maximum: 600 }
+        currency: { type: string, minLength: 3, maxLength: 3, description: "ISO-4217; sem ele, a moeda da organização." }
+        owner_user_id: { type: [string, "null"], format: uuid }
+        owner_agent_id: { type: [string, "null"], format: uuid }
+        expected_close_date: { type: [string, "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        tags: { type: array, items: { type: string }, default: [] }
+        source: { type: string, minLength: 1, default: manual }
+        custom_fields: { type: object, additionalProperties: true }
 
     AtualizacaoDeLead:
       type: object
