@@ -1203,6 +1203,18 @@ export const NAV_CATALOG = [
     minRole: "admin",
   },
   {
+    href: "/app/docs",
+    label: "Documentação da API",
+    description: "As rotas para integrar outro sistema, com teste pelo navegador.",
+    icon: "BookOpen",
+    group: "organizacao",
+    section: "Dados e acesso",
+    // O MENU mostra a porta a quem cria token (o mesmo papel de "API Tokens");
+    // a TELA abre para qualquer pessoa logada — ler a especificação não dá
+    // acesso a nada, e o link direto (/docs) segue valendo para todo papel.
+    minRole: "admin",
+  },
+  {
     href: "/app/settings/voip-trunk",
     label: "Trunk SIP",
     description: "Credenciais do provedor SIP para chamadas de voz por IA.",

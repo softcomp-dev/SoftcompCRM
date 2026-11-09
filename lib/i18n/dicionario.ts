@@ -2512,6 +2512,18 @@ export const DICIONARIO: Traducoes = {
   "Chaves para outro sistema conversar com o seu CRM.": {
     es: "Claves para que otro sistema se comunique con tu CRM.",
   },
+  // ─── Documentação da API (/app/docs) ───
+  "Documentação da API": { es: "Documentación de la API" },
+  "As rotas para integrar outro sistema, com teste pelo navegador.": {
+    es: "Las rutas para integrar otro sistema, con prueba desde el navegador.",
+  },
+  "Rotas que um sistema externo, como um ERP, chama com um token.": {
+    es: "Rutas que un sistema externo, como un ERP, llama con un token.",
+  },
+  "Para testar uma rota, crie o token em": { es: "Para probar una ruta, crea el token en" },
+  "e cole no botão Authorize.": { es: "y pégalo en el botón Authorize." },
+  "Baixar a especificação (JSON)": { es: "Descargar la especificación (JSON)" },
+  "Ver a documentação da API (Swagger)": { es: "Ver la documentación de la API (Swagger)" },
   // ─── Shell persistente (sidebar, topbar, ⌘K, menu do usuário) ───
   "Navegação principal": { es: "Navegación principal" },
   // A barra de abas do celular: o rótulo acessível dela e o da aba que abre a

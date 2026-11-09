@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
@@ -23,6 +24,11 @@ export default async function ApiTokensPage() {
           {traduzir("Tokens server-to-server. Plaintext exibido", idioma)}{" "}
           <strong>{traduzir("uma única vez", idioma)}</strong>{" "}
           {traduzir("na criação.", idioma)}
+        </p>
+        <p className="text-sm">
+          <Link href="/app/docs" className="underline underline-offset-2">
+            {traduzir("Ver a documentação da API (Swagger)", idioma)}
+          </Link>
         </p>
       </header>
       <ApiTokensClient />
