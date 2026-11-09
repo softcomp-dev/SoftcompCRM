@@ -2524,6 +2524,9 @@ export const DICIONARIO: Traducoes = {
   "e cole no botão Authorize.": { es: "y pégalo en el botón Authorize." },
   "Baixar a especificação (JSON)": { es: "Descargar la especificación (JSON)" },
   "Ver a documentação da API (Swagger)": { es: "Ver la documentación de la API (Swagger)" },
+  "Não consegui carregar a documentação. Recarregue a página; se a sessão expirou, entre de novo.": {
+    es: "No pude cargar la documentación. Recarga la página; si la sesión expiró, vuelve a entrar.",
+  },
   // ─── Shell persistente (sidebar, topbar, ⌘K, menu do usuário) ───
   "Navegação principal": { es: "Navegación principal" },
   // A barra de abas do celular: o rótulo acessível dela e o da aba que abre a
