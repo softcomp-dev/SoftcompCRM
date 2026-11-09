@@ -15,6 +15,14 @@ info:
     Para conferir no código em vez de confiar nesta lista:
     `git grep -ln "auth-dual" -- app/api/v1` cruzado com `lib/auth/public-paths.ts`.
 
+    ## Onde ler e testar
+    Dentro de cada instalação, em **`/docs`** (atalho para `/app/docs`, só para quem
+    está logado; no menu, **Organização › Dados e acesso › Documentação da API**). Lá
+    este documento aparece com o nome e o endereço da instalação, e o botão
+    **Authorize** recebe o token para testar as rotas. O teste não envia o cookie
+    da sessão: a rota responde como responderia ao seu sistema, só com o token.
+    A especificação em JSON fica em `/app/docs/openapi.json`.
+
     ## Autenticação
     Crie o token em **Configurações › API Tokens** (`/app/settings/api-tokens`, só
     administrador). O texto do token (`dsk_…`) aparece **uma vez**. Envie sempre no
