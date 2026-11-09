@@ -8,9 +8,11 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
+import { extractBearer } from "@/lib/mcp/auth";
 import { somenteOProprio, type VisibilityMode } from "@/lib/auth/types";
 import {
   AVISO_NEGOCIO_ABERTO_EXISTENTE,
@@ -30,6 +32,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
+
+  if (extractBearer(req.headers.get("authorization"))) {
+    return criarPorToken(req, requestId);
+  }
 
   // spec 13 §4: escrita é agent+ (viewer é read-only).
   const authz = await requireRole("agent", { requestId, resource: "crm_leads" });
@@ -157,6 +163,77 @@ export async function POST(req: NextRequest): Promise<Response> {
       status: 201,
       // `meta` só quando há aviso: uma resposta sem `meta` continua sem
       // `meta`, e o que muda é acrescentar, nunca esconder.
+      ...(negocioExistente
+        ? {
+            meta: {
+              avisos: [AVISO_NEGOCIO_ABERTO_EXISTENTE],
+              negocio_aberto_existente: negocioExistente,
+            },
+          }
+        : {}),
+    });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, { requestId });
+    }
+    throw err;
+  }
+}
+
+/**
+ * CRIAR CARD POR TOKEN (`Bearer dsk_…` com `mcp:write`, papel `agent` — o mesmo
+ * da tool MCP `crm_create_lead`). Existe para integração de servidor (ERP), que
+ * não tem navegador e até aqui só criava card pelo envelope JSON-RPC do MCP.
+ *
+ * Faz o que a tool faz, pelo mesmo `createLeadHandler`: org da LINHA DO TOKEN,
+ * nunca do corpo, e o handler confere funil, etapa, contato e responsável
+ * contra essa org — o client do token ignora a RLS. O padrão de responsável e a
+ * recusa por carteira de outro vendedor (#2547, #2591) ficam no ramo da sessão:
+ * respondem a "o Atendente que criou", e um token não é um Atendente. O aviso
+ * de negócio aberto duplicado (#1751) vale igual, porque descreve o cliente.
+ */
+async function criarPorToken(req: NextRequest, requestId: string): Promise<Response> {
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "crm_leads",
+    role: "agent",
+    scope: "mcp:write",
+  });
+  if (!authz.ok) return authz.response;
+
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "leads", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
+  let input: CreateLeadInput;
+  try {
+    input = await validateRequest(createLeadSchema, req);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, {
+        details: err.details as Record<string, unknown> | undefined,
+        requestId,
+      });
+    }
+    throw err;
+  }
+
+  const negocioExistente = input.contact_id
+    ? await negocioAbertoExistente(authz.supabase, {
+        organizationId: authz.organizationId,
+        contactId: input.contact_id,
+        pipelineId: input.pipeline_id,
+      })
+    : null;
+
+  try {
+    const lead = await createLeadHandler(
+      authz.supabase,
+      { organization_id: authz.organizationId, actor: authz.actor, requestId },
+      input,
+    );
+    return ok(lead, {
+      requestId,
+      status: 201,
       ...(negocioExistente
         ? {
             meta: {

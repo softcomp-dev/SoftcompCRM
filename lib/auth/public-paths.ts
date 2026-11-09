@@ -143,6 +143,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   // `reactivations`) que `[^/]+$` alcançaria por engano, tornando-os "públicos"
   // (proxy não decide) quando nenhum deles tem suporte a Bearer.
   /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  // CRIAR CARD SERVER-TO-SERVER (ERP). `POST /api/v1/leads` com sessão OU Bearer
+  // `dsk_…` + `mcp:write` (`criarPorToken` em `app/api/v1/leads/route.ts`).
+  // Ancorado com `$`: os irmãos `/api/v1/leads/bulk`, `/import` etc. seguem
+  // só-sessão.
+  /^\/api\/v1\/leads$/,
   // LER FUNIS E ETAPAS SERVER-TO-SERVER (ERP). Sessão OU Bearer `dsk_…` com
   // `mcp:read`, resolvidos por `lib/api/auth-dual.ts` no `GET` de
   // `app/api/v1/pipelines/route.ts` e de `.../[id]/stages/route.ts`. Sem estas
