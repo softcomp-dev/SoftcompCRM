@@ -59,10 +59,21 @@ describe("pr-mexe-na-imagem", () => {
   // não segurança). Se alguém REMOVE uma linha de lá e esquece o script, o
   // caminho passaria a entrar na imagem sem ninguém construir — é esse lado que
   // o teste abaixo cobre, pela volta: toda linha do script tem de estar lá.
-  const ignorados = readFileSync(".dockerignore", "utf-8")
+  const linhas = readFileSync(".dockerignore", "utf-8")
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#"));
+  // `!caminho` é EXCEÇÃO: reinclui na imagem um arquivo de um diretório
+  // ignorado. É o espelho ao contrário — ele NÃO pode pular.
+  const ignorados = linhas.filter((l) => !l.startsWith("!"));
+  const reincluidos = linhas.filter((l) => l.startsWith("!")).map((l) => l.slice(1));
+
+  it("toda exceção (!) do .dockerignore constrói a imagem", () => {
+    const pulam = reincluidos.filter(
+      (caminho) => execFileSync("bash", [SCRIPT], { input: `${caminho}\n`, encoding: "utf-8" }).trim() !== "sim",
+    );
+    expect(pulam, "arquivo que entra na imagem precisa reconstruí-la quando muda").toEqual([]);
+  });
 
   // Um processo bash só, que chama o script por entrada (~50 execuções): menos
   // de um segundo numa máquina ociosa, 18 s numa com carga 90. O teto é para a

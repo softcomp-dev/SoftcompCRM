@@ -12,6 +12,12 @@ playwright.config.ts
 *.log
 .lina
 docs
+# Exceção: a especificação OpenAPI é lida em runtime pela tela /app/docs
+# (`lib/api/documentacao.ts`). Sem esta linha a imagem sai sem ela e a tela
+# responde 500 — foi o que a v1.104.3 fez, com o build local verde, porque o
+# `next build` fora do Docker não passa por este arquivo. Vigiado por
+# `lib/api/documentacao.test.ts`.
+!docs/api/openapi.yaml
 tasks
 scratchpad
 .vercel

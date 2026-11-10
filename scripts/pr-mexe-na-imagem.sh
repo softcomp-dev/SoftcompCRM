@@ -32,6 +32,10 @@ while IFS= read -r caminho || [ -n "$caminho" ]; do
   algum=sim
   case "$caminho" in
     .github/workflows/publish-image.yml) echo sim; exit 0 ;;
+    # ↓ espelho das EXCEÇÕES (`!`) do .dockerignore: entram na imagem mesmo
+    # dentro de um diretório ignorado, então vêm ANTES da regra do diretório.
+    # A especificação OpenAPI é lida em runtime pela tela /app/docs.
+    docs/api/openapi.yaml) echo sim; exit 0 ;;
     # ↓ espelho do .dockerignore — os diretórios. Padrão de .dockerignore sem
     # barra casa só na RAIZ do contexto, e `*` de `case` atravessa `/`: por
     # isso todo padrão aqui começa pelo nome do diretório da raiz.
