@@ -123,6 +123,37 @@ Janela conhecida: a marca é lida antes do claim (`fn_channel_routing_claim`),
 que não conhece SDR. Desmarcar alguém no mesmo segundo em que um lead é
 entregue a ele pode deixar esse lead com quem acabou de deixar de ser SDR.
 
+## Passar o negócio para o vendedor
+
+O SDR qualifica e escolhe quem fecha. No menu "⋯" do card do funil, o SDR ativo
+vê **Passar para vendedor**, com a lista dos vendedores que podem receber.
+
+| Regra | Onde |
+|---|---|
+| Quem passa: SDR ativo | `recusaDoSdr` em `lib/sdr/passagem.ts` |
+| O que passa: negócio aberto que está com o SDR ou sem dono humano (fila ou agente de IA) | `recusaDoNegocio` |
+| Para quem: membro ativo que aceitou o convite, papel agent ou acima, que não é SDR ativo nem o próprio SDR | `recusaDoVendedor` / `vendedoresParaOSdr` |
+
+Tirar o negócio de um colega e passar de SDR para SDR continuam sendo do gerente
+(pela troca de "Responsável").
+
+A rota (`app/api/v1/leads/[id]/passar-ao-vendedor/route.ts`) não escreve nada por
+conta própria. Cada pedaço passa pela porta que já existe:
+
+1. o **negócio**: `updateLeadHandler`, a mesma edição do card (linha do tempo,
+   evento `lead.updated` e auditoria `lead.updated`);
+2. a **carteira** do cliente: `fn_definir_carteira_do_cliente` com o SDR como
+   ator. A função confere a posse dele. Se o cliente estiver na carteira de outra
+   pessoa, ele fica lá, e a resposta diz `carteira: "nao_passou"`;
+3. as **conversas abertas** que seguem com o SDR: `fn_conversation_assign`
+   (`transfer`, o botão Transferir), com aviso ao vendedor
+   (`conversation.transferred`) e linha na linha do tempo.
+
+O negócio passa mesmo que a carteira ou uma conversa não passe. A tela avisa o
+SDR quando o cliente ficou na carteira de outra pessoa. Componentes:
+`components/kanban/KanbanCardActions.tsx`; hooks `useVendedoresDoSdr` e
+`usePassarAoVendedor` em `hooks/sdr/useSdr.ts`.
+
 ## API
 
 Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
@@ -136,6 +167,8 @@ Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
 | `POST /api/v1/sdr/assignments` `{ user_id }` | admin | 409 `sdr_disabled` | 201 marcou · 200 já era · 404 · 409 revogado · 422 `sdr_role_ineligible` |
 | `DELETE /api/v1/sdr/assignments/{user_id}` | admin | 409 `sdr_disabled` | 200 (idempotente) · 404 |
 | `GET /api/v1/sdr/permissions[?user_id=]` | o próprio: viewer+; outro: manager+ | responde | ver abaixo |
+| `GET /api/v1/sdr/vendedores` | agent+ | responde (`pode_passar: false`) | `{ user_id, pode_passar, motivo, vendedores: [user_id] }` |
+| `POST /api/v1/leads/{id}/passar-ao-vendedor` `{ user_id }` | agent+ e SDR ativo | 409 `sdr_disabled` | `{ lead_id, owner_user_id, carteira, carteira_motivo, conversas_passadas, conversas_que_ficaram }` · 403 `sdr_handoff_forbidden` · 404 · 409 `lead_not_open` · 422 |
 
 ```json
 {
@@ -158,14 +191,16 @@ Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
 `inactive_reason` traz a primeira condição que falhou: `feature_disabled`,
 `membership_revoked`, `role_below_minimum` ou `not_assigned`.
 
-Auditoria: `sdr.settings_changed`, `sdr.assigned` e `sdr.unassigned`. A chamada
+Auditoria: `sdr.settings_changed`, `sdr.assigned`, `sdr.unassigned` e
+`sdr.lead_handed_off` (o vendedor, se a carteira passou e quantas conversas). A chamada
 idempotente que não muda nada não audita.
 
 ## O que ainda não existe
 
-- **Relatório "por SDR"** e **passagem SDR → Closer lendo a marca.** Hoje a
-  passagem é a automação de troca de responsável (#3514), escolhendo a pessoa
-  pelo nome.
+- **Relatório "por SDR".**
+- **Passagem pelo dossiê e pela Inbox.** Hoje o "Passar para vendedor" está só no
+  menu do card do funil. Por regra, a automação "Atribuir a um atendente" (#3514)
+  continua disponível.
 - **Lead que chega sem conversa** (formulário, API, importação) não passa pelo
   rodízio de conversas e, portanto, não pelo fluxo SDR.
 - **Bearer token** nessas rotas.
