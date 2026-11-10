@@ -5,6 +5,8 @@ export const RUNTIME_MAX_AGE_MS = 15 * 60_000;
 const sha = z.string().regex(/^[a-f0-9]{40,64}$/);
 const imageId = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const release = z.string().regex(/^v?\d+\.\d+\.\d+$/);
+/** `dono/repo` do GitHub — a mesma forma que o kit valida antes de enviar. */
+export const RELEASE_REPO_FORMA = /^[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/;
 
 export const runtimeConfirmationSchema = z.object({
   schema: z.literal(1),
@@ -12,6 +14,14 @@ export const runtimeConfirmationSchema = z.object({
   project: z.string().min(1).max(128),
   supports_forced_update: z.boolean().optional(),
   published_release: release.nullable().optional(),
+  /**
+   * `dono/repo` do GitHub cujas releases o kit segue (`repositorio_das_releases`
+   * em _common.sh). Opcional: agente antigo não o envia, e aí o botão "Buscar
+   * atualização" não tem a quem perguntar. Valor fora da forma vira `null` em
+   * vez de reprovar o retrato: um campo de conveniência nunca pode fazer o
+   * heartbeat inteiro levar 422 e calar o agente.
+   */
+  release_repo: z.string().regex(RELEASE_REPO_FORMA).nullable().optional().catch(null),
   services: z
     .array(
       z.object({
