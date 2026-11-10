@@ -1498,6 +1498,11 @@ export const AUDIT_ACTIONS = [
   // verificação, pois a trilha append-only não é lugar para identidade pessoal.
   "org.resend_account_connected",
   "org.resend_account_disconnected",
+  // O dono da instalação ligou uma conta JÁ EXISTENTE a uma empresa pela tela
+  // de Vínculos do /admin, sem convite. Distinto de `member.accepted` (quem
+  // aceitou foi a própria pessoa): aqui quem decidiu foi a plataforma, e a
+  // pergunta depois é "quem pôs esta pessoa nesta empresa?".
+  "member.linked",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */
