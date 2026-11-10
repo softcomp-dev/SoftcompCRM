@@ -77,6 +77,18 @@ const nextConfig: NextConfig = {
       "./docs/api/openapi.yaml",
     ],
   },
+  turbopack: {
+    resolveAlias: {
+      // O Swagger UI da tela /app/docs, na versão PRÉ-MONTADA pelo próprio
+      // projeto Swagger (webpack, com as dependências dentro). O ponto de
+      // entrada normal do `swagger-ui-react` no navegador entrega a versão
+      // "core", que importa o ApiDOM (o leitor de OpenAPI 3.1) solto — e o
+      // Turbopack o monta numa ordem que quebra `OpenApi3_1Element.refract`:
+      // toda operação aberta ficava girando para sempre (v1.104.4). Reproduzido
+      // no `next dev` com Playwright; o mesmo código montado por esbuild funciona.
+      "swagger-ui-pronto": "./node_modules/swagger-ui-react/swagger-ui-bundle.js",
+    },
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   // typedRoutes moved out of experimental in Next 15.5+

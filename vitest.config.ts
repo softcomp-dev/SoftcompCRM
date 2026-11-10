@@ -70,6 +70,8 @@ export default defineConfig({
       // `server-only` não é dependência do projeto: o Next o resolve para o próprio módulo vazio
       // quando o código roda no servidor. Os testes rodam como servidor, então usam o mesmo vazio.
       "server-only": path.resolve(__dirname, "node_modules/next/dist/compiled/server-only/empty.js"),
+      // O mesmo apelido do `turbopack.resolveAlias` de next.config.ts (tela /app/docs).
+      "swagger-ui-pronto": path.resolve(__dirname, "node_modules/swagger-ui-react/swagger-ui-bundle.js"),
     },
   },
 });

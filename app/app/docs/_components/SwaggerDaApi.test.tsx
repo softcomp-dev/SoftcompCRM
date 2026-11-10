@@ -7,19 +7,20 @@
  *
  * Na v1.104.3 o Swagger baixava a especificação pela `url`, passando pelo
  * interceptor que tira o cookie; o proxy devolvia o login, e a tela mostrava
- * "Parser error". O caso "o Swagger recebe `spec`, não `url`" é o que pega a
- * regressão — os testes da época testavam as duas metades isoladas.
+ * "Parser error". O caso "o Swagger recebe `spec`" é o que pega a regressão —
+ * os testes da época testavam as duas metades isoladas. O Swagger em si é o
+ * pré-montado (montarSwagger.test.ts); aqui ele é substituído.
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const recebido: { props?: Record<string, unknown> } = {};
+const recebido: { opcoes?: Record<string, unknown> } = {};
 
-vi.mock("next/dynamic", () => ({
-  default: () => (props: Record<string, unknown>) => {
-    recebido.props = props;
-    return <div data-testid="swagger" />;
-  },
+vi.mock("./montarSwagger", () => ({
+  montarSwagger: vi.fn(async (no: HTMLElement, opcoes: Record<string, unknown>) => {
+    recebido.opcoes = opcoes;
+    no.setAttribute("data-montado", "sim");
+  }),
 }));
 vi.mock("swagger-ui-react/swagger-ui.css", () => ({}));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (texto: string) => texto }));
@@ -63,28 +64,29 @@ describe("carregarEspecificacao", () => {
 });
 
 describe("SwaggerDaApi", () => {
-  it("entrega a especificação pronta (spec, não url) e o Testar sem cookie", async () => {
+  it("entrega a especificação pronta ao Swagger, com o Testar sem cookie e o token só na aba", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => resposta(JSON.stringify(SPEC), "application/json")));
-    recebido.props = undefined;
+    recebido.opcoes = undefined;
 
-    render(<SwaggerDaApi url="/app/docs/openapi.json" />);
+    const { container } = render(<SwaggerDaApi url="/app/docs/openapi.json" />);
 
-    await screen.findByTestId("swagger");
-    const props = recebido.props as Record<string, unknown> | undefined;
-    expect(props?.spec).toEqual(SPEC);
-    expect(props?.url).toBeUndefined();
-    expect(props?.requestInterceptor).toBe(semCookieDaSessao);
-    expect(props?.persistAuthorization).toBe(false);
+    await waitFor(() => expect(container.querySelector('[data-montado="sim"]')).toBeTruthy());
+    const opcoes = recebido.opcoes as Record<string, unknown> | undefined;
+    expect(opcoes?.spec).toEqual(SPEC);
+    expect(opcoes?.url).toBeUndefined();
+    expect(opcoes?.requestInterceptor).toBe(semCookieDaSessao);
+    expect(opcoes?.persistAuthorization).toBe(false);
     vi.unstubAllGlobals();
   });
 
   it("sessão expirada → aviso legível, sem Swagger quebrado", async () => {
+    recebido.opcoes = undefined;
     vi.stubGlobal("fetch", vi.fn(async () => resposta("<html></html>", "text/html")));
 
     render(<SwaggerDaApi url="/app/docs/openapi.json" />);
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
-    expect(screen.queryByTestId("swagger")).toBeNull();
+    expect(recebido.opcoes).toBeUndefined();
     vi.unstubAllGlobals();
   });
 });
