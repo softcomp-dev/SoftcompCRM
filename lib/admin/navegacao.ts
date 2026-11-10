@@ -28,6 +28,7 @@ import {
   Gauge,
   Gear,
   Key,
+  LinkIcon,
   Lock,
   Palette,
   Plugs,
@@ -131,6 +132,13 @@ export const ADMIN_DESTINATIONS: readonly AdminDestination[] = [
     description: "Usuários da instalação e os papéis de cada um",
     group: "clientes",
     icon: Users,
+  },
+  {
+    href: "/admin/vinculos",
+    label: "Vínculos",
+    description: "Quais empresas cada conta acessa: uma, algumas ou todas",
+    group: "clientes",
+    icon: LinkIcon,
   },
   {
     href: "/admin/platform-admins",

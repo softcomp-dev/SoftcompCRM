@@ -178,10 +178,13 @@ export function UserDetailClient({ id }: UserDetailClientProps) {
 
       {/* Memberships table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-sm font-medium">
             Memberships ({memberships.length})
           </CardTitle>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/admin/vinculos?usuario=${user.id}`}>{t("Editar vínculos")}</Link>
+          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {memberships.length === 0 ? (
