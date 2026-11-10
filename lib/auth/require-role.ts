@@ -39,7 +39,7 @@ export type RoleCheck =
   | { ok: true; user: AuthUser; org: ActiveOrg }
   | { ok: false; response: NextResponse<ApiError> };
 
-const MENSAGEM_DE_MFA =
+export const MENSAGEM_DE_MFA =
   "Confirme o código do aplicativo de verificação para continuar.";
 
 interface RequireRoleOpts {
