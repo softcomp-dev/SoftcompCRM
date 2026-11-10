@@ -715,3 +715,57 @@ describe("tela de atualização — o botão de força (#2756)", () => {
     expect(texto).toContain("site não respondeu");
   });
 });
+
+describe("Buscar atualização — pergunta ao GitHub na hora", () => {
+  const EM_DIA: SystemVersion = {
+    current_version: "1.104.5",
+    is_owner: true,
+    latest_version: "",
+    update_available: false,
+    agent_online: true,
+    notes: null,
+    run: null,
+    release_check_available: true,
+  };
+
+  it("sem release_repo anunciado (kit antigo), o botão não aparece", () => {
+    renderTela({ ...EM_DIA, release_check_available: false });
+    expect(screen.queryByRole("button", { name: "Buscar atualização" })).toBeNull();
+  });
+
+  it("versão nova: diz qual e que o 'Atualizar agora' vem com a confirmação do servidor", async () => {
+    vi.mocked(apiClient.get).mockReset();
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: { latest_release: "v1.105.0", installed_version: "1.104.5", newer: true },
+    });
+    renderTela(EM_DIA);
+    fireEvent.click(screen.getByRole("button", { name: "Buscar atualização" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Saiu a versão 1.105.0"));
+    expect(screen.getByRole("status").textContent).toContain("em até 5 minutos");
+    expect(vi.mocked(apiClient.get).mock.calls[0]?.[0]).toBe("/api/v1/system/version/latest-release");
+  });
+
+  it("mesma versão: 'já está na mais recente'", async () => {
+    vi.mocked(apiClient.get).mockReset();
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: { latest_release: "v1.104.5", installed_version: "1.104.5", newer: false },
+    });
+    renderTela(EM_DIA);
+    fireEvent.click(screen.getByRole("button", { name: "Buscar atualização" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Você já está na mais recente (1.104.5)."),
+    );
+  });
+
+  it("GitHub fora do ar: mostra a mensagem do servidor, nunca 'em dia'", async () => {
+    vi.mocked(apiClient.get).mockReset();
+    vi.mocked(apiClient.get).mockRejectedValue(
+      new ApiError(502, "provedor_indisponivel", undefined, "r", "O GitHub não respondeu agora. Tente de novo em instantes."),
+    );
+    renderTela(EM_DIA);
+    fireEvent.click(screen.getByRole("button", { name: "Buscar atualização" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("O GitHub não respondeu agora. Tente de novo em instantes."),
+    );
+  });
+});

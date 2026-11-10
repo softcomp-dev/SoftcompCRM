@@ -1245,6 +1245,62 @@ function InstalledVersion() {
           {t("Última confirmação")}: {new Date(identity.confirmed_at).toLocaleString()}
         </p>
       )}
+      {data.is_owner && data.release_check_available && <BuscarAtualizacao />}
     </section>
+  );
+}
+
+interface ResultadoDaBusca {
+  latest_release: string | null;
+  installed_version: string | null;
+  newer: boolean | null;
+}
+
+/**
+ * "Buscar atualização": pergunta ao GitHub agora, em vez de esperar a próxima
+ * rodada do agente (a cada 5 min). Só traz a notícia — quem confirma a versão
+ * instalada e quem instala continua sendo o agente; por isso, quando há versão
+ * nova, a frase diz que o "Atualizar agora" aparece em até 5 minutos.
+ */
+function BuscarAtualizacao() {
+  const t = useT();
+  const [buscando, setBuscando] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoDaBusca | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function buscar() {
+    setBuscando(true);
+    setErro(null);
+    try {
+      const r = await apiClient.get<{ data: ResultadoDaBusca }>("/api/v1/system/version/latest-release");
+      setResultado(r.data);
+    } catch (e) {
+      setResultado(null);
+      setErro(e instanceof ApiError && e.message ? e.message : t("Não foi possível buscar agora. Tente de novo em instantes."));
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      <div>
+        <Button type="button" variant="outline" size="sm" onClick={buscar} disabled={buscando}>
+          {buscando ? t("Buscando…") : t("Buscar atualização")}
+        </Button>
+      </div>
+      <p role="status" aria-live="polite" className="text-muted-foreground">
+        {erro ??
+          (resultado === null
+            ? ""
+            : resultado.latest_release === null
+              ? t("Este repositório ainda não publicou nenhuma release.")
+              : resultado.newer === true
+                ? `${t("Saiu a versão")} ${semV(resultado.latest_release)}. ${t("O botão “Atualizar agora” aparece aqui em até 5 minutos, quando o servidor confirmar.")}`
+                : resultado.newer === false
+                  ? `${t("Você já está na mais recente")} (${semV(resultado.latest_release)}).`
+                  : `${t("Última release publicada")}: ${semV(resultado.latest_release)}.`)}
+      </p>
+    </div>
   );
 }

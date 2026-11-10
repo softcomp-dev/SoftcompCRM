@@ -856,6 +856,11 @@ type CategoriaDeHost =
 type EntradaDeHost = { categoria: CategoriaDeHost; motivo: string };
 
 const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
+  "api.github.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "API de releases do GitHub (`/repos/{dono}/{repo}/releases/latest`), consultada pelo botão \"Buscar atualização\" (`lib/system/conferir-release.ts`) — a mesma pergunta que o kit faz no host (`ultima_release_estavel`). O repositório vem do retrato do agente, nunca é constante; o host é do fornecedor, não da instalação.",
+  },
   "chatgpt.com": {
     categoria: "CONSOLE",
     motivo:
