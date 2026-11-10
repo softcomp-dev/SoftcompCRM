@@ -16,6 +16,7 @@
  * Marcar quem já é SDR e desmarcar quem não é são idempotentes: devolvem o
  * estado atual, sem escrever e sem auditar.
  */
+import { invalidarUsuario } from "@/lib/auth/cache-curto";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 import { lerConfiguracaoSdr } from "./configuracao";
@@ -94,7 +95,13 @@ export async function marcarSdr(
     .select(COLUNAS)
     .maybeSingle();
   if (escrita.error) return { tipo: "erro", mensagem: escrita.error.message };
-  if (escrita.data) return { tipo: "marcado", membro: escrita.data as MembroParaPermissao };
+  if (escrita.data) {
+    // Toda escrita no vínculo derruba o snapshot curto do usuário (cerca
+    // `acesso-revogado-nao-espera-o-cache`): quem passar a ler a marca pela
+    // sessão não pode vê-la até 30 s atrasada.
+    invalidarUsuario(userId);
+    return { tipo: "marcado", membro: escrita.data as MembroParaPermissao };
+  }
 
   // Nenhuma linha casou: descobrir por quê, lendo o estado atual.
   const lido = await lerMembro(db, orgId, userId);
@@ -117,7 +124,10 @@ export async function desmarcarSdr(db: Db, orgId: string, userId: string): Promi
     .select(COLUNAS)
     .maybeSingle();
   if (escrita.error) return { tipo: "erro", mensagem: escrita.error.message };
-  if (escrita.data) return { tipo: "desmarcado", membro: escrita.data as MembroParaPermissao };
+  if (escrita.data) {
+    invalidarUsuario(userId);
+    return { tipo: "desmarcado", membro: escrita.data as MembroParaPermissao };
+  }
 
   const lido = await lerMembro(db, orgId, userId);
   if (!lido.ok) return { tipo: "erro", mensagem: lido.mensagem };
