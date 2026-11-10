@@ -78369,4 +78369,15 @@ on conflict (id) do update
       file_size_limit    = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
 
+-- ---- Função SDR por vínculo (migration 9252) ----
+-- A marca mora no vínculo; quem decide se ela vale é lib/sdr/permissoes.ts
+-- (interruptor da organização + papel >= agent + vínculo ativo). Sem CHECK de
+-- propósito: rebaixar, revogar ou desligar a função não apaga a marca.
+alter table public.user_organizations add column if not exists sdr_since timestamptz;
+comment on column public.user_organizations.sdr_since is
+  'Desde quando o membro é SDR nesta organização (null = não é). Só tem efeito com organizations.settings.sdr.enabled = true, papel >= agent e vínculo ativo; regra em lib/sdr/permissoes.ts.';
+create index if not exists idx_user_organizations_sdr
+  on public.user_organizations (organization_id)
+  where sdr_since is not null;
+
 notify pgrst, 'reload schema';

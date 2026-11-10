@@ -13822,6 +13822,8 @@ export type Database = {
           provisional_until_handover: boolean;
           revoked_at: string | null;
           role: string;
+          /** Desde quando é SDR (null = não é). Efeito decidido em lib/sdr/permissoes.ts (migration 9252). */
+          sdr_since: string | null;
           updated_at: string;
           user_id: string;
           /** WhatsApp PESSOAL do membro, E.164 — destino do aviso no modo `responsavel` (#3803). */
@@ -13839,6 +13841,7 @@ export type Database = {
           organization_id: string;
           provisional_until_handover?: boolean;
           revoked_at?: string | null;
+          sdr_since?: string | null;
           role: string;
           updated_at?: string;
           user_id: string;
@@ -13855,6 +13858,7 @@ export type Database = {
           organization_id?: string;
           provisional_until_handover?: boolean;
           revoked_at?: string | null;
+          sdr_since?: string | null;
           role?: string;
           updated_at?: string;
           user_id?: string;
