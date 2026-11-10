@@ -11,6 +11,23 @@ lida pela RLS e por `requireRole`. SDR é uma **função comercial** que se soma
 papel, e por isso não entrou na escada: nenhuma policy mudou, e um `manager` SDR
 continua com tudo o que um `manager` tem.
 
+## Pela tela
+
+Em **Equipe › Membros** (`/app/team`):
+
+1. O cartão **Função SDR**, acima da tabela, tem o interruptor da empresa. Só o
+   administrador muda; o gerente vê se está ligada.
+2. Com a função ligada, a tabela ganha a coluna **SDR**. O administrador marca e
+   desmarca cada pessoa pela chave da linha. A chave fica travada para quem tem
+   o papel **Somente leitura** e para quem teve o acesso revogado.
+3. Uma marca que perdeu o efeito continua na tabela com o motivo ("Sem efeito: o
+   papel Somente leitura não pode ser SDR." ou "Sem efeito: acesso revogado."), e
+   pode ser desmarcada.
+
+Desligada a função, a coluna some e as marcas ficam guardadas: religar devolve a
+equipe como estava. Componentes: `app/app/team/_components/SdrCard.tsx` e
+`SdrCell.tsx`; hooks em `hooks/sdr/useSdr.ts`.
+
 ## Onde mora cada coisa
 
 | O quê | Onde | Fonte |
@@ -102,8 +119,6 @@ idempotente que não muda nada não audita.
 
 ## O que ainda não existe
 
-- **Tela.** Ligar a função e marcar SDRs só pela API. A tela entra em
-  Configurações › Equipe e precisa da porta no `NAV_CATALOG`.
 - **Consumidor das `sdr.leads.*`**: roteamento de lead novo só para SDRs, filtro
   de relatório "por SDR" e passagem SDR → Closer lendo a marca. Hoje a passagem
   é a automação de troca de responsável (#3514), escolhendo a pessoa pelo nome.
@@ -111,9 +126,10 @@ idempotente que não muda nada não audita.
 
 ## Laço de retorno (sistema vivo)
 
-- **Entrada:** admin pela API. **Saída:** `GET /api/v1/sdr/permissions` e a lista.
+- **Entrada:** admin pela tela de Equipe (ou pela API). **Saída:** a coluna SDR
+  da tabela, `GET /api/v1/sdr/permissions` e a lista.
 - **Log:** `api_audit_log`, filtrável no painel de auditoria (o vocabulário é
   derivado de `lib/audit/actions.ts`).
-- **Quando erra:** um SDR que parou de valer não some. A lista o mostra como
-  `active: false` com o motivo, e é por ali que quem gerencia descobre por que
-  ele deixou de valer.
+- **Quando erra:** um SDR que parou de valer não some. A tabela mostra o motivo
+  na linha dele (e a API devolve `active: false` com `inactive_reason`), e é por
+  ali que quem gerencia descobre por que ele deixou de valer.
