@@ -10,6 +10,7 @@ import { useTeamMembers, type TeamMember } from "@/hooks/team/useTeamMembers";
 import { useChangeRole } from "@/hooks/team/useChangeRole";
 import { useReactivateMember } from "@/hooks/team/useReactivateMember";
 import { useRevokeMember } from "@/hooks/team/useRevokeMember";
+import { useSdrAssignments, useSdrSettings, useSetSdr } from "@/hooks/sdr/useSdr";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,8 @@ import { rotuloDoPapel } from "@/lib/auth/types";
 import { DotsThree } from "@/lib/ui/icons";
 import { rotuloDoMembro } from "@/lib/users/rotulo-do-atendente";
 
+import { SdrCell } from "./SdrCell";
+
 interface Props {
   currentUserId: string;
   canManage: boolean;
@@ -58,6 +61,12 @@ export function TeamMembersClient({ currentUserId, canManage }: Props) {
   const changeRole = useChangeRole();
   const revoke = useRevokeMember();
   const reativar = useReactivateMember();
+  // Coluna SDR só com a função ligada na empresa (docs/features/sdr.md).
+  const sdrSettings = useSdrSettings();
+  const sdrLigado = sdrSettings.data?.data?.enabled === true;
+  const sdrLista = useSdrAssignments({ enabled: sdrLigado });
+  const setSdr = useSetSdr();
+  const sdrPorUsuario = new Map((sdrLista.data?.data ?? []).map((a) => [a.user_id, a]));
 
   const [interfaceMember, setInterfaceMember] = useState<TeamMember | null>(null);
   const [revokeDialog, setRevokeDialog] = useState<TeamMember | null>(null);
@@ -82,6 +91,7 @@ export function TeamMembersClient({ currentUserId, canManage }: Props) {
               <TableHead>{t("Membro")}</TableHead>
               <TableHead>{t("Papel")}</TableHead>
               <TableHead>{t("Interface")}</TableHead>
+              {sdrLigado ? <TableHead>{t("SDR")}</TableHead> : null}
               <TableHead>{t("Status")}</TableHead>
               <TableHead>{t("Última atividade")}</TableHead>
               {canManage ? <TableHead className="w-[80px]" /> : null}
@@ -149,6 +159,20 @@ export function TeamMembersClient({ currentUserId, canManage }: Props) {
                     </span>
                   )}
                 </TableCell>
+                {sdrLigado ? (
+                  <TableCell
+                    data-rotulo={t("SDR")}
+                    className="max-md:flex max-md:items-center max-md:gap-2 max-md:p-0 max-md:before:text-xs max-md:before:content-[attr(data-rotulo)]"
+                  >
+                    <SdrCell
+                      member={m}
+                      assignment={sdrPorUsuario.get(m.user_id)}
+                      canManage={canManage}
+                      pending={setSdr.isPending || sdrLista.isLoading}
+                      onChange={(assigned) => setSdr.mutate({ userId: m.user_id, assigned })}
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell className="max-md:p-0">
                   {/*
                     "Revogado" vem ANTES dos outros dois: quem foi revogado tem

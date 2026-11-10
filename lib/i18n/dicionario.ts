@@ -20338,6 +20338,22 @@ export const DICIONARIO: Traducoes = {
   "A Meta bloqueou temporariamente o envio deste número por violação de política (código 368). Veja o motivo no Gerenciador do WhatsApp, na Meta.": { es: "Meta bloqueó temporalmente el envío de este número por infringir sus políticas (código 368). Mira el motivo en el Administrador de WhatsApp, en Meta." },
   "A Meta está recusando mensagens deste número (código {codigo}).": { es: "Meta está rechazando mensajes de este número (código {codigo})." },
   "Este aviso fecha sozinho quando uma mensagem voltar a ser entregue.": { es: "Este aviso se cierra solo cuando un mensaje vuelva a entregarse." },
+  // Função SDR (docs/features/sdr.md): tela de Equipe e recusas da API.
+  "Função SDR": { es: "Función SDR" },
+  "Marque quem faz a pré-venda: prospecta, qualifica e passa o lead pronto ao closer. Atendentes, gerentes e administradores podem ser SDR; quem tem o papel Somente leitura, não.": { es: "Marca a quien hace la preventa: prospecta, califica y pasa el lead listo al closer. Asesores, gerentes y administradores pueden ser SDR; quien tiene el rol Solo lectura, no." },
+  "Desligar não desmarca ninguém: as marcas voltam quando a função for religada.": { es: "Desactivar no desmarca a nadie: las marcas vuelven cuando la función se active de nuevo." },
+  "Não foi possível carregar a função SDR.": { es: "No se pudo cargar la función SDR." },
+  "Função SDR nesta empresa": { es: "Función SDR en esta empresa" },
+  "Sem efeito: o papel Somente leitura não pode ser SDR.": { es: "Sin efecto: el rol Solo lectura no puede ser SDR." },
+  "Sem efeito: acesso revogado.": { es: "Sin efecto: acceso revocado." },
+  "SDR": { es: "SDR" },
+  "O papel Somente leitura não pode ser SDR.": { es: "El rol Solo lectura no puede ser SDR." },
+  "Função SDR ligada.": { es: "Función SDR activada." },
+  "Função SDR desligada.": { es: "Función SDR desactivada." },
+  "Membro marcado como SDR.": { es: "Miembro marcado como SDR." },
+  "Membro deixou de ser SDR.": { es: "El miembro dejó de ser SDR." },
+  "A função SDR está desligada nesta empresa.": { es: "La función SDR está desactivada en esta empresa." },
+  "Este papel não pode ser SDR. Mude o papel para Atendente ou acima.": { es: "Este rol no puede ser SDR. Cambia el rol a Asesor o superior." },
 };
 
 

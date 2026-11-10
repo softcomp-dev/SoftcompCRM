@@ -10,6 +10,7 @@ import { TeamMembersClient } from "./_components/TeamMembersClient";
 import { TeamInvitesClient } from "./_components/TeamInvitesClient";
 import { AttendantsClient } from "./_components/AttendantsClient";
 import { SectorsClient } from "./_components/SectorsClient";
+import { SdrCard } from "./_components/SdrCard";
 import { fusoUtilizavel } from "@/lib/tempo/fusos";
 import { moduloLigado } from "@/lib/instalacao/modulos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -85,6 +86,9 @@ export default async function TeamPage({
             caía aqui num "Erro ao carregar membros." em vermelho. A recusa diz o
             que fazer, como a da aba de atendimento.
           */}
+          {/* Função SDR: o interruptor fica acima da tabela, que ganha a coluna
+              "SDR" quando ele está ligado. Admin muda; gerente só lê. */}
+          {isManager ? <SdrCard canManage={isAdmin} /> : null}
           {isManager ? (
             <TeamMembersClient currentUserId={user.id} canManage={isAdmin} />
           ) : (
