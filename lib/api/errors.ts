@@ -93,6 +93,14 @@ export const ApiErrorCodes = {
   // retentar depois resolve, enquanto conflito manda trocar a chave.
   idempotency_in_progress: "idempotency_in_progress",
   state_conflict: "state_conflict",
+  // /api/v1/sdr/* com a função SDR desligada na organização
+  // (`settings.sdr.enabled`, `lib/sdr/configuracao.ts`). 409 e não 403: o
+  // pedido é legítimo, o estado da organização é que não o comporta — a tela
+  // oferece "ligar a função" em vez de "peça acesso". Docs: docs/features/sdr.md.
+  sdr_disabled: "sdr_disabled",
+  // POST /api/v1/sdr/assignments para um membro cujo papel não pode ser SDR
+  // (viewer). `details.role` traz o papel atual; `details.minimum_role`, o mínimo.
+  sdr_role_ineligible: "sdr_role_ineligible",
   // POST /api/v1/prospecting (`start` e `resume`): a CONEXÃO escolhida já tem
   // uma campanha de prospecção em andamento (#3896). Uma campanha ativa por
   // NÚMERO, não por organização — a recusa é do número, e `details` traz

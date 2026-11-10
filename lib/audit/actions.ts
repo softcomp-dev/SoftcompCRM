@@ -1503,6 +1503,12 @@ export const AUDIT_ACTIONS = [
   // aceitou foi a própria pessoa): aqui quem decidiu foi a plataforma, e a
   // pergunta depois é "quem pôs esta pessoa nesta empresa?".
   "member.linked",
+  // Função SDR (docs/features/sdr.md). `settings_changed` leva só o booleano
+  // novo; `assigned`/`unassigned` levam o user_id do alvo — quem fez é o ator.
+  // Nada é auditado na chamada idempotente que não mudou estado.
+  "sdr.settings_changed",
+  "sdr.assigned",
+  "sdr.unassigned",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */
