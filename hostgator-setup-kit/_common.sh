@@ -3350,30 +3350,48 @@ ensure_encryption_key() {
 # release). Vazio é "não sei" — e quem chama TEM de tratar isso como "não sei",
 # nunca como "não há versão nova". Cair de volta para `git tag` aqui seria
 # reintroduzir exatamente o defeito que esta função existe para matar.
-ultima_release_estavel() {
-  local origem slug url tag
+#
+# `repositorio_das_releases` devolve o `dono/repositório` do GitHub cujas
+# releases este kit segue — o mesmo que `ultima_release_estavel` consulta — ou
+# VAZIO quando a pergunta não é ao GitHub (`DESKCOMM_RELEASES_LATEST_URL`
+# definido, ou origin fora do GitHub). O agente o anuncia ao app no retrato
+# (`release_repo`), e é com ele que o botão "Buscar atualização" da tela
+# pergunta ao GitHub na hora, sem esperar o cron. Só o par `dono/repo`
+# atravessa a fronteira, validado aqui e de novo no app: o app monta o
+# endereço sozinho e nunca segue uma URL que veio do host.
+repositorio_das_releases() {
+  local origem slug
+  [ -z "${DESKCOMM_RELEASES_LATEST_URL:-}" ] || return 0
   origem="$(git config --get remote.origin.url 2>/dev/null || true)"
+  case "$origem" in
+    https://github.com/*|http://github.com/*|git@github.com:*)
+      slug="$(printf '%s' "$origem" \
+        | sed -E 's#^git@github\.com:#https://github.com/#; s#\.git$##; s#^https?://[^/]+/##; s#/+$##')"
+      if [[ "$slug" =~ ^[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}$ ]]; then printf '%s\n' "$slug"; fi
+      ;;
+  esac
+  return 0
+}
+
+ultima_release_estavel() {
+  local slug url tag
 
   # Endereço explícito primeiro: é o caminho dos testes (um JSON local via
   # `file://`) e de quem opera um fork com releases num lugar próprio.
   url="${DESKCOMM_RELEASES_LATEST_URL:-}"
 
   if [ -z "$url" ]; then
-    case "$origem" in
-      https://github.com/*|http://github.com/*|git@github.com:*)
-        slug="$(printf '%s' "$origem" \
-          | sed -E 's#^git@github\.com:#https://github.com/#; s#\.git$##; s#^https?://[^/]+/##')"
-        url="https://api.github.com/repos/${slug}/releases/latest"
-        ;;
-      *)
-        # Origin FORA do GitHub (espelho, caminho local): ali não existe API de
-        # release, e a maior tag é a única resposta que existe — o mesmo que o
-        # kit fazia antes. Toda instalação real clona do GitHub (install.sh) e
-        # nunca cai aqui; quem cai é o repositório descartável dos testes.
-        git tag -l 'v*' --sort=-v:refname | head -1
-        return 0
-        ;;
-    esac
+    slug="$(repositorio_das_releases)" || slug=""
+    if [ -n "$slug" ]; then
+      url="https://api.github.com/repos/${slug}/releases/latest"
+    else
+      # Origin FORA do GitHub (espelho, caminho local): ali não existe API de
+      # release, e a maior tag é a única resposta que existe — o mesmo que o
+      # kit fazia antes. Toda instalação real clona do GitHub (install.sh) e
+      # nunca cai aqui; quem cai é o repositório descartável dos testes.
+      git tag -l 'v*' --sort=-v:refname | head -1
+      return 0
+    fi
   fi
 
   # `-f` faz o curl falhar em 404 (repo sem release nenhuma) em vez de devolver

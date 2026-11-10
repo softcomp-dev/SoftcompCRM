@@ -55,8 +55,10 @@ collect_runtime_confirmation() {
   RUNTIME_REVISION=""; RUNTIME_VERSION=""; RUNTIME_BASE=""; RUNTIME_SELECTIONS=""
   # An isolated ref namespace: no checkout, existing tags or branches change.
   git fetch --quiet origin '+refs/tags/v*:refs/deskcomm-runtime-tags/v*' 2>/dev/null && RUNTIME_TAGS_OK=true
-  local role services="" issues="" voice_ids published="${LATEST_TAG:-}"
+  local role services="" issues="" voice_ids published="${LATEST_TAG:-}" repo="${RELEASE_REPO:-}"
   [[ "$published" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || published=""
+  # Same shape the app accepts (owner/repo); anything else is omitted, not escaped.
+  [[ "$repo" =~ ^[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}$ ]] || repo=""
   for role in app worker scheduler; do
     runtime_service "$role"
     services="${services}${services:+,}${RUNTIME_SERVICE}"
@@ -71,7 +73,7 @@ collect_runtime_confirmation() {
   done <<< "$RUNTIME_SELECTIONS"
   [ "$RUNTIME_TAGS_OK" = true ] || issues='"release_refs_unavailable"'
   if [ "$RUNTIME_CHANGED" = true ]; then issues="${issues}${issues:+,}\"changed_during_collection\""; RUNTIME_CONFIRMED=false; fi
-  RUNTIME_CONFIRMATION="{\"schema\":1,\"collected_at\":\"$(date -u +%FT%TZ)\",\"project\":\"$(esc "$(nome_do_projeto_atual)")\",\"published_release\":$(runtime_nullable "$published"),\"services\":[$services],\"issues\":[$issues]}"
+  RUNTIME_CONFIRMATION="{\"schema\":1,\"collected_at\":\"$(date -u +%FT%TZ)\",\"project\":\"$(esc "$(nome_do_projeto_atual)")\",\"published_release\":$(runtime_nullable "$published"),\"release_repo\":$(runtime_nullable "$repo"),\"services\":[$services],\"issues\":[$issues]}"
 }
 
 # The native updater installs public release images. A custom revision needs

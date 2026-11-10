@@ -48,6 +48,13 @@ docker() {
   esac
 }
 source "$ROOT/hostgator-setup-kit/_runtime.sh"
+# The release repository travels as owner/repo only; anything else becomes null.
+RELEASE_REPO="softcomp-dev/SoftcompCRM"; MODE=official; collect_runtime_confirmation
+[[ "$RUNTIME_CONFIRMATION" == *'"release_repo":"softcomp-dev/SoftcompCRM"'* ]]
+RELEASE_REPO='x"/y'; collect_runtime_confirmation
+[[ "$RUNTIME_CONFIRMATION" == *'"release_repo":null'* ]]
+unset RELEASE_REPO; collect_runtime_confirmation
+[[ "$RUNTIME_CONFIRMATION" == *'"release_repo":null'* ]]
 for MODE in official customized unhealthy missing divergent foreign; do
   collect_runtime_confirmation
   case "$MODE" in

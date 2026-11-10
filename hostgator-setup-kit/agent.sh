@@ -172,6 +172,9 @@ CURRENT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 # instalá-la). O `git fetch --tags` acima continua necessário: a API decide
 # QUAL tag, o git fornece o CONTEÚDO dela (changelog, ancestralidade).
 LATEST_TAG="$(ultima_release_estavel)" || true
+# De onde vêm as releases (`dono/repo`), para o botão "Buscar atualização" da
+# tela perguntar ao GitHub na hora. Vazio = não dá para perguntar de lá.
+RELEASE_REPO="$(repositorio_das_releases)" || RELEASE_REPO=""
 # "A API não respondeu" é diferente de "não há release". Sem esta distinção o
 # app leria o silêncio como boa notícia e diria "você está em dia" a uma
 # instalação atrasada — o mesmo defeito que COMPARE_FAILED já evita do outro

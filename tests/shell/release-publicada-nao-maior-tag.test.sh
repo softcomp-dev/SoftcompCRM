@@ -70,5 +70,22 @@ check "update.sh não escolhe mais pela maior tag" \
 check "agent.sh anuncia por ultima_release_estavel" \
   grep -q 'LATEST_TAG="$(ultima_release_estavel)"' "$KIT_DIR/agent.sh"
 
+repo_de() {  # repo_de <origin> [VAR=valor...] — o que o agente anuncia como release_repo
+  local origem="$1"; shift
+  ( cd "$REPO" && git remote remove origin 2>/dev/null; git remote add origin "$origem"
+    env "$@" bash -c 'source "$0/_common.sh" >/dev/null 2>&1; repositorio_das_releases' "$KIT_DIR" )
+}
+
+echo '── 6. O repositório anunciado ao botão "Buscar atualização" é o mesmo que a função consulta'
+check "https com .git" test "$(repo_de https://github.com/softcomp-dev/SoftcompCRM.git)" = "softcomp-dev/SoftcompCRM"
+check "ssh" test "$(repo_de git@github.com:melgarafael/DeskcommCRM.git)" = "melgarafael/DeskcommCRM"
+check "barra no fim" test "$(repo_de https://github.com/exemplo/crm/)" = "exemplo/crm"
+check "fora do GitHub: vazio (o app não tem a quem perguntar)" test -z "$(repo_de "$WORK/espelho")"
+check "endereço explícito: vazio (a pergunta não é ao GitHub)" \
+  test -z "$(repo_de https://github.com/exemplo/crm.git DESKCOMM_RELEASES_LATEST_URL="file://$WORK/latest.json")"
+check "caminho que não é dono/repo: vazio" test -z "$(repo_de https://github.com/exemplo/crm/tree/main)"
+check "agent.sh anuncia por repositorio_das_releases" \
+  grep -q 'RELEASE_REPO="$(repositorio_das_releases)"' "$KIT_DIR/agent.sh"
+
 echo
 if [ "$FAILS" -eq 0 ]; then echo "OK — release publicada, nunca a maior tag"; else echo "FALHOU: $FAILS"; exit 1; fi
