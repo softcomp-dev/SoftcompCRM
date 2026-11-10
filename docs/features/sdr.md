@@ -71,13 +71,57 @@ ela é uma coluna dele.
 | `sdr.leads.qualify` | SDR ativo |
 | `sdr.leads.handoff` | SDR ativo |
 
-⚠️ **As três `sdr.leads.*` são contrato, ainda sem consumidor.** Nenhuma tela,
-rota de lead ou roteamento as lê hoje. Quem acessa cada lead continua decidido
-pelo papel e pela visibilidade de sempre. Para conferir sem confiar nesta linha:
+⚠️ **As três `sdr.leads.*` são nomes de contrato para integrador.** A
+distribuição de leads novos (abaixo) usa a MESMA regra de "SDR ativo", mas pela
+função (`motivoSdrInativo`), não lendo essas strings. Quem acessa cada lead
+continua decidido pelo papel e pela visibilidade de sempre. Para conferir quem
+lê as strings sem confiar nesta linha:
 
 ```bash
 git grep -n "sdr.leads" -- app lib components ':!lib/sdr' ':!*.test.ts'
 ```
+
+## Distribuição de leads novos: os dois fluxos
+
+Cada empresa escolhe o fluxo, e ele é decidido por
+`lib/sdr/distribuicao.ts`, consultada pelo worker de roteamento
+(`lib/routing/worker.ts`) sempre que ele vai montar a lista do rodízio:
+
+| Situação da empresa | Quem recebe o lead novo |
+|---|---|
+| Função SDR desligada (o padrão) | a equipe inteira, como sempre |
+| Ligada, mas nenhum SDR ativo | a equipe inteira (configuração incompleta não para a entrada) |
+| Ligada e ao menos um SDR ativo | **só os SDRs ativos** |
+
+No fluxo SDR, se todos os SDRs estiverem ocupados (sem folga), indisponíveis ou
+fora do horário, o lead **espera um SDR** na fila: o worker reenfileira, e depois
+das tentativas abre o aviso de sempre (`fn_routing_unassigned_notice`). Ele não
+vaza para o resto da equipe.
+
+O que continua valendo por cima do fluxo SDR:
+
+- **Modo da distribuição.** Em modo `manual` ninguém recebe lead sozinho, SDR ou
+  não; o fluxo só vale em `round_robin` e `load`. O cartão da tela avisa.
+- **Responsáveis do número e fila (setor).** O recorte SDR é **interseção**:
+  recebe quem é SDR **e** responde por aquele número **e** está na fila. Se
+  nenhum SDR responde pelo número, o lead daquele número espera — ajuste os
+  responsáveis do número em Configurações › Atendimento.
+- **Destino padrão do número** continua sendo entrega direta à pessoa escolhida
+  (é a regra mais específica), mesmo que ela não seja SDR.
+- **Carteira do cliente.** Conversa que já chega com dono não passa pelo rodízio.
+
+O que **não** muda: a passagem da IA para um humano no meio do atendimento
+(`lib/mcp/tools/handoff.ts`) e o resumo da fila seguem com a equipe inteira —
+pedir uma pessoa no meio de uma conversa não é lead novo.
+
+Cada evento de roteamento grava `distribuicao: "sdr" | "equipe"` no metadata do
+`event_log` (no fechamento e no reenfileiramento), para investigar por que um
+lead foi para alguém ou ficou esperando. O GET do interruptor devolve o fluxo em
+vigor, e o cartão da tela de Equipe o mostra.
+
+Janela conhecida: a marca é lida antes do claim (`fn_channel_routing_claim`),
+que não conhece SDR. Desmarcar alguém no mesmo segundo em que um lead é
+entregue a ele pode deixar esse lead com quem acabou de deixar de ser SDR.
 
 ## API
 
@@ -86,7 +130,7 @@ Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
 
 | Método e rota | Papel | Função desligada | Resposta |
 |---|---|---|---|
-| `GET /api/v1/settings/sdr` | viewer+ | responde | `{ enabled }` |
+| `GET /api/v1/settings/sdr` | viewer+ | responde | `{ enabled, distribution: { flow: "sdr" \| "team", active_sdrs } }` |
 | `PATCH /api/v1/settings/sdr` `{ enabled }` | admin | — | `{ enabled }`; 409 `conflict` se outra escrita correu |
 | `GET /api/v1/sdr/assignments` | manager+ | 409 `sdr_disabled` | `[{ user_id, full_name, role, assigned_since, active, inactive_reason }]`, `meta.total` |
 | `POST /api/v1/sdr/assignments` `{ user_id }` | admin | 409 `sdr_disabled` | 201 marcou · 200 já era · 404 · 409 revogado · 422 `sdr_role_ineligible` |
@@ -119,15 +163,18 @@ idempotente que não muda nada não audita.
 
 ## O que ainda não existe
 
-- **Consumidor das `sdr.leads.*`**: roteamento de lead novo só para SDRs, filtro
-  de relatório "por SDR" e passagem SDR → Closer lendo a marca. Hoje a passagem
-  é a automação de troca de responsável (#3514), escolhendo a pessoa pelo nome.
+- **Relatório "por SDR"** e **passagem SDR → Closer lendo a marca.** Hoje a
+  passagem é a automação de troca de responsável (#3514), escolhendo a pessoa
+  pelo nome.
+- **Lead que chega sem conversa** (formulário, API, importação) não passa pelo
+  rodízio de conversas e, portanto, não pelo fluxo SDR.
 - **Bearer token** nessas rotas.
 
 ## Laço de retorno (sistema vivo)
 
-- **Entrada:** admin pela tela de Equipe (ou pela API). **Saída:** a coluna SDR
-  da tabela, `GET /api/v1/sdr/permissions` e a lista.
+- **Entrada:** admin pela tela de Equipe (ou pela API). **Saída:** os leads
+  novos entregues só aos SDRs (worker de roteamento), a coluna SDR da tabela, o
+  fluxo em vigor no cartão, `GET /api/v1/sdr/permissions` e a lista.
 - **Log:** `api_audit_log`, filtrável no painel de auditoria (o vocabulário é
   derivado de `lib/audit/actions.ts`).
 - **Quando erra:** um SDR que parou de valer não some. A tabela mostra o motivo
