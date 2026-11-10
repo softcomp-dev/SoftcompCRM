@@ -2,8 +2,9 @@
  * /api/v1/settings/sdr — o interruptor da função SDR desta empresa
  * (`organizations.settings.sdr.enabled`, esquema em `lib/sdr/configuracao.ts`).
  *
- * GET   qualquer membro (viewer+): `{ enabled }`. Telas e integrações perguntam
- *       aqui antes de oferecer qualquer coisa de SDR.
+ * GET   qualquer membro (viewer+): `{ enabled, distribution: { flow, active_sdrs } }`.
+ *       `flow` é "sdr" quando os leads novos vão só para SDRs, "team" quando vão
+ *       para a equipe inteira (função desligada ou nenhum SDR ativo).
  * PATCH admin: `{ enabled: boolean }`. Desligar NÃO desmarca ninguém: as
  *       marcas ficam e só perdem efeito (`lib/sdr/permissoes.ts`); religar
  *       devolve a equipe como estava.
@@ -17,9 +18,8 @@ import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { comConfiguracaoSdr, configuracaoSdrSchema, lerConfiguracaoSdr } from "@/lib/sdr/configuracao";
+import { carregarFluxoDeDistribuicao } from "@/lib/sdr/distribuicao";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-import { interruptorDaOrganizacao } from "../../sdr/_shared";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +27,32 @@ export async function GET(_req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const authz = await requireRole("viewer", { requestId, resource: "organizations" });
   if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const orgId = authz.org.orgId;
 
-  const lido = await interruptorDaOrganizacao(createAdminClient(), authz.org.orgId, authz.user.idioma, requestId, {
-    exigirLigada: false,
-  });
-  if (!lido.ok) return lido.response;
-  return ok({ enabled: lido.enabled }, { requestId });
+  const db = createAdminClient();
+  const lido = await db.from("organizations").select("settings").eq("id", orgId).maybeSingle();
+  if (lido.error || !lido.data) return fail("internal_error", t("Falha ao carregar."), 500, { requestId });
+
+  // O fluxo que o worker de roteamento vai usar AGORA, pela MESMA função
+  // (`lib/sdr/distribuicao.ts`) — a tela mostra o que o servidor decide, não
+  // uma cópia da regra.
+  let fluxo;
+  try {
+    fluxo = await carregarFluxoDeDistribuicao(db, orgId, lido.data.settings);
+  } catch {
+    return fail("internal_error", t("Falha ao carregar."), 500, { requestId });
+  }
+  return ok(
+    {
+      enabled: lerConfiguracaoSdr(lido.data.settings).enabled,
+      distribution: {
+        flow: fluxo.fluxo === "sdr" ? "sdr" : "team",
+        active_sdrs: fluxo.fluxo === "sdr" ? fluxo.userIds.size : 0,
+      },
+    },
+    { requestId },
+  );
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {

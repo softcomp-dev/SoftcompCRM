@@ -110,7 +110,10 @@ async function ligar() {
 describe("interruptor (settings/sdr)", () => {
   it("nasce desligado e liga sem apagar outra configuração, auditando", async () => {
     const { GET } = await settings();
-    expect((await (await GET(req("/api/v1/settings/sdr"))).json()).data).toEqual({ enabled: false });
+    expect((await (await GET(req("/api/v1/settings/sdr"))).json()).data).toEqual({
+      enabled: false,
+      distribution: { flow: "team", active_sdrs: 0 },
+    });
 
     const r = await ligar();
     expect(r.status).toBe(200);
@@ -205,6 +208,24 @@ describe("atribuição (sdr/assignments)", () => {
     expect((await DELETE(req(`/api/v1/sdr/assignments/${AGENTE}`, "DELETE"), ctx)).status).toBe(200);
     expect((await DELETE(req(`/api/v1/sdr/assignments/${AGENTE}`, "DELETE"), ctx)).status).toBe(200);
     expect(vi.mocked(audit).mock.calls.map(([a]) => a.action)).toEqual(["sdr.unassigned"]);
+  });
+});
+
+describe("fluxo de distribuição no GET do interruptor", () => {
+  it("ligada sem SDR: equipe; com um SDR marcado: sdr com a contagem", async () => {
+    await ligar();
+    const { GET } = await settings();
+    expect((await (await GET(req("/api/v1/settings/sdr"))).json()).data.distribution).toEqual({
+      flow: "team",
+      active_sdrs: 0,
+    });
+
+    const { POST } = await assignments();
+    await POST(req("/api/v1/sdr/assignments", "POST", { user_id: AGENTE }));
+    expect((await (await GET(req("/api/v1/settings/sdr"))).json()).data.distribution).toEqual({
+      flow: "sdr",
+      active_sdrs: 1,
+    });
   });
 });
 

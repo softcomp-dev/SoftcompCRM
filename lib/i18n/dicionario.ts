@@ -20354,6 +20354,11 @@ export const DICIONARIO: Traducoes = {
   "Membro deixou de ser SDR.": { es: "El miembro dejó de ser SDR." },
   "A função SDR está desligada nesta empresa.": { es: "La función SDR está desactivada en esta empresa." },
   "Este papel não pode ser SDR. Mude o papel para Atendente ou acima.": { es: "Este rol no puede ser SDR. Cambia el rol a Asesor o superior." },
+  "Leads novos: para toda a equipe, como sempre. Ligue a função para mandá-los só aos SDRs.": { es: "Leads nuevos: para todo el equipo, como siempre. Activa la función para enviarlos solo a los SDR." },
+  "Leads novos: só para os SDRs ativos ({n}). Se todos estiverem ocupados ou fora do horário, o lead espera um SDR.": { es: "Leads nuevos: solo para los SDR activos ({n}). Si todos están ocupados o fuera de horario, el lead espera a un SDR." },
+  "Nenhum SDR ativo ainda: os leads novos seguem para toda a equipe. Marque ao menos um SDR na tabela abaixo.": { es: "Todavía no hay SDR activos: los leads nuevos siguen yendo a todo el equipo. Marca al menos un SDR en la tabla de abajo." },
+  "A distribuição automática está no modo manual: nenhum lead novo é entregue sozinho, a SDR ou não, salvo números com regra própria.": { es: "La distribución automática está en modo manual: ningún lead nuevo se entrega solo, sea a un SDR o no, salvo los números con regla propia." },
+  "Mudar em Configurações › Atendimento": { es: "Cambiar en Configuración › Atención" },
 };
 
 

@@ -55,13 +55,18 @@ function membro(user_id: string, role: string, full_name: string): TeamMember {
 
 let ligado: boolean;
 let atribuidos: SdrAssignment[];
+let fluxo: { flow: "sdr" | "team"; active_sdrs: number };
+let modo: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
   ligado = false;
   atribuidos = [];
+  fluxo = { flow: "team", active_sdrs: 0 };
+  modo = "round_robin";
   vi.mocked(apiClient.get).mockImplementation((async (url: string) => {
-    if (url === "/api/v1/settings/sdr") return { data: { enabled: ligado } };
+    if (url === "/api/v1/settings/sdr") return { data: { enabled: ligado, distribution: fluxo } };
+    if (url === "/api/v1/settings/routing") return { data: { mode: modo } };
     if (url === "/api/v1/sdr/assignments") return { data: atribuidos };
     return {
       data: [
@@ -98,6 +103,40 @@ describe("SdrCard", () => {
     renderizar(<SdrCard canManage={false} />);
     expect(await screen.findByText("Ligada")).toBeInTheDocument();
     expect(screen.queryByRole("switch")).toBeNull();
+  });
+});
+
+describe("SdrCard — qual fluxo vale agora", () => {
+  it("desligada: diz que os leads novos vão para toda a equipe", async () => {
+    renderizar(<SdrCard canManage />);
+    expect(await screen.findByTestId("sdr-fluxo")).toHaveTextContent("para toda a equipe, como sempre");
+  });
+
+  it("ligada sem SDR ativo: avisa que segue para a equipe e pede para marcar", async () => {
+    ligado = true;
+    renderizar(<SdrCard canManage />);
+    expect(await screen.findByTestId("sdr-fluxo")).toHaveTextContent("Nenhum SDR ativo ainda");
+  });
+
+  it("ligada com SDR ativo: só para os SDRs, com a contagem do servidor", async () => {
+    ligado = true;
+    fluxo = { flow: "sdr", active_sdrs: 2 };
+    renderizar(<SdrCard canManage />);
+    expect(await screen.findByTestId("sdr-fluxo")).toHaveTextContent("só para os SDRs ativos (2)");
+    expect(screen.queryByTestId("sdr-modo-manual")).toBeNull();
+  });
+
+  it("ligada com a distribuição em modo manual: avisa e aponta onde mudar", async () => {
+    ligado = true;
+    fluxo = { flow: "sdr", active_sdrs: 1 };
+    modo = "manual";
+    renderizar(<SdrCard canManage />);
+    const aviso = await screen.findByTestId("sdr-modo-manual");
+    expect(aviso).toHaveTextContent("modo manual");
+    expect(screen.getByRole("link", { name: "Mudar em Configurações › Atendimento" })).toHaveAttribute(
+      "href",
+      "/app/settings/atendimento",
+    );
   });
 });
 

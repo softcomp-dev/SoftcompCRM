@@ -27,10 +27,16 @@ export interface SdrAssignment {
   inactive_reason: MotivoSdrInativo | null;
 }
 
+export interface SdrSettings {
+  enabled: boolean;
+  /** O fluxo que a distribuição automática usa agora (`lib/sdr/distribuicao.ts`). */
+  distribution?: { flow: "sdr" | "team"; active_sdrs: number };
+}
+
 export function useSdrSettings() {
   return useQuery({
     queryKey: SETTINGS_KEY,
-    queryFn: async () => apiClient.get<{ data: { enabled: boolean } }>("/api/v1/settings/sdr"),
+    queryFn: async () => apiClient.get<{ data: SdrSettings }>("/api/v1/settings/sdr"),
     staleTime: 30_000,
   });
 }
@@ -72,6 +78,8 @@ export function useSetSdr() {
       toast.success(assigned ? t("Membro marcado como SDR.") : t("Membro deixou de ser SDR."));
     },
     onError: (err) => showApiError(err),
-    onSettled: () => qc.invalidateQueries({ queryKey: ASSIGNMENTS_KEY }),
+    // SDR_KEY inteiro: marcar o primeiro SDR (ou desmarcar o último) muda o
+    // fluxo da distribuição, que vem no GET do interruptor.
+    onSettled: () => qc.invalidateQueries({ queryKey: SDR_KEY }),
   });
 }
