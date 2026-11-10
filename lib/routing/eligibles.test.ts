@@ -53,6 +53,32 @@ describe("elegibilidade com origem explícita", () => {
     const { db } = fixture({ channel_sessions: null });
     await expect(loadEligibleAttendants(db, "org", now, scope)).rejects.toThrow("routing_channel_invalid");
   });
+  it("recorte SDR: só quem está no conjunto recebe", async () => {
+    const { db } = fixture({
+      user_organizations: [{ user_id: "ana" }, { user_id: "bia" }],
+      attendant_availability: [
+        { user_id: "ana", capacity: 2, schedule: {} },
+        { user_id: "bia", capacity: 2, schedule: {} },
+      ],
+    });
+    expect(await loadEligibleAttendants(db, "org", now, scope, { somente: new Set(["bia"]) }))
+      .toMatchObject([{ userId: "bia" }]);
+    // sem recorte, os dois — o fluxo de sempre
+    expect(await loadEligibleAttendants(db, "org", now, scope)).toHaveLength(2);
+  });
+  it("recorte SDR é interseção com os responsáveis do número, nunca substituição", async () => {
+    const { db } = fixture({
+      channel_routing_policies: { id: "policy" },
+      channel_routing_responsibles: [{ user_id: "ana" }],
+      user_organizations: [{ user_id: "ana" }, { user_id: "bia" }],
+      attendant_availability: [
+        { user_id: "ana", capacity: 2, schedule: {} },
+        { user_id: "bia", capacity: 2, schedule: {} },
+      ],
+    });
+    // bia é SDR mas não responde pelo número; ana responde mas não é SDR
+    expect(await loadEligibleAttendants(db, "org", now, scope, { somente: new Set(["bia"]) })).toEqual([]);
+  });
   it("erro de banco não vira sem elegível", async () => {
     const { db } = fixture({ attendant_availability: new Error("offline") });
     await expect(loadEligibleAttendants(db, "org", now, scope)).rejects.toThrow("offline");

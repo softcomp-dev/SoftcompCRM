@@ -57,12 +57,24 @@ export async function loadSectorWindow(
 }
 
 
+export interface LoadEligibleOptions {
+  /**
+   * Recorte de QUEM pode receber, por cima de número e fila — interseção,
+   * nunca substituição. Hoje é o fluxo SDR (`lib/sdr/distribuicao.ts`): só os
+   * SDRs ativos recebem lead novo. Ausente = sem recorte (comportamento de
+   * sempre). Conjunto vazio = ninguém (quem chama não deve passar vazio sem
+   * querer dizer isso).
+   */
+  somente?: ReadonlySet<string>;
+}
+
 /** Elegíveis = disponíveis ∧ dentro do horário ∧ com folga (carga < capacidade). */
 export async function loadEligibleAttendants(
   supabase: SupabaseClient,
   organizationId: string,
   now: Date,
   scope: RoutingScope,
+  opts: LoadEligibleOptions = {},
 ): Promise<RoutingCandidate[]> {
   let allowed: Set<string> | null = null;
   // A política do NÚMERO vale nos dois escopos que sabem qual é o número.
@@ -114,6 +126,16 @@ export async function loadEligibleAttendants(
       : new Set([...members].filter((id) => allowed!.has(id)));
     // Fila sem ninguém capaz de atender por este número: vazio, e isso é fato a
     // registrar — não silêncio (ver invariante da migration).
+    if (allowed.size === 0) return [];
+  }
+
+  // Recorte do chamador (fluxo SDR): interseção com o que número e fila já
+  // permitiram. Vazio depois do corte = ninguém agora; o worker reenfileira.
+  if (opts.somente) {
+    const somente = opts.somente;
+    allowed = allowed === null
+      ? new Set(somente)
+      : new Set([...allowed].filter((id) => somente.has(id)));
     if (allowed.size === 0) return [];
   }
 

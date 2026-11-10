@@ -25,6 +25,7 @@ import {
 } from "@/lib/routing/decide";
 import { motivoParaNaoRotear, type MotivoDoCaso } from "@/lib/routing/caso-da-conversa";
 import { loadEligibleAttendants, InvalidRoutingChannel, InvalidRoutingSector } from "@/lib/routing/eligibles";
+import { carregarFluxoDeDistribuicao, type FluxoDeDistribuicao } from "@/lib/sdr/distribuicao";
 import { routingConfigSchema } from "@/lib/schemas/routing";
 
 export const ROUTING_WORKER_KEY = "worker.routing.v1";
@@ -290,15 +291,30 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
   const viaDestinoPadrao = !alreadyAssigned && Boolean(efetivo.defaultAssigneeUserId)
     && (!sectorId || await ehMembroDaFila(admin, orgId, sectorId, efetivo.defaultAssigneeUserId as string));
   let eligibles: Awaited<ReturnType<typeof loadEligibleAttendants>> = [];
+  /**
+   * Os DOIS fluxos (docs/features/sdr.md): sem a função SDR, ou sem nenhum SDR
+   * ativo, a equipe inteira recebe, como sempre; com SDR ativo, só os SDRs. A
+   * regra é de `lib/sdr/distribuicao.ts` e só é consultada quando o rodízio vai
+   * de fato montar a lista — modo manual, conversa com dono e destino padrão
+   * do número não gastam a leitura.
+   */
+  let fluxo: FluxoDeDistribuicao | null = null;
   if (
     !alreadyAssigned &&
     !viaDestinoPadrao &&
     (efetivo.mode === "round_robin" || efetivo.mode === "load")
   ) {
+    fluxo = await carregarFluxoDeDistribuicao(admin, orgId, org.settings);
     try {
-      eligibles = await loadEligibleAttendants(admin, orgId, now, sectorId
-        ? { kind: "sector", sectorId, channelSessionId: conv.channel_session_id }
-        : { kind: "conversation_channel", channelSessionId: conv.channel_session_id });
+      eligibles = await loadEligibleAttendants(
+        admin,
+        orgId,
+        now,
+        sectorId
+          ? { kind: "sector", sectorId, channelSessionId: conv.channel_session_id }
+          : { kind: "conversation_channel", channelSessionId: conv.channel_session_id },
+        fluxo.fluxo === "sdr" ? { somente: fluxo.userIds } : {},
+      );
     } catch (error) {
       if (error instanceof InvalidRoutingSector) {
         // A fila sumiu entre o enfileiramento e o processamento. A conversa não
@@ -388,6 +404,9 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
       await markDone(event, "assigned", {
         assigned_to_user_id: action.userId,
         leads_adotados: leads,
+        // Qual fluxo escolheu quem recebeu ("sdr" | "equipe"; null quando
+        // ninguém montou lista: destino padrão do número).
+        distribuicao: fluxo?.fluxo ?? null,
       });
       return "assigned";
     }
@@ -423,7 +442,8 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
         event,
         now,
         action.attempts,
-        { reason: "no_eligible" },
+        // `distribuicao: "sdr"` diz que o lead espera um SDR — não a equipe.
+        { reason: "no_eligible", distribuicao: fluxo?.fluxo ?? null },
         action.nextAttemptAt,
       );
       return "requeued_no_eligible";
