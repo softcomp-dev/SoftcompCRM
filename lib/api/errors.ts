@@ -101,6 +101,9 @@ export const ApiErrorCodes = {
   // POST /api/v1/sdr/assignments para um membro cujo papel não pode ser SDR
   // (viewer). `details.role` traz o papel atual; `details.minimum_role`, o mínimo.
   sdr_role_ineligible: "sdr_role_ineligible",
+  // POST /api/v1/leads/[id]/passar-ao-vendedor: quem chamou não é SDR ativo, ou
+  // o negócio está com um colega. `details.motivo` diz qual (`lib/sdr/passagem.ts`).
+  sdr_handoff_forbidden: "sdr_handoff_forbidden",
   // POST /api/v1/prospecting (`start` e `resume`): a CONEXÃO escolhida já tem
   // uma campanha de prospecção em andamento (#3896). Uma campanha ativa por
   // NÚMERO, não por organização — a recusa é do número, e `details` traz

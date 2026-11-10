@@ -20,6 +20,7 @@ import { invalidarUsuario } from "@/lib/auth/cache-curto";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 import { lerConfiguracaoSdr } from "./configuracao";
+import type { MembroDaPassagem } from "./passagem";
 import { PAPEIS_QUE_PODEM_SER_SDR, type MembroParaPermissao } from "./permissoes";
 
 type Db = ReturnType<typeof createAdminClient>;
@@ -149,4 +150,21 @@ export async function listarMarcados(
     .order("sdr_since", { ascending: true });
   if (error) return { ok: false, mensagem: error.message };
   return { ok: true, membros: (data ?? []) as MembroParaPermissao[] };
+}
+
+/**
+ * A equipe inteira da organização, com o aceite do convite — o que a passagem
+ * do SDR para o vendedor (`lib/sdr/passagem.ts`) precisa para decidir quem
+ * passa e quem recebe. Sem nome nem e-mail: a tela já tem os nomes.
+ */
+export async function listarEquipeDaPassagem(
+  db: Db,
+  orgId: string,
+): Promise<{ ok: true; membros: MembroDaPassagem[] } | { ok: false; mensagem: string }> {
+  const { data, error } = await db
+    .from("user_organizations")
+    .select(`${COLUNAS}, accepted_at`)
+    .eq("organization_id", orgId);
+  if (error) return { ok: false, mensagem: error.message };
+  return { ok: true, membros: (data ?? []) as MembroDaPassagem[] };
 }

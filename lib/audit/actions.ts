@@ -1509,6 +1509,9 @@ export const AUDIT_ACTIONS = [
   "sdr.settings_changed",
   "sdr.assigned",
   "sdr.unassigned",
+  // O SDR passou o negócio ao vendedor que escolheu. Leva o user_id do
+  // vendedor, se a carteira passou e quantas conversas foram junto.
+  "sdr.lead_handed_off",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */
