@@ -90,6 +90,9 @@ export function TenantSwitcher() {
             {active?.orgId === org.organization_id && <span className="text-xs text-muted-foreground">✓</span>}
           </DropdownMenuItem>
         ))}
+        {user.organizations.length > 1 && <DropdownMenuItem asChild>
+          <Link href="/app/consolidado" data-testid="tenant-switcher-consolidado">{t("Ver todas juntas")}</Link>
+        </DropdownMenuItem>}
         {user.is_platform_admin && <DropdownMenuItem asChild>
           <Link href="/admin/tenants">{t("Gerenciar organizações")}</Link>
         </DropdownMenuItem>}

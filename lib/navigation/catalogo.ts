@@ -266,6 +266,18 @@ export const NAV_CATALOG = [
     // campanha é montada de vez em quando, não aberta todo dia.
   },
   {
+    // Funil, conversas e contatos de VÁRIAS empresas da pessoa numa tela só.
+    // Só no hub (o sidebar do CRM já está no limite de 900px, ver Campanhas
+    // acima) e no seletor de empresa do cabeçalho, que é onde quem tem mais de
+    // uma empresa procura por "todas juntas".
+    href: "/app/consolidado",
+    label: "Visão consolidada",
+    description: "Funil, conversas e contatos de todas as suas empresas juntos, com filtro por empresa.",
+    icon: "Buildings",
+    group: "crm",
+    section: "O dia a dia da venda",
+  },
+  {
     href: "/app/contacts",
     label: "Contatos",
     description: "As pessoas do outro lado da conversa e seu histórico.",
