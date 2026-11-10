@@ -23,13 +23,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { DotsThree, PencilSimple, Users } from "@/lib/ui/icons";
+import { ArrowBendUpRight, DotsThree, PencilSimple, Users } from "@/lib/ui/icons";
 import { useWinLead, useEditLead } from "@/hooks/kanban/useUpdateLead";
 import { useBulkAction } from "@/hooks/kanban/useBulkAction";
 import { usePropostaEnviadaDoLead } from "@/hooks/kanban/usePropostaEnviadaDoLead";
 import { useAssignableMembers } from "@/hooks/inbox/useAssignableMembers";
 import { useAssignableAgents } from "@/hooks/kanban/useAssignableAgents";
 import { usePermission } from "@/hooks/auth/AuthProvider";
+import { usePassarAoVendedor, useVendedoresDoSdr } from "@/hooks/sdr/useSdr";
 import { LoseLeadDialog } from "./LoseLeadDialog";
 import { MoveToOtherPipelineDialog } from "./MoveToOtherPipelineDialog";
 import { EditLeadDialog } from "./EditLeadDialog";
@@ -67,6 +68,16 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
   // A rota já devolve só agente ativo e não arquivado — é o picker.
   const { data: agents } = useAssignableAgents(canAssign);
   const destinos = etapas?.filter((e) => e.id !== lead.stage_id) ?? [];
+  // A passagem do SDR para o vendedor (docs/features/sdr.md). Quem não é SDR
+  // ativo recebe `pode_passar: false` e o item não aparece. A lista de nomes é a
+  // mesma do "Responsável", recortada pelos ids que a rota diz que podem receber.
+  const { data: doSdr } = useVendedoresDoSdr(canAssign);
+  const passar = usePassarAoVendedor(pipelineId);
+  const vendedores = doSdr?.pode_passar
+    ? (members ?? []).filter((m) => doSdr.vendedores.includes(m.user_id))
+    : [];
+  const podePassarEste =
+    doSdr?.pode_passar === true && (lead.owner_user_id === null || lead.owner_user_id === doSdr.user_id);
 
   const reassignToUser = (ownerUserId: string | null) => {
     if (ownerUserId === lead.owner_user_id) return;
@@ -173,6 +184,33 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
                     )}
                   </DropdownMenuItem>
                 ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+          {podePassarEste && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <ArrowBendUpRight size={14} className="mr-2" /> {t("Passar para vendedor")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuLabel className="max-w-64 text-xs font-normal text-text-muted">
+                  {t("O negócio, o cliente e as conversas abertas com você vão para o vendedor.")}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {vendedores.map((m) => (
+                  <DropdownMenuItem
+                    key={m.user_id}
+                    disabled={passar.isPending}
+                    onSelect={() =>
+                      passar.mutate({ leadId: lead.id, userId: m.user_id, nome: rotuloDoMembro(m, t) })
+                    }
+                  >
+                    {rotuloDoMembro(m, t)}
+                  </DropdownMenuItem>
+                ))}
+                {vendedores.length === 0 && (
+                  <DropdownMenuItem disabled>{t("Nenhum vendedor disponível na equipe.")}</DropdownMenuItem>
+                )}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           )}

@@ -5,6 +5,9 @@
  * `pode_passar` é false, `motivo` diz por quê e a lista vem vazia — é assim
  * que a tela decide se mostra o "Passar para vendedor" sem tomar 403.
  *
+ * `user_id` é quem perguntou: a tela só oferece a passagem no negócio que é
+ * dele ou está sem dono humano (a mesma régua da rota da passagem).
+ *
  * Só ids: o nome de cada um a tela já tem (`/api/v1/team/assignable`), e a
  * lista de quem é SDR não sai daqui — ela é do gerente (`/sdr/assignments`).
  * A regra de quem entra é `vendedoresParaOSdr` (`lib/sdr/passagem.ts`).
@@ -40,10 +43,10 @@ export async function GET(_req: NextRequest): Promise<Response> {
 
   const motivo = recusaDoSdr(equipe.membros.find((m) => m.user_id === eu) ?? null, funcao.enabled);
   if (motivo !== null) {
-    return ok({ pode_passar: false, motivo, vendedores: [] as string[] }, { requestId });
+    return ok({ user_id: eu, pode_passar: false, motivo, vendedores: [] as string[] }, { requestId });
   }
   return ok(
-    { pode_passar: true, motivo: null, vendedores: vendedoresParaOSdr(equipe.membros, eu, funcao.enabled) },
+    { user_id: eu, pode_passar: true, motivo: null, vendedores: vendedoresParaOSdr(equipe.membros, eu, funcao.enabled) },
     { requestId },
   );
 }

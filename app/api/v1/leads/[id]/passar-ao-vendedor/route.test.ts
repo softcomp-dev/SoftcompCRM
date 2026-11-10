@@ -153,7 +153,7 @@ describe("GET /api/v1/sdr/vendedores", () => {
   it("o SDR vê só quem pode receber: nem ele, nem outro SDR, nem gente de outra empresa", async () => {
     const { GET } = await vendedores();
     const corpo = await (await GET(new NextRequest("http://localhost/api/v1/sdr/vendedores"))).json();
-    expect(corpo.data).toEqual({ pode_passar: true, motivo: null, vendedores: [VENDEDOR, COLEGA] });
+    expect(corpo.data).toEqual({ user_id: SDR, pode_passar: true, motivo: null, vendedores: [VENDEDOR, COLEGA] });
   });
 
   it("quem não é SDR recebe a lista vazia e o motivo, sem 403", async () => {
@@ -161,7 +161,7 @@ describe("GET /api/v1/sdr/vendedores", () => {
     const { GET } = await vendedores();
     const r = await GET(new NextRequest("http://localhost/api/v1/sdr/vendedores"));
     expect(r.status).toBe(200);
-    expect((await r.json()).data).toEqual({ pode_passar: false, motivo: "not_assigned", vendedores: [] });
+    expect((await r.json()).data).toEqual({ user_id: VENDEDOR, pode_passar: false, motivo: "not_assigned", vendedores: [] });
   });
 });
 

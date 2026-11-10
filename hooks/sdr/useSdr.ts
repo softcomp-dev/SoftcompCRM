@@ -83,3 +83,68 @@ export function useSetSdr() {
     onSettled: () => qc.invalidateQueries({ queryKey: SDR_KEY }),
   });
 }
+
+/** O que `GET /api/v1/sdr/vendedores` devolve: se este membro pode passar, e para quem (ids). */
+export interface VendedoresDoSdr {
+  /** Quem perguntou — o membro logado. */
+  user_id: string;
+  pode_passar: boolean;
+  motivo: string | null;
+  vendedores: string[];
+}
+
+/**
+ * Para quem o membro logado pode passar um negócio. Quem não é SDR recebe
+ * `pode_passar: false` (sem 403), e a tela simplesmente não oferece a ação.
+ */
+export function useVendedoresDoSdr(enabled: boolean) {
+  return useQuery({
+    queryKey: ["sdr", "vendedores"] as const,
+    queryFn: async () =>
+      (await apiClient.get<{ data: VendedoresDoSdr }>("/api/v1/sdr/vendedores")).data,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** O que a passagem devolve (`POST /api/v1/leads/[id]/passar-ao-vendedor`). */
+export interface ResultadoDaPassagem {
+  lead_id: string;
+  owner_user_id: string;
+  carteira: "passou" | "nao_passou" | "sem_contato";
+  carteira_motivo: string | null;
+  conversas_passadas: number;
+  conversas_que_ficaram: number;
+}
+
+/**
+ * O SDR passa o negócio ao vendedor que escolheu. O aviso diz o que passou —
+ * e, quando o cliente ficou na carteira de outra pessoa, diz isso também, para
+ * o SDR não achar que tudo foi junto.
+ */
+export function usePassarAoVendedor(pipelineId: string) {
+  const qc = useQueryClient();
+  const t = useT();
+  return useMutation({
+    mutationFn: async ({ leadId, userId }: { leadId: string; userId: string; nome: string }) =>
+      (
+        await apiClient.post<{ data: ResultadoDaPassagem }>(
+          `/api/v1/leads/${leadId}/passar-ao-vendedor`,
+          { user_id: userId },
+        )
+      ).data,
+    onSuccess: (res, { nome }) => {
+      toast.success(t("Negócio passado para {nome}.").replace("{nome}", nome));
+      if (res.carteira === "nao_passou") {
+        toast.warning(
+          t("O cliente continua na carteira de outra pessoa: só o gerente muda a carteira de um colega."),
+        );
+      }
+    },
+    onError: (err) => showApiError(err),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["board", pipelineId] });
+      qc.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}
