@@ -179,6 +179,9 @@ export async function GET(_req: NextRequest): Promise<Response> {
       now,
     ),
     smtp_configured: smtpConfigurado,
+    // O botão "Buscar atualização" só existe quando o agente disse de onde vêm
+    // as releases (`release_repo`, kit novo); antes disso a tela não o mostra.
+    release_check_available: observation.success && Boolean(observation.data.release_repo),
     latest_version: latest,
     update_available:
       // `!acabouDeInstalar` é o degrau histórico: na janela logo após um

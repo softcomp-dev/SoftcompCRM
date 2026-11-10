@@ -44,6 +44,11 @@ export interface SystemVersion {
    */
   smtp_configured?: boolean;
   /**
+   * O agente informou de qual repositório vêm as releases, então o botão
+   * "Buscar atualização" tem a quem perguntar. Ausente (kit antigo) = sem botão.
+   */
+  release_check_available?: boolean;
+  /**
    * A atualização terminou bem e o host ainda não confirmou (janela de até 5
    * min). Fora dela é `false` — o campo se fecha sozinho.
    */
