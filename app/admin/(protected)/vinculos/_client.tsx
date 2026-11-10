@@ -365,7 +365,7 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
                   <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-[var(--accent)]"
+                      className="h-4 w-4 accent-[var(--color-accent)]"
                       checked={marca.marcada}
                       onChange={(ev) => marcar(e.id, ev.target.checked)}
                       aria-label={e.display_name}
