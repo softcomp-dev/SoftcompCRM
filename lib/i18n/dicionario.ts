@@ -20375,6 +20375,9 @@ export const DICIONARIO: Traducoes = {
   "A distribuição automática está no modo manual: nenhum lead novo é entregue sozinho, a SDR ou não, salvo números com regra própria.": { es: "La distribución automática está en modo manual: ningún lead nuevo se entrega solo, sea a un SDR o no, salvo los números con regla propia." },
   "Mudar em Configurações › Atendimento": { es: "Cambiar en Configuración › Atención" },
   "Só um SDR ativo vê os leads sem vendedor.": { es: "Solo un SDR activo ve los leads sin vendedor." },
+  "Leads sem vendedor": { es: "Leads sin vendedor" },
+  "Para quem é SDR: os negócios com você ou sem dono, para escolher o vendedor de cada um.": { es: "Para quien es SDR: los negocios contigo o sin dueño, para elegir el vendedor de cada uno." },
+  "Quem faz a pré-venda recebe os leads novos e passa cada negócio ao vendedor que escolher, pela tela Leads sem vendedor.": { es: "Quien hace la preventa recibe los leads nuevos y pasa cada negocio al vendedor que elija, desde la pantalla Leads sin vendedor." },
 };
 
 

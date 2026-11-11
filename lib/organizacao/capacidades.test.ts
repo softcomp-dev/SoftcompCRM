@@ -46,6 +46,17 @@ describe("capacidadesLigadas — apresentação do catálogo", () => {
   });
 });
 
+describe("capacidadesLigadas — função SDR", () => {
+  it("settings.sdr.enabled === true liga, sem depender de módulo da instalação", () => {
+    expect(capacidadesLigadas({ sdr: { enabled: true } }, [])).toEqual(["sdr"]);
+  });
+  it("nasce desligada: ausente, false, string e lixo não ligam", () => {
+    for (const s of [{}, null, { sdr: {} }, { sdr: { enabled: false } }, { sdr: { enabled: "true" } }, { sdr: "ligado" }]) {
+      expect(capacidadesLigadas(s, []), JSON.stringify(s)).toEqual([]);
+    }
+  });
+});
+
 /**
  * Banco falso das leituras: a linha da organização, `platform_config` e — desde a
  * #1290 — a linha de `voip_trunk_settings`. Cada tabela responde o seu, porque o

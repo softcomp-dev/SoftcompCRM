@@ -15,6 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { modulosLigados, type ModuloOpcional } from "@/lib/instalacao/modulos";
 import { logger } from "@/lib/logger";
+import { lerConfiguracaoSdr } from "@/lib/sdr/configuracao";
 import { telefoniaEmUso } from "@/lib/telefonia/em-uso";
 
 /**
@@ -27,8 +28,12 @@ import { telefoniaEmUso } from "@/lib/telefonia/em-uso";
  * agente envia por produto. A seção da edição, as rotas e a ferramenta do agente
  * perguntam aqui. Desligar não apaga o que foi guardado, e o job que já gravou o
  * snapshot termina. A chave mora em `settings.catalogo.apresentacao`.
+ *
+ * `sdr`: a função SDR da empresa (docs/features/sdr.md). Ligada, a tela "Leads
+ * sem vendedor" (`/app/sdr`) aparece no menu. A chave é `settings.sdr.enabled`,
+ * lida pelo esquema central `lib/sdr/configuracao.ts`.
  */
-export const CAPACIDADES_DA_ORGANIZACAO = ["propostas", "telefonia", "cadencias", "apresentacao_do_catalogo"] as const;
+export const CAPACIDADES_DA_ORGANIZACAO = ["propostas", "telefonia", "cadencias", "apresentacao_do_catalogo", "sdr"] as const;
 export type CapacidadeDaOrganizacao = (typeof CAPACIDADES_DA_ORGANIZACAO)[number];
 
 /**
@@ -47,6 +52,7 @@ const MODULO_DA_CAPACIDADE: Record<CapacidadeDaOrganizacao, ModuloOpcional | nul
   telefonia: null,
   cadencias: "cadencias",
   apresentacao_do_catalogo: null,
+  sdr: null,
 };
 
 function objeto(v: unknown): Record<string, unknown> | null {
@@ -86,6 +92,7 @@ export function capacidadesLigadas(
     daEmpresa.push("cadencias");
   }
   if (objeto(objeto(settings)?.catalogo)?.apresentacao === true) daEmpresa.push("apresentacao_do_catalogo");
+  if (lerConfiguracaoSdr(settings).enabled) daEmpresa.push("sdr");
   return daEmpresa;
 }
 

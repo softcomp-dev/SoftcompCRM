@@ -695,6 +695,19 @@ const DA_EMPRESA: RecursoOpcional[] = [
     ler: peloSettings((s) => capacidadesLigadas(s, []).includes("apresentacao_do_catalogo")),
   },
   {
+    // docs/features/sdr.md. Quem liga é o cartão "Função SDR" da tela de Equipe.
+    id: "funcao_sdr",
+    nome: "Função SDR",
+    oQueFaz:
+      "Quem faz a pré-venda recebe os leads novos e passa cada negócio ao vendedor que escolher, pela tela Leads sem vendedor.",
+    nivel: "organizacao",
+    padrao: "desligado",
+    quemDecide: "admin",
+    href: "/app/team",
+    capacidade: "sdr",
+    ler: peloSettings((s) => capacidadesLigadas(s, []).includes("sdr")),
+  },
+  {
     id: "propostas_da_empresa",
     nome: "Proposta comercial da empresa",
     oQueFaz: "Com o módulo do servidor ligado, a empresa liga as propostas para si.",
