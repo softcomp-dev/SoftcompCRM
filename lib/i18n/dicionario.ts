@@ -20374,6 +20374,7 @@ export const DICIONARIO: Traducoes = {
   "Nenhum SDR ativo ainda: os leads novos seguem para toda a equipe. Marque ao menos um SDR na tabela abaixo.": { es: "Todavía no hay SDR activos: los leads nuevos siguen yendo a todo el equipo. Marca al menos un SDR en la tabla de abajo." },
   "A distribuição automática está no modo manual: nenhum lead novo é entregue sozinho, a SDR ou não, salvo números com regra própria.": { es: "La distribución automática está en modo manual: ningún lead nuevo se entrega solo, sea a un SDR o no, salvo los números con regla propia." },
   "Mudar em Configurações › Atendimento": { es: "Cambiar en Configuración › Atención" },
+  "Só um SDR ativo vê os leads sem vendedor.": { es: "Solo un SDR activo ve los leads sin vendedor." },
 };
 
 
