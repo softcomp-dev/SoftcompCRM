@@ -17,6 +17,7 @@ import type { MotivoSdrInativo } from "@/lib/sdr/permissoes";
 const SDR_KEY = ["sdr"] as const;
 const SETTINGS_KEY = ["sdr", "settings"] as const;
 const ASSIGNMENTS_KEY = ["sdr", "assignments"] as const;
+const NEGOCIOS_KEY = ["sdr", "negocios"] as const;
 
 export interface SdrAssignment {
   user_id: string;
@@ -122,7 +123,7 @@ export interface ResultadoDaPassagem {
  * e, quando o cliente ficou na carteira de outra pessoa, diz isso também, para
  * o SDR não achar que tudo foi junto.
  */
-export function usePassarAoVendedor(pipelineId: string) {
+export function usePassarAoVendedor(pipelineId?: string) {
   const qc = useQueryClient();
   const t = useT();
   return useMutation({
@@ -143,8 +144,46 @@ export function usePassarAoVendedor(pipelineId: string) {
     },
     onError: (err) => showApiError(err),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["board", pipelineId] });
+      // Sem funil (a tela Leads sem vendedor), o negócio pode estar em qualquer
+      // quadro: invalida todos.
+      qc.invalidateQueries({ queryKey: pipelineId ? ["board", pipelineId] : ["board"] });
       qc.invalidateQueries({ queryKey: ["conversations"] });
+      qc.invalidateQueries({ queryKey: NEGOCIOS_KEY });
     },
+  });
+}
+
+/** Um negócio da lista `GET /api/v1/sdr/negocios` (`lib/sdr/negocios-do-sdr.ts`). */
+export interface NegocioDoSdr {
+  id: string;
+  title: string;
+  value_cents: number | null;
+  currency: string | null;
+  created_at: string;
+  last_activity_at: string | null;
+  pipeline_id: string;
+  pipeline_name: string | null;
+  stage_id: string;
+  stage_name: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  /** Com quem o negócio está agora: com o SDR, com um agente de IA ou na fila. */
+  situacao: "comigo" | "ia" | "fila";
+  owner_agent_name: string | null;
+}
+
+/**
+ * Os negócios que o SDR logado pode passar ao vendedor. Só busca quando ele
+ * pode passar (`useVendedoresDoSdr`): para quem não é SDR a rota responde 403.
+ */
+export function useNegociosDoSdr(enabled: boolean) {
+  return useQuery({
+    queryKey: NEGOCIOS_KEY,
+    queryFn: async () =>
+      apiClient.get<{ data: NegocioDoSdr[]; meta?: { total?: number; has_more?: boolean } }>(
+        "/api/v1/sdr/negocios",
+      ),
+    enabled,
+    staleTime: 15_000,
   });
 }
