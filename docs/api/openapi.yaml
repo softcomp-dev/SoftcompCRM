@@ -55,11 +55,21 @@ info:
     organização**, contadas por recurso. Ao estourar: `429 rate_limited` com
     `Retry-After: 60`. Não há cabeçalhos `X-RateLimit-*` nestas rotas.
 
+    Dois detalhes que mudam a conta de quem integra:
+    - **Criar card, mudar de etapa e atualizar card dividem o mesmo contador**
+      (`leads`). Um pedido do ERP que cria o card e já o move gasta 2 das 30.
+    - **Ler funis e etapas também conta** (contador próprio, 30/min por token).
+      Leia uma vez e guarde os ids; não leia a cada pedido.
+
     ## Peculiaridades conhecidas (medidas no código)
     - Excesso de tentativas com token inválido responde **429**, e falha ao consultar
       o token responde **500**, ambos com `code: "forbidden"`.
     - Algumas rotas usam `validation_error` e outras `validation_failed` para o mesmo
       tipo de recusa. Trate os dois como erro de validação.
+    - Id de caminho que **não tem forma de UUID** (por exemplo
+      `/api/v1/leads/abc/move`) responde **401** `unauthenticated`, e não 404 ou
+      422: o caminho não é reconhecido como rota que aceita token. Se o token
+      está certo e a resposta é 401, confira o id.
     - Campos desconhecidos no corpo são **descartados em silêncio**, salvo onde a
       operação diz que o corpo é estrito.
   contact:
@@ -488,7 +498,18 @@ paths:
       description: |
         Cria um card (lead) no funil e etapa informados. A organização sai do token;
         funil, etapa, contato e responsável são conferidos contra ela. Card não nasce
-        em etapa de ganho ou de perda.
+        em etapa de ganho ou de perda, nem em etapa ou funil arquivado: a resposta é
+        422 com `details.motivo` (`etapa_de_fechamento`, `etapa_arquivada` ou
+        `funil_arquivado`). Para fechar um negócio, crie numa etapa aberta e use
+        `POST /api/v1/leads/{id}/move`.
+
+        **Evite card duplicado:** mande o cabeçalho `Idempotency-Key` (um UUID por
+        pedido do seu sistema). Se a chamada der timeout e você repetir com a mesma
+        chave e o mesmo corpo, recebe o mesmo card de volta em vez de criar outro.
+
+        `contact_id` precisa ser de um contato que já existe: ache-o com
+        `GET /api/v1/contacts`. Ainda não há rota por token para **criar** contato;
+        sem `contact_id` o card nasce sem cliente.
 
         Se o contato já tem um negócio **aberto** no mesmo funil, o card é criado
         assim mesmo e a resposta avisa em `meta.avisos` (`negocio_aberto_existente`).
@@ -496,6 +517,8 @@ paths:
         Dica: mande `source` (por exemplo `"erp"`); sem ele a origem fica `manual`.
       x-escopos: [mcp:write]
       x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -531,10 +554,20 @@ paths:
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/Proibido" }
         "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409":
+          description: |
+            Só com `Idempotency-Key`. `idempotency_conflict`: a chave já foi usada
+            com outro corpo (gere uma chave nova). `idempotency_in_progress`: o
+            mesmo pedido ainda está sendo processado (repita em instantes, com a
+            mesma chave).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "422":
           description: |
             Validação. Códigos incluem `validation_error`, `validation_failed`,
-            `stage_pipeline_mismatch` e as recusas de campo personalizado.
+            `stage_pipeline_mismatch` e as recusas de campo personalizado. Campo
+            exigido pela etapa vem em `details.faltando`; etapa que não aceita
+            card novo vem com `details.motivo` (`etapa_de_fechamento`,
+            `etapa_arquivada`, `funil_arquivado`).
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
@@ -586,13 +619,17 @@ paths:
         "403": { $ref: "#/components/responses/Proibido" }
         "404": { $ref: "#/components/responses/NaoEncontrado" }
         "409":
-          description: Negócio encerrado que o funil não reabre por aqui (ver `details.use`).
+          description: |
+            Negócio encerrado que o funil não reabre por aqui (ver `details.use`), ou
+            `lead_stage_changed_concurrent`: outra escrita mudou o card no mesmo
+            instante. Neste segundo caso, repita a chamada.
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "422":
           description: |
-            Validação ou regra do funil: etapa de outro funil, campos exigidos
-            faltando (`details.faltando`), motivo de ganho ou de perda ausente ou
-            fora do vocabulário.
+            Validação ou regra do funil: etapa de outro funil, etapa ou funil
+            arquivado (`details.motivo`: `etapa_arquivada`, `funil_arquivado`),
+            campos exigidos faltando (`details.faltando`), motivo de ganho ou de
+            perda ausente ou fora do vocabulário.
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
