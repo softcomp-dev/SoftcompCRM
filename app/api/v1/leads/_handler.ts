@@ -1358,6 +1358,13 @@ export interface MoveLeadAdminInput {
    * (issue #1536) — espelho do `lost_reason`, mesma disciplina de escrita.
    */
   won_reason?: string | null;
+  /**
+   * Os campos que a tela coletou no diálogo de campos obrigatórios (#1536),
+   * gravados NA MESMA escrita que muda a etapa — o mesmo contrato da rota do
+   * quadro. Opcional: MCP e automações não mandam, e para eles nada muda. Hoje
+   * quem manda é o funil consolidado (`/api/v1/consolidado/funil/mover`).
+   */
+  custom_fields?: Record<string, unknown>;
 }
 
 export async function moveLeadHandler(
@@ -1508,6 +1515,7 @@ export async function moveLeadHandler(
           desfecho: stage.is_won ? "won" : stage.is_lost ? "lost" : null,
         },
         motivoDeGanho: input.won_reason ?? null,
+        customFieldsPropostos: input.custom_fields ?? null,
       });
   if (vereditoDeCampos.faltando.length > 0) {
     const recusa = recusaDeCamposObrigatorios(vereditoDeCampos.faltando, ctx.idioma);
@@ -1557,6 +1565,20 @@ export async function moveLeadHandler(
       ...veredito.patch,
       ...(stage.is_won && input.won_reason?.trim()
         ? { won_reason: input.won_reason.trim() }
+        : {}),
+      // O merge é AQUI, na escrita que muda a etapa, sobre a linha lida acima e
+      // presa pela OCC (`updated_at`): uma escrita concorrente vira 409, não
+      // perda de campo.
+      ...(input.custom_fields
+        ? {
+            custom_fields: {
+              ...(((lead as { custom_fields?: Record<string, unknown> }).custom_fields ?? {}) as Record<
+                string,
+                unknown
+              >),
+              ...input.custom_fields,
+            },
+          }
         : {}),
     })
     .eq("id", leadId)

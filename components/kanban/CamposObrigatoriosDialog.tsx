@@ -56,6 +56,12 @@ interface CamposObrigatoriosDialogProps {
   onConfirmar: (valores: { customFields: Record<string, unknown>; wonReason?: string }) => void;
   /** Enquanto o reenvio não responde, o botão fica travado. */
   isPending?: boolean;
+  /**
+   * A moeda dos campos de dinheiro. Sem ela, a da organização ATIVA — certo
+   * no quadro de uma empresa; o funil consolidado passa a do card, que pode
+   * ser de outra empresa.
+   */
+  moeda?: string;
 }
 
 /** `won_reason` NÃO é campo do funil: sai como parâmetro próprio do move. */
@@ -86,10 +92,12 @@ export function CamposObrigatoriosDialog({
   recusa,
   onConfirmar,
   isPending = false,
+  moeda: moedaPedida,
 }: CamposObrigatoriosDialogProps) {
   const t = useT();
   // O campo de moeda na moeda da organização, não em real fixo.
-  const moeda = useMoedaDaOrgAtiva() ?? MOEDA_PADRAO;
+  const moedaDaOrgAtiva = useMoedaDaOrgAtiva();
+  const moeda = moedaPedida ?? moedaDaOrgAtiva ?? MOEDA_PADRAO;
   const [valores, setValores] = useState<Record<string, string>>({});
 
   // Troca de recusa zera o formulário: um diálogo reaproveitado com os valores

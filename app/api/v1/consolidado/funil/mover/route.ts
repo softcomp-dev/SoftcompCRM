@@ -38,6 +38,13 @@ const corpoSchema = z
     stage_id: z.string().uuid(),
     lost_reason: z.string().trim().min(1).max(500).optional(),
     won_reason: z.string().trim().min(1).max(500).optional(),
+    // O que o diálogo de campos obrigatórios coletou (o 422 com
+    // `details.faltando`), gravado na mesma escrita da etapa. Teto de chaves:
+    // a tela só manda o que o funil pediu.
+    custom_fields: z
+      .record(z.string().min(1).max(100), z.unknown())
+      .refine((v) => Object.keys(v).length <= 50, { message: "Campos demais." })
+      .optional(),
   })
   .strict();
 
@@ -93,6 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         to_stage_id: input.stage_id,
         lost_reason: input.lost_reason,
         won_reason: input.won_reason,
+        ...(input.custom_fields ? { custom_fields: input.custom_fields } : {}),
       },
     );
     return ok(ocultarProvaMetaNaResposta(movido), { requestId });

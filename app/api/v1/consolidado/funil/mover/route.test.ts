@@ -94,6 +94,32 @@ describe("POST /api/v1/consolidado/funil/mover", () => {
     expect(moveLeadHandler).not.toHaveBeenCalled();
   });
 
+  it("os campos e o motivo de ganho do diálogo viajam até a escrita da etapa", async () => {
+    portaCom(OUTRA);
+    const res = await POST(
+      pedido({ lead_id: LEAD, stage_id: ETAPA, won_reason: "preço", custom_fields: { pedido: "123" } }),
+    );
+    expect(res.status).toBe(200);
+    expect(moveLeadHandler).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      LEAD,
+      { to_stage_id: ETAPA, lost_reason: undefined, won_reason: "preço", custom_fields: { pedido: "123" } },
+    );
+  });
+
+  it("a recusa de campos faltando chega com details.faltando, para a tela abrir o diálogo", async () => {
+    portaCom(OUTRA);
+    const { ApiError } = await import("@/lib/api/types");
+    vi.mocked(moveLeadHandler).mockRejectedValueOnce(
+      new ApiError(422, "required_fields_missing", { faltando: [{ chave: "pedido", rotulo: "Pedido" }] }, "r", "Faltam campos."),
+    );
+    const res = await POST(pedido({ lead_id: LEAD, stage_id: ETAPA }));
+    expect(res.status).toBe(422);
+    const corpo = (await res.json()) as { error: { details: unknown } };
+    expect(corpo.error.details).toEqual({ faltando: [{ chave: "pedido", rotulo: "Pedido" }] });
+  });
+
   it("recusa campo desconhecido no corpo", async () => {
     portaCom(OUTRA);
     const res = await POST(pedido({ lead_id: LEAD, stage_id: ETAPA, organization_id: OUTRA }));

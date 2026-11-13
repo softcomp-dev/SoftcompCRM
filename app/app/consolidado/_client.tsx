@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { setActiveOrg } from "@/app/actions/shell/setActiveOrg";
+import { CamposObrigatoriosDialog } from "@/components/kanban/CamposObrigatoriosDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,9 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/hooks/i18n/useT";
+import type { RecusaDeCampos } from "@/hooks/kanban/useMoveCard";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/types";
 import { etapaDeDestino, type ColunaConsolidada } from "@/lib/consolidado/colunas";
 import type { EmpresaDoEscopo } from "@/lib/consolidado/escopo";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
@@ -69,6 +72,8 @@ interface RespostaDoFunil {
   colunas: ColunaConsolidada[];
   negocios: Negocio[];
   truncados: string[];
+  /** Etapas que passaram do teto: a coluna delas não mostra todos os negócios. */
+  etapas_truncadas?: string[];
 }
 
 interface Conversa {
@@ -205,6 +210,13 @@ function SeletorDeEmpresas({
 // Funil
 // ---------------------------------------------------------------------------
 
+/** O que um movimento pode levar junto, na mesma escrita da etapa. */
+interface ExtrasDoMovimento {
+  lostReason?: string;
+  wonReason?: string;
+  customFields?: Record<string, unknown>;
+}
+
 interface MovimentoPendente {
   negocio: Negocio;
   stageId: string;
@@ -233,6 +245,12 @@ function FunilConsolidado({
   const [motivo, setMotivo] = useState("");
   /** Onde cada card está AGORA na tela (movimento otimista), por id. */
   const [local, setLocal] = useState<Map<string, string>>(new Map());
+  /** O movimento que o servidor recusou por campos faltando, esperando o diálogo. */
+  const [camposPendentes, setCamposPendentes] = useState<{
+    negocio: Negocio;
+    stageId: string;
+    recusa: RecusaDeCampos;
+  } | null>(null);
 
   const funilPorId = useMemo(() => new Map(dados.funis.map((f) => [f.id, f])), [dados.funis]);
   const etapaParaColuna = useMemo(() => {
@@ -269,20 +287,32 @@ function FunilConsolidado({
     });
   }
 
-  async function enviar(negocio: Negocio, stageId: string, lostReason?: string) {
+  async function enviar(negocio: Negocio, stageId: string, extras: ExtrasDoMovimento = {}) {
     setLocal((p) => new Map(p).set(negocio.id, stageId));
     setMovendo((p) => new Set(p).add(negocio.id));
     try {
       await apiClient.post("/api/v1/consolidado/funil/mover", {
         lead_id: negocio.id,
         stage_id: stageId,
-        ...(lostReason ? { lost_reason: lostReason } : {}),
+        ...(extras.lostReason ? { lost_reason: extras.lostReason } : {}),
+        ...(extras.wonReason ? { won_reason: extras.wonReason } : {}),
+        ...(extras.customFields ? { custom_fields: extras.customFields } : {}),
       });
       // Espera a lista recarregar ANTES de soltar: sem isso o card piscaria de
       // volta na coluna antiga entre o sucesso e a resposta nova.
       await queryClient.invalidateQueries({ queryKey: ["consolidado", "funil"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("Não foi possível mover o negócio."));
+      // O destino exige campos (ou o motivo do ganho): em vez de "deu errado",
+      // o mesmo diálogo do quadro pede só o que falta e reenvia o MESMO
+      // movimento, com os valores na mesma escrita (#1536).
+      const faltando = (err instanceof ApiError ? err.details?.faltando : undefined) as
+        | RecusaDeCampos["faltando"]
+        | undefined;
+      if (err instanceof ApiError && err.status === 422 && Array.isArray(faltando) && faltando.length > 0) {
+        pedirCampos(negocio, stageId, faltando);
+      } else {
+        toast.error(err instanceof Error ? err.message : t("Não foi possível mover o negócio."));
+      }
     } finally {
       soltarPosicaoLocal(negocio.id);
       setMovendo((p) => {
@@ -313,6 +343,33 @@ function FunilConsolidado({
     void enviar(negocio, stageId);
   }
 
+  /**
+   * Abre o diálogo de campos obrigatórios. Campo de ARQUIVO é a exceção: o
+   * anexo sobe pela rota da empresa ativa, e o card pode ser de outra — então
+   * a tela oferece abrir o negócio na empresa dele, onde o anexo funciona.
+   */
+  function pedirCampos(negocio: Negocio, stageId: string, faltando: RecusaDeCampos["faltando"]) {
+    if (faltando.some((c) => c.tipo === "file")) {
+      toast.warning(t("Esta etapa pede um arquivo anexado. Abra o negócio para anexar e mover."), {
+        action: {
+          label: t("Abrir o negócio"),
+          onClick: () => onAbrir(negocio.organization_id, `/app/leads/${negocio.id}`),
+        },
+      });
+      return;
+    }
+    setCamposPendentes({
+      negocio,
+      stageId,
+      recusa: {
+        // O diálogo só lê `faltando` e, para anexo, `args.leadId`; o resto do
+        // `MoveArgs` é do quadro de uma empresa e não viaja daqui.
+        args: { leadId: negocio.id, stageId, positionInStage: 0, expectedUpdatedAt: "" },
+        faltando,
+      },
+    });
+  }
+
   const funilDoPendente = aPerder ? funilPorId.get(aPerder.negocio.pipeline_id) : undefined;
 
   return (
@@ -334,7 +391,7 @@ function FunilConsolidado({
         </Select>
         {dados.truncados.length > 0 && (
           <span className="text-xs text-warning-fg" role="status">
-            {t("Alguns funis têm muitos negócios: mostrando os 500 primeiros de cada um.")}
+            {t("Algumas etapas têm muitos negócios: mostrando os 100 primeiros de cada uma.")}
           </span>
         )}
       </div>
@@ -345,6 +402,7 @@ function FunilConsolidado({
         <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2" data-testid="funil-consolidado">
           {dados.colunas.map((coluna) => {
             const cards = cardsPorColuna.get(coluna.chave) ?? [];
+            const cortada = coluna.etapas.some((e) => dados.etapas_truncadas?.includes(e.stage_id));
             const totalPorMoeda = new Map<string, number>();
             for (const c of cards) {
               if (c.value_cents == null) continue;
@@ -378,12 +436,17 @@ function FunilConsolidado({
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="truncate text-sm font-semibold">{coluna.rotulo}</h2>
                     <Badge variant={coluna.tipo === "ganho" ? "success" : coluna.tipo === "perdido" ? "error" : "neutral"}>
-                      {cards.length}
+                      {cortada ? `${cards.length}+` : cards.length}
                     </Badge>
                   </div>
                   {totalPorMoeda.size > 0 && (
                     <p className="text-xs text-muted-foreground">
                       {[...totalPorMoeda].map(([moeda, v]) => formatCents(v, moeda)).join(" · ")}
+                    </p>
+                  )}
+                  {cortada && (
+                    <p className="text-[11px] text-warning-fg" data-testid="coluna-cortada">
+                      {t("Há mais negócios nesta etapa do que os mostrados.")}
                     </p>
                   )}
                   {coluna.etapas.length < dados.funis.length && (
@@ -503,7 +566,7 @@ function FunilConsolidado({
                 if (!aPerder) return;
                 const { negocio, stageId } = aPerder;
                 setAPerder(null);
-                void enviar(negocio, stageId, motivo);
+                void enviar(negocio, stageId, { lostReason: motivo });
               }}
             >
               {t("Marcar como perdido")}
@@ -511,6 +574,25 @@ function FunilConsolidado({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CamposObrigatoriosDialog
+        open={camposPendentes !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setCamposPendentes(null);
+        }}
+        recusa={camposPendentes?.recusa ?? null}
+        moeda={camposPendentes?.negocio.currency ?? undefined}
+        isPending={camposPendentes ? movendo.has(camposPendentes.negocio.id) : false}
+        onConfirmar={({ customFields, wonReason }) => {
+          if (!camposPendentes) return;
+          const { negocio, stageId } = camposPendentes;
+          setCamposPendentes(null);
+          void enviar(negocio, stageId, {
+            ...(Object.keys(customFields).length > 0 ? { customFields } : {}),
+            ...(wonReason ? { wonReason } : {}),
+          });
+        }}
+      />
     </div>
   );
 }
