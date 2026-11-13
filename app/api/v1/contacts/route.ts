@@ -12,6 +12,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import type { Actor } from "@/lib/api/handlers/types";
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { chaveDaRequisicao, comIdempotencia } from "@/lib/api/idempotency";
+import { falhaDoHandlerParaToken } from "@/lib/api/integracao-por-token";
 import { requireRole } from "@/lib/auth/require-role";
 import { extractBearer, validateBearerToken, ensureRole, ensureScope, McpAuthError } from "@/lib/mcp/auth";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -164,6 +167,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
+  // Bearer `dsk_…`: a integração de servidor (ERP) cria o cliente antes do card.
+  if (extractBearer(req.headers.get("authorization"))) return criarPorToken(req, requestId);
+
   const supabase = await createClient();
   // spec 13 §4: escrita é agent+ (viewer é read-only).
   const authz = await requireRole("agent", { requestId, resource: "contacts" });
@@ -211,6 +217,94 @@ export async function POST(req: NextRequest): Promise<Response> {
         requestId,
       });
     }
+    throw err;
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * CRIAR CONTATO POR TOKEN (`Bearer dsk_…` com `mcp:write`, papel `agent`).
+ *
+ * O ERP precisa do cliente antes do card: sem esta porta, um pedido de cliente
+ * novo não tinha como chegar ao funil com `contact_id`. Faz o que a tela faz,
+ * pelo mesmo `createContactHandler` — que já é chamado com o client de serviço
+ * pela prospecção, e filtra a organização em toda consulta. A organização sai
+ * da LINHA DO TOKEN, nunca do corpo; a régua do documento é a do país dela.
+ *
+ * O que muda em relação à sessão: o `actor` é o token, e por isso a conversa
+ * que o cadastro abre NÃO é atribuída a ninguém (só um Atendente que cadastra
+ * ganha a conversa, #3479).
+ *
+ * Telefone ou e-mail repetido na organização é 409 com o id do contato que já
+ * existe em `details` — o ERP usa esse id em vez de criar outro.
+ */
+async function criarPorToken(req: NextRequest, requestId: string): Promise<Response> {
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "contacts",
+    role: "agent",
+    scope: "mcp:write",
+  });
+  if (!authz.ok) return authz.response;
+
+  const chave = chaveDaRequisicao(req);
+  if (chave !== null && !UUID.test(chave)) {
+    return fail("validation_failed", "Idempotency-Key deve ser um UUID.", 400, { requestId });
+  }
+
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "contacts", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
+  const perfil = await perfilDaOrganizacao(authz.supabase, authz.organizationId);
+  let input: ContactCreate;
+  try {
+    input = (await validateRequest(contactCreateSchemaDoPais(perfil), req)) as ContactCreate;
+  } catch (err) {
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "POST /api/v1/contacts");
+    throw err;
+  }
+
+  const criar = async () => {
+    const result = await createContactHandler(
+      authz.supabase,
+      { organization_id: authz.organizationId, actor: authz.actor, requestId },
+      input,
+    );
+    return { resposta: result, status: 201 };
+  };
+
+  try {
+    const desfecho =
+      chave === null
+        ? ({ tipo: "executou", ...(await criar()) } as const)
+        : await comIdempotencia({
+            db: authz.supabase,
+            organizationId: authz.organizationId,
+            endpoint: "POST /api/v1/contacts",
+            chave,
+            corpo: input,
+            executar: criar,
+          });
+    if (desfecho.tipo === "conflito") {
+      return fail(
+        "idempotency_conflict",
+        "Esta Idempotency-Key já foi usada com outro corpo. Gere uma chave nova para um pedido diferente.",
+        409,
+        { requestId },
+      );
+    }
+    if (desfecho.tipo === "em_curso") {
+      return fail(
+        "idempotency_in_progress",
+        "O mesmo pedido ainda está sendo processado. Tente de novo em instantes, com a mesma chave.",
+        409,
+        { requestId },
+      );
+    }
+    return ok(desfecho.resposta, { status: 201, requestId });
+  } catch (err) {
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "POST /api/v1/contacts");
     throw err;
   }
 }

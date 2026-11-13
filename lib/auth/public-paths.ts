@@ -97,15 +97,15 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/integrations\/nuvemshop\/callback$/,
   /^\/api\/internal\//,
   /^\/api\/mcp(\/.*)?$/,
-  // GET /api/v1/contacts aceita SESSÃO ou Bearer `dsk_...` (api_tokens) — a
+  // GET e POST /api/v1/contacts aceitam SESSÃO ou Bearer `dsk_...` (api_tokens) — a
   // MESMA dualidade de `/api/mcp` acima. Sem esta entrada, o proxy responde
   // 401 antes de o Bearer chegar à rota, porque `getUser()` aqui só enxerga
   // cookie. A auth de verdade (sessão OU token, org nunca vinda do cliente)
   // mora DENTRO da rota (`app/api/v1/contacts/route.ts`), igual aos casos de
   // `/api/v1/system/agent` e `/api/v1/cron/` acima — "público" aqui quer dizer
-  // "o proxy não decide", não "sem autenticação". Ancorado com `$`: só o
-  // `GET` da listagem, não `/api/v1/contacts/[id]` nem `/import`, que ainda
-  // não têm suporte a Bearer.
+  // "o proxy não decide", não "sem autenticação". Ancorado com `$`: só a
+  // listagem e a criação (o POST por token cria o cliente antes do card, para o
+  // ERP), não `/api/v1/contacts/[id]` nem `/import`, que ainda não têm Bearer.
   /^\/api\/v1\/contacts$/,
   // FOTO DO CONTATO SERVER-TO-SERVER (issue #3420). Mesma dualidade da
   // listagem logo acima: sessão de navegador OU Bearer `dsk_…` com escopo
