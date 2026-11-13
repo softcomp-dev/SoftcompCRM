@@ -93,6 +93,10 @@ tags:
   - name: Mensagens
   - name: Equipe
     description: Os membros da organização — de onde sai o `owner_user_id` do negócio.
+  - name: Empresas
+    description: Empresas clientes (módulo opcional CRM B2B).
+  - name: Propostas
+    description: Propostas comerciais — onde moram os itens do pedido (rascunho, itens, preço do catálogo).
   - name: Automações
     description: Regras "quando X, faça Y" — entre elas o webhook que avisa o seu sistema.
   - name: Tarefas
@@ -345,6 +349,359 @@ paths:
         "422": { $ref: "#/components/responses/Validacao" }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/{id}/attachments:
+    get:
+      tags: [Leads]
+      operationId: listarAnexosDoNegocio
+      summary: Listar anexos do negócio
+      description: |
+        Lista os documentos anexados ao negócio (NF, contrato). Com `field_key`, só os
+        do campo de arquivo indicado. O negócio é conferido contra a organização do token.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+        - { name: field_key, in: query, schema: { type: string }, description: Chave do campo de arquivo do funil. }
+      responses:
+        "200":
+          description: Anexos do negócio.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      files: { type: array, items: { $ref: "#/components/schemas/AnexoDoNegocio" } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Leads]
+      operationId: anexarDocumentoAoNegocio
+      summary: Anexar documento ao negócio
+      description: |
+        Anexa um PDF ou imagem (PNG, JPG, WebP, até 50 MB) a um campo de arquivo do
+        negócio — o mesmo limite e os mesmos tipos da tela. `field_key` tem de ser um
+        campo do tipo arquivo, do negócio, declarado no funil dele (422 se não for).
+        O arquivo vai para o armazenamento da organização do token. Remover anexo não
+        está disponível por token.
+
+        Mande `Idempotency-Key`: repetir a chave com o mesmo arquivo devolve o mesmo
+        anexo sem subir de novo.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, field_key]
+              properties:
+                file: { type: string, format: binary }
+                field_key: { type: string, example: nota_fiscal }
+      responses:
+        "201":
+          description: Anexo criado; devolve também a lista atual do campo.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      attachment: { $ref: "#/components/schemas/AnexoDoNegocio" }
+                      files: { type: array, items: { $ref: "#/components/schemas/AnexoDoNegocio" } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/ConflitoDeIdempotencia" }
+        "413": { $ref: "#/components/responses/MuitoGrande" }
+        "415": { $ref: "#/components/responses/TipoNaoSuportado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/{id}/attachments/{attachmentId}/media:
+    get:
+      tags: [Leads]
+      operationId: baixarAnexoDoNegocio
+      summary: Baixar anexo do negócio
+      description: Responde 302 para um link assinado do armazenamento, válido por 60 segundos. Siga o redirecionamento.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+        - { name: attachmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "302": { description: Redireciona para o arquivo (link assinado de 60 s). }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+
+  # ───────────────────────────── Empresas (B2B) ─────────────────────────────
+  /api/v1/companies:
+    get:
+      tags: [Empresas]
+      operationId: listarEmpresas
+      summary: Listar empresas (B2B)
+      description: |
+        Lista as empresas da organização do token (módulo opcional **CRM B2B**: com o
+        módulo desligado a rota responde 404). Sem cursor: `meta.has_more` diz se há mais.
+        Use `search` (nome, razão social ou CNPJ) para achar uma empresa específica.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: Empresas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Empresa" } }
+                  meta: { type: object, properties: { has_more: { type: boolean } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Empresas]
+      operationId: criarEmpresa
+      summary: Criar empresa (B2B)
+      description: |
+        Cria a empresa na organização do token. Exige papel `manager` no token (como a
+        tela). CNPJ repetido na organização responde 409 `conflict`. Mande
+        `Idempotency-Key` para não duplicar em retentativa. `organization_id` no corpo é ignorado.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: manager
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CriacaoDeEmpresa" }
+            example: { legal_name: Acme Ltda, trade_name: Acme, cnpj: "11.222.333/0001-81", email: contato@acme.com.br }
+      responses:
+        "201":
+          description: Empresa criada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/Empresa" } } } } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/companies/{id}:
+    get:
+      tags: [Empresas]
+      operationId: lerEmpresa
+      summary: Ler empresa (B2B)
+      description: Devolve a empresa, as pessoas vinculadas e os contatos dessas pessoas.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Empresa.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      company: { $ref: "#/components/schemas/Empresa" }
+                      people: { type: array, items: { type: object } }
+                      contacts: { type: array, items: { type: object } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+    patch:
+      tags: [Empresas]
+      operationId: editarEmpresa
+      summary: Editar empresa (B2B)
+      description: Altera só os campos enviados. Apagar empresa não está disponível por token.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CriacaoDeEmpresa" } } }
+      responses:
+        "200":
+          description: Empresa atualizada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/Empresa" } } } } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+
+  # ───────────────────────────── Propostas ─────────────────────────────
+  /api/v1/proposals:
+    get:
+      tags: [Propostas]
+      operationId: listarPropostas
+      summary: Listar propostas
+      description: |
+        Lista as propostas da organização do token, mais novas primeiro, com cursor.
+        Responde 404 se a organização não usa propostas. Os itens do pedido vêm em
+        `GET /api/v1/proposals/{id}`.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [rascunho, enviada, aceita, recusada, vencida, cancelada, substituida] } }
+        - { name: lead_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        "200":
+          description: Página de propostas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/PropostaResumo" } }
+                  meta: { $ref: "#/components/schemas/MetaCursor" }
+        "400": { $ref: "#/components/responses/CursorInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+    post:
+      tags: [Propostas]
+      operationId: criarProposta
+      summary: Criar rascunho de proposta com os itens do pedido
+      description: |
+        Cria o RASCUNHO da proposta do negócio, com os itens do pedido. O contato é o do
+        negócio; um negócio tem no máximo um rascunho aberto (409 com
+        `details.rascunho_aberto_id`). Item com `product_id` tem o preço lido do catálogo
+        da organização (o `preco_unitario_cents` enviado é ignorado) e na moeda dela; item
+        sem `product_id` leva o preço enviado. Valores em centavos. Enviar ao cliente, PDF
+        e decisão não estão disponíveis por token. Mande `Idempotency-Key`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CriacaoDeProposta" }
+            example:
+              lead_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10
+              titulo: Pedido 4821
+              itens:
+                - { product_id: null, descricao: Frete, quantidade: 1, preco_unitario_cents: 5000, desconto_cents: 0, position: 1 }
+      responses:
+        "201":
+          description: Rascunho criado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string, enum: [rascunho] }
+                      total_cents: { type: integer }
+                      moeda: { type: string, example: BRL }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/proposals/{id}:
+    get:
+      tags: [Propostas]
+      operationId: lerProposta
+      summary: Ler proposta com os itens do pedido
+      description: Cada item traz `preco_catalogo_atual_cents` (o preço de hoje no catálogo, para ver se mudou).
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      responses:
+        "200":
+          description: Proposta.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/Proposta" } } } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+    patch:
+      tags: [Propostas]
+      operationId: editarProposta
+      summary: Editar rascunho e itens do pedido
+      description: |
+        Edita o RASCUNHO e SUBSTITUI todos os itens pelos enviados (mande a lista
+        completa). Exige `revision` igual à lida em `GET`: diferente, ou proposta que não
+        é mais rascunho, responde 409 `proposal_context_stale`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/EdicaoDeProposta" } } }
+      responses:
+        "200":
+          description: Rascunho atualizado.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      revision: { type: integer }
+                      total_cents: { type: integer }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
 
   # ───────────────────────────── Automações ─────────────────────────────
   /api/v1/automation-rules:
@@ -2764,6 +3121,111 @@ components:
           properties:
             id: { type: string, format: uuid }
 
+    AnexoDoNegocio:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        path: { type: string }
+        size: { type: integer }
+        type: { type: string, example: application/pdf }
+        url: { type: string, description: Caminho relativo da rota de download (302). }
+        created_at: { type: string, format: date-time }
+        uploaded_at: { type: string, format: date-time }
+    Empresa:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        legal_name: { type: [string, "null"] }
+        trade_name: { type: [string, "null"] }
+        cnpj: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        enrichment_status: { type: string, enum: [pending, processing, completed, failed] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CriacaoDeEmpresa:
+      type: object
+      properties:
+        legal_name: { type: string }
+        trade_name: { type: string }
+        cnpj: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        street: { type: string }
+        number: { type: string }
+        complement: { type: string }
+        district: { type: string }
+        city: { type: string }
+        state: { type: string, maxLength: 2 }
+        zip_code: { type: string }
+        enrich: { type: boolean, default: true, description: Consultar o CNPJ na BrasilAPI depois de criar. }
+    ItemDeProposta:
+      type: object
+      required: [product_id, descricao, quantidade, preco_unitario_cents, position]
+      properties:
+        product_id: { type: [string, "null"], format: uuid }
+        descricao: { type: string, maxLength: 500 }
+        quantidade: { type: number, exclusiveMinimum: 0 }
+        preco_unitario_cents: { type: [integer, "null"], minimum: 0, description: Ignorado quando há `product_id` (vale o preço do catálogo). }
+        desconto_cents: { type: integer, minimum: 0, default: 0 }
+        position: { type: number }
+    CriacaoDeProposta:
+      type: object
+      required: [lead_id, titulo]
+      properties:
+        lead_id: { type: string, format: uuid }
+        titulo: { type: string, maxLength: 200 }
+        condicoes: { type: [string, "null"], maxLength: 4000 }
+        valid_until: { type: [string, "null"], format: date }
+        itens: { type: array, items: { $ref: "#/components/schemas/ItemDeProposta" } }
+    EdicaoDeProposta:
+      type: object
+      required: [revision, itens]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        titulo: { type: string }
+        condicoes: { type: [string, "null"] }
+        valid_until: { type: [string, "null"], format: date }
+        prazo_dias_uteis: { type: [integer, "null"], minimum: 1, maximum: 365 }
+        pagamento: { type: [string, "null"], maxLength: 500 }
+        itens: { type: array, items: { $ref: "#/components/schemas/ItemDeProposta" } }
+    PropostaResumo:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        lead_id: { type: [string, "null"], format: uuid }
+        contact_id: { type: [string, "null"], format: uuid }
+        titulo: { type: string }
+        status: { type: string }
+        total_cents: { type: integer }
+        moeda: { type: string }
+        numero: { type: [integer, "null"] }
+        ano: { type: [integer, "null"] }
+        versao: { type: integer }
+        valid_until: { type: [string, "null"], format: date }
+        created_at: { type: string, format: date-time }
+    Proposta:
+      allOf:
+        - $ref: "#/components/schemas/PropostaResumo"
+        - type: object
+          properties:
+            revision: { type: integer }
+            pricing_status: { type: string }
+            condicoes: { type: [string, "null"] }
+            prazo_dias_uteis: { type: [integer, "null"] }
+            pagamento: { type: [string, "null"] }
+            itens:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/ItemDeProposta"
+                  - type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      preco_catalogo_atual_cents: { type: [integer, "null"] }
     RegraDeAutomacaoNova:
       type: object
       required: [name, trigger_event, actions]

@@ -18,7 +18,10 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { isLeadAttachmentPathOwnedBy } from "@/lib/messaging/media/upload-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
+
+import { baixarPorToken } from "../../_por-token";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +32,14 @@ interface RouteCtx {
   params: Promise<{ id: string; attachmentId: string }>;
 }
 
-export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
+export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const requestId = randomUUID();
+  // Bearer `dsk_…` (ERP baixa a NF): `mcp:read`, viewer. O link assinado de 60 s
+  // é o mesmo da tela; a organização sai da linha do token.
+  if (extractBearer(req.headers.get("authorization"))) {
+    const { id, attachmentId } = await ctx.params;
+    return baixarPorToken(req, id, attachmentId, requestId);
+  }
   // A mídia é a LEITURA do anexo (#3431): o `viewer` que já vê o negócio abre o
   // arquivo. Escrever segue em `agent`, na rota da lista (POST/DELETE).
   const authz = await requireRole("viewer", { requestId, resource: "crm_leads" });

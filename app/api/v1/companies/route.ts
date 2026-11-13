@@ -13,7 +13,10 @@ import {
   requestIdOf,
   seModuloB2bDesligado,
 } from "@/lib/crm-b2b/route-helpers";
+import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
+
+import { criarPorToken, listarPorToken } from "./_por-token";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +24,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const requestId = requestIdOf(req);
   const desligado = await seModuloB2bDesligado(requestId);
   if (desligado) return desligado;
+  // Bearer `dsk_…` (ERP): mesmo módulo, outra porta de identidade.
+  if (extractBearer(req.headers.get("authorization"))) return listarPorToken(req);
   const authz = await requireRole("viewer", { requestId, resource: "companies" });
   if (!authz.ok) return authz.response;
 
@@ -40,6 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const requestId = requestIdOf(req);
   const desligado = await seModuloB2bDesligado(requestId);
   if (desligado) return desligado;
+  if (extractBearer(req.headers.get("authorization"))) return criarPorToken(req);
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
   const authz = await requireRole("manager", { requestId, resource: "companies" });

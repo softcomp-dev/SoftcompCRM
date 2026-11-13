@@ -17,18 +17,17 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { isLeadAttachmentPathOwnedBy } from "@/lib/messaging/media/upload-validation";
 
+import { extractBearer } from "@/lib/mcp/auth";
+
+import { BUCKET_DE_ANEXO, MIMES_DO_ANEXO, TAMANHO_MAXIMO_DO_ANEXO } from "./_limites";
+import { anexarPorToken, listarPorToken } from "./_por-token";
+
 export const dynamic = "force-dynamic";
 
-const BUCKET = "internal-media";
-const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
-
-const ALLOWED_MIMES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/jpg",
-]);
+// Os limites moram em `_limites.ts`: a porta por token (`_por-token.ts`) lê os mesmos.
+const BUCKET = BUCKET_DE_ANEXO;
+const MAX_BYTES = TAMANHO_MAXIMO_DO_ANEXO;
+const ALLOWED_MIMES = MIMES_DO_ANEXO;
 
 interface RouteCtx {
   params: Promise<{ id: string }>;
@@ -82,6 +81,10 @@ function serializarAnexo(row: {
 
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const requestId = randomUUID();
+  // Bearer `dsk_…` (ERP): `mcp:read`, viewer.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return listarPorToken(req, (await ctx.params).id, requestId);
+  }
   // LER o anexo é ler o negócio (#3431): quem enxerga o lead enxerga o
   // documento dele — o `viewer` inclusive. A escrita (POST/DELETE, abaixo)
   // segue em `agent`: lista é leitura, upload e remoção não são.
@@ -130,6 +133,10 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 }
 
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  // Bearer `dsk_…` (ERP anexa NF e contrato): `mcp:write`, agent.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return anexarPorToken(req, (await ctx.params).id, randomUUID());
+  }
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
@@ -291,6 +298,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  // Remover documento não tem porta por token: o Bearer é recusado de forma explícita.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return fail("forbidden", "Remover anexo não está disponível por token de API.", 403, {
+      requestId: randomUUID(),
+    });
+  }
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 

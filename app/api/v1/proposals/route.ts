@@ -17,14 +17,19 @@ import { moedaDaOrganizacao } from "@/lib/catalogo/moeda-da-org";
 import { resolverPadroesDaProposta } from "@/lib/propostas/padroes-da-organizacao";
 import { propostaCreateSchema } from "@/lib/schemas/propostas";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { fusoDaOrganizacao, somarDiasNoFuso } from "@/lib/propostas/data-no-fuso";
 import { sePropostasDesligadas } from "@/lib/propostas/porta";
 
+import { criarPorToken, listarPorToken } from "./_por-token";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest): Promise<Response> {
+  // Bearer `dsk_…` (ERP): `mcp:read`, lista paginada por cursor.
+  if (extractBearer(req.headers.get("authorization"))) return listarPorToken(req);
   const requestId = randomUUID();
   const authz = await requireRole("viewer", { requestId, resource: "crm_proposals" });
   if (!authz.ok) return authz.response;
@@ -51,6 +56,8 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // Bearer `dsk_…` (ERP): `mcp:write`, só o rascunho e os itens, com Idempotency-Key.
+  if (extractBearer(req.headers.get("authorization"))) return criarPorToken(req);
   // Guarda de EFEITO: um acompanhamento de suporte só-leitura (ou já
   // encerrado) não pode criar rascunho na organização do cliente. Mesmo
   // padrão de toda rota de mutação do repo (`app/api/v1/products/route.ts`,

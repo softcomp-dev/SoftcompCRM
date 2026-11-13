@@ -10,8 +10,11 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { resolverItensDaProposta } from "@/lib/propostas/itens";
 import { propostaItemSchema } from "@/lib/schemas/propostas";
 import { resolverAvisoDeRevisaoSeProntaOuEncerrada } from "@/lib/propostas/aviso-de-revisao";
+import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
 import { sePropostasDesligadas } from "@/lib/propostas/porta";
+
+import { editarPorToken, lerPorToken } from "../_por-token";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +31,8 @@ const patchSchema = z.object({
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, ctx: Ctx): Promise<Response> {
+export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
+  if (extractBearer(req.headers.get("authorization"))) return lerPorToken(req, (await ctx.params).id);
   const requestId = randomUUID();
   const authz = await requireRole("viewer", { requestId, resource: "crm_proposals" });
   if (!authz.ok) return authz.response;
@@ -84,6 +88,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<Response> {
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
+  if (extractBearer(req.headers.get("authorization"))) return editarPorToken(req, (await ctx.params).id);
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
@@ -202,7 +207,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
  * Nunca apaga: vira `cancelada` (a v1, se houver, não é tocada — ela só sai
  * de `enviada` quando uma v2 é EFETIVAMENTE enviada, send/route.ts).
  */
-export async function DELETE(_req: NextRequest, ctx: Ctx): Promise<Response> {
+export async function DELETE(req: NextRequest, ctx: Ctx): Promise<Response> {
+  // Descartar proposta não tem porta por token: o Bearer é recusado de forma explícita.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return fail("forbidden", "Descartar proposta não está disponível por token de API.", 403, {
+      requestId: randomUUID(),
+    });
+  }
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 

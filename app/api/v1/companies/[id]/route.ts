@@ -9,12 +9,16 @@ import {
 } from "@/lib/crm-b2b/companies-handler";
 import {
   ctxFromAuthz,
+  fail,
   handleRouteError,
   ok,
   requestIdOf,
   seModuloB2bDesligado,
 } from "@/lib/crm-b2b/route-helpers";
+import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
+
+import { editarPorToken, lerPorToken } from "../_por-token";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +28,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const requestId = requestIdOf(req);
   const desligado = await seModuloB2bDesligado(requestId);
   if (desligado) return desligado;
+  if (extractBearer(req.headers.get("authorization"))) return lerPorToken(req, (await params).id);
   const authz = await requireRole("viewer", { requestId, resource: "companies" });
   if (!authz.ok) return authz.response;
   const { id } = await params;
@@ -41,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const requestId = requestIdOf(req);
   const desligado = await seModuloB2bDesligado(requestId);
   if (desligado) return desligado;
+  if (extractBearer(req.headers.get("authorization"))) return editarPorToken(req, (await params).id);
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
   const authz = await requireRole("agent", { requestId, resource: "companies" });
@@ -68,6 +74,10 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Respons
   const requestId = requestIdOf(req);
   const desligado = await seModuloB2bDesligado(requestId);
   if (desligado) return desligado;
+  // Apagar empresa não tem porta por token: o Bearer é recusado de forma explícita.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return fail("forbidden", "Apagar empresa não está disponível por token de API.", 403, { requestId });
+  }
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
   const authz = await requireRole("manager", { requestId, resource: "companies" });

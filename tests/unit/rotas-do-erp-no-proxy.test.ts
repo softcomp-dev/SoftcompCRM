@@ -17,6 +17,14 @@ const ABREM: Record<string, string[]> = {
   "ler o negócio": ["/api/v1/leads", `/api/v1/leads/${ID}`, "/api/v1/leads/by-external/erp/PV-4821"],
   "fechar, nota e tarefa": [`/api/v1/leads/${ID}/win`, `/api/v1/leads/${ID}/lose`, `/api/v1/leads/${ID}/notes`, "/api/v1/tasks"],
   "automações e etiquetas": ["/api/v1/automation-rules", `/api/v1/automation-rules/${ID}`, "/api/v1/contact-tags"],
+  "documentos, empresas e propostas": [
+    `/api/v1/leads/${ID}/attachments`,
+    `/api/v1/leads/${ID}/attachments/${ID}/media`,
+    "/api/v1/companies",
+    `/api/v1/companies/${ID}`,
+    "/api/v1/proposals",
+    `/api/v1/proposals/${ID}`,
+  ],
 };
 
 const NAO_ABREM: Record<string, string[]> = {
@@ -54,6 +62,19 @@ const NAO_ABREM: Record<string, string[]> = {
     `/api/v1/automation-rules/runs/${ID}/resend`,
     `/api/v1/automation-rules/${ID}/runs`,
     "/api/v1/automation-rules/nao-e-uuid",
+  ],
+  "documentos, empresas e propostas": [
+    `/api/v1/leads/${ID}/attachments/${ID}`,
+    `/api/v1/companies/${ID}/enrich`,
+    "/api/v1/companies/lookup",
+    `/api/v1/proposals/${ID}/send`,
+    `/api/v1/proposals/${ID}/documento`,
+    `/api/v1/proposals/${ID}/previa`,
+    `/api/v1/proposals/${ID}/decide`,
+    `/api/v1/proposals/${ID}/revise`,
+    `/api/v1/proposals/${ID}/modelo`,
+    `/api/v1/proposals/${ID}/assistant`,
+    `/api/v1/proposals/${ID}/preencher-com-conversa`,
   ],
 };
 
