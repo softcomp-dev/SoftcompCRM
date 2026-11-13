@@ -5,7 +5,9 @@
  * Quem pode, o que pode e para quem: `lib/sdr/passagem.ts` (a regra única).
  * Recusas: 409 `sdr_disabled` (função desligada), 403 `sdr_handoff_forbidden`
  * (quem chamou não é SDR ativo, ou o negócio é de um colega), 404 (negócio de
- * outra empresa ou inexistente), 409 `lead_not_open`, 422 (vendedor inválido).
+ * outra empresa ou inexistente), 409 `lead_not_open`, 409 `state_conflict` (o
+ * negócio mudou de dono ou foi encerrado no meio da passagem), 422 (vendedor
+ * inválido).
  *
  * ─── O que passa, e por qual porta ─────────────────────────────────────────
  *
@@ -153,6 +155,10 @@ export async function POST(
       { organization_id: orgId, actor: { type: "user", id: sdrId, role: authz.org.role }, requestId, idioma },
       leadId,
       { owner_user_id: vendedorId },
+      // A régua de `recusaDoNegocio` vai também no UPDATE: se outro SDR ou o
+      // gerente mexeu no negócio depois da leitura acima, a passagem recusa
+      // (409) em vez de sobrescrever o dono que acabou de ser escolhido.
+      { somenteSe: { status: "open", owner_user_id: negocio.owner_user_id } },
     );
   } catch (err) {
     if (err instanceof ApiError) return fail(err.code, err.message, err.status, { requestId });

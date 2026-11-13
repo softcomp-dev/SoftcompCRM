@@ -948,7 +948,17 @@ export async function updateLeadHandler(
   ctx: HandlerCtx,
   leadId: string,
   input: UpdateLeadInput,
-  opcoes: { manterForaDaLista?: boolean } = {},
+  opcoes: {
+    manterForaDaLista?: boolean;
+    /**
+     * Grava SÓ SE o negócio ainda estiver neste estado — a condição vai no
+     * próprio UPDATE, não numa leitura anterior. Quem decide com base no dono
+     * e no status (a passagem do SDR) passa aqui o que leu: se outra pessoa
+     * mexeu no meio, nenhuma linha casa e a resposta é 409 `state_conflict`,
+     * em vez de a segunda escrita vencer calada.
+     */
+    somenteSe?: { status: string; owner_user_id: string | null };
+  } = {},
 ): Promise<Record<string, unknown>> {
   // `*` e nao lista explicita DE PROPOSITO: `camposAlterados` compara o patch
   // contra isto, e uma lista fixa faria todo campo NOVO do patch cair contra
@@ -1103,18 +1113,34 @@ export async function updateLeadHandler(
     ? ctx.serviceOrigin ?? await observeServiceOrigin(createAdminClient(), ctx.organization_id, input.contact_id ?? existing.contact_id)
     : null;
   await guardServiceEffect();
-  const { data: updated, error: updErr } = await supabase
+  let gravacao = supabase
     .from("crm_leads")
     .update(patch)
     .eq("organization_id", ctx.organization_id)
-    .eq("id", leadId)
-    .select(LEAD_COLS)
-    .maybeSingle();
+    .eq("id", leadId);
+  if (opcoes.somenteSe) {
+    gravacao = gravacao.eq("status", opcoes.somenteSe.status);
+    gravacao =
+      opcoes.somenteSe.owner_user_id === null
+        ? gravacao.is("owner_user_id", null)
+        : gravacao.eq("owner_user_id", opcoes.somenteSe.owner_user_id);
+  }
+  const { data: updated, error: updErr } = await gravacao.select(LEAD_COLS).maybeSingle();
 
   const recusaNoUpdate = recusaDaGuardaDoBanco(ctx, updErr);
   if (recusaNoUpdate) throw recusaNoUpdate;
   if (updErr) {
     throw new ApiError(500, "internal_error", undefined, ctx.requestId, updErr.message);
+  }
+  if (!updated && opcoes.somenteSe) {
+    // O negócio existe (o SELECT acima o achou); o que não casou foi a condição.
+    throw new ApiError(
+      409,
+      "state_conflict",
+      undefined,
+      ctx.requestId,
+      traduzir("Este negócio mudou enquanto você trabalhava nele. Atualize a tela e tente de novo.", ctx.idioma ?? "pt-BR"),
+    );
   }
   if (!updated) {
     throw new ApiError(

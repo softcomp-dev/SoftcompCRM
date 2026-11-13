@@ -8,6 +8,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api/types";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -182,6 +183,8 @@ describe("POST /api/v1/leads/[id]/passar-ao-vendedor", () => {
       expect.objectContaining({ organization_id: ORG, actor: expect.objectContaining({ id: SDR }) }),
       LEAD,
       { owner_user_id: VENDEDOR },
+      // A condição vai no UPDATE: o que a rota leu é o que ela exige ao gravar.
+      { somenteSe: { status: "open", owner_user_id: SDR } },
     );
     expect(rpcs.find((c) => c.nome === "fn_definir_carteira_do_cliente")?.args).toMatchObject({
       p_org: ORG,
@@ -246,5 +249,21 @@ describe("POST /api/v1/leads/[id]/passar-ao-vendedor", () => {
   it("negócio sem dono humano (fila ou agente de IA) o SDR pode passar", async () => {
     tabelas.crm_leads![0]!.owner_user_id = null;
     expect((await passar(VENDEDOR)).status).toBe(200);
+    expect(vi.mocked(updateLeadHandler).mock.calls[0]?.[4]).toEqual({
+      somenteSe: { status: "open", owner_user_id: null },
+    });
+  });
+
+  it("se o negócio mudou de dono no meio (outro SDR chegou antes), 409 e nada mais passa", async () => {
+    // A gravação condicional não casou linha nenhuma: `updateLeadHandler` recusa.
+    vi.mocked(updateLeadHandler).mockRejectedValueOnce(
+      new ApiError(409, "state_conflict", undefined, "req", "Este negócio mudou enquanto você trabalhava nele."),
+    );
+    const r = await passar(VENDEDOR);
+    expect(r.status).toBe(409);
+    expect((await r.json()).error.code).toBe("state_conflict");
+    // Nem carteira, nem conversa, nem auditoria de passagem que não aconteceu.
+    expect(rpcs).toEqual([]);
+    expect(audit).not.toHaveBeenCalled();
   });
 });
