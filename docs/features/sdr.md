@@ -154,6 +154,37 @@ SDR quando o cliente ficou na carteira de outra pessoa. Componentes:
 `components/kanban/KanbanCardActions.tsx`; hooks `useVendedoresDoSdr` e
 `usePassarAoVendedor` em `hooks/sdr/useSdr.ts`.
 
+A condição de `recusaDoNegocio` (negócio aberto, com o SDR ou sem dono humano)
+vai também **no próprio `UPDATE`** (`somenteSe` em `updateLeadHandler`). Se outro
+SDR ou o gerente mexer no negócio entre a leitura e a gravação, nenhuma linha
+casa e a resposta é 409 `state_conflict`: a segunda passagem não sobrescreve o
+dono que a primeira acabou de escolher, e nada mais (carteira, conversas,
+auditoria) é tocado.
+
+## A tela Leads sem vendedor
+
+`/app/sdr` é a fila do SDR: os negócios abertos que estão com ele ou sem dono
+humano (na fila ou com um agente de IA), do mais antigo para o mais novo, com
+a escolha do vendedor e o botão **Passar** em cada linha. É a mesma passagem do
+menu do card, sem precisar abrir o funil.
+
+- **Porta:** o hub "Ver tudo em CRM" e a busca (⌘K), só com a função SDR ligada
+  na empresa (`capacidade: "sdr"` em `lib/navigation/catalogo.ts`). Não há item
+  no menu lateral, pelo mesmo critério de Cold Call.
+- **Quem vê:** SDR ativo. Quem abre a tela sem ser SDR lê o porquê e o que pedir
+  ao administrador; quem recusa de verdade é a rota, não o menu.
+- **O que aparece:** exatamente o que o **Passar** aceita, porque a lista usa a
+  régua de `recusaDoNegocio`. A leitura é pela sessão do SDR: a RLS de
+  `crm_leads` decide o que ele enxerga, como no funil.
+- **Filtros:** Todos, Comigo, Na fila e Com a IA, com a contagem de cada um.
+- **Teto:** 200 negócios. Passou disso, a tela avisa que mostra os 200 mais
+  antigos. Negócio de funil arquivado não entra, e sai **antes** do teto.
+- **Falha de leitura** aparece como erro com "Tentar de novo", nunca como "você
+  não é SDR" nem como "não há vendedor".
+
+Fonte: `lib/sdr/negocios-do-sdr.ts`, `app/api/v1/sdr/negocios/route.ts`,
+`app/app/sdr/`, hook `useNegociosDoSdr`.
+
 ## API
 
 Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
@@ -168,7 +199,8 @@ Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
 | `DELETE /api/v1/sdr/assignments/{user_id}` | admin | 409 `sdr_disabled` | 200 (idempotente) · 404 |
 | `GET /api/v1/sdr/permissions[?user_id=]` | o próprio: viewer+; outro: manager+ | responde | ver abaixo |
 | `GET /api/v1/sdr/vendedores` | agent+ | responde (`pode_passar: false`) | `{ user_id, pode_passar, motivo, vendedores: [user_id] }` |
-| `POST /api/v1/leads/{id}/passar-ao-vendedor` `{ user_id }` | agent+ e SDR ativo | 409 `sdr_disabled` | `{ lead_id, owner_user_id, carteira, carteira_motivo, conversas_passadas, conversas_que_ficaram }` · 403 `sdr_handoff_forbidden` · 404 · 409 `lead_not_open` · 422 |
+| `GET /api/v1/sdr/negocios` | agent+ e SDR ativo | 409 `sdr_disabled` | `[{ id, title, value_cents, currency, created_at, pipeline_name, stage_name, contact_name, situacao: "comigo" \| "fila" \| "ia", owner_agent_name, … }]`, `meta.total`, `meta.has_more` (teto de 200) · 403 `sdr_handoff_forbidden` |
+| `POST /api/v1/leads/{id}/passar-ao-vendedor` `{ user_id }` | agent+ e SDR ativo | 409 `sdr_disabled` | `{ lead_id, owner_user_id, carteira, carteira_motivo, conversas_passadas, conversas_que_ficaram }` · 403 `sdr_handoff_forbidden` · 404 · 409 `lead_not_open` · 409 `state_conflict` (o negócio mudou no meio) · 422 |
 
 ```json
 {
@@ -198,12 +230,15 @@ idempotente que não muda nada não audita.
 ## O que ainda não existe
 
 - **Relatório "por SDR".**
-- **Passagem pelo dossiê e pela Inbox.** Hoje o "Passar para vendedor" está só no
-  menu do card do funil. Por regra, a automação "Atribuir a um atendente" (#3514)
+- **Passagem pelo dossiê e pela Inbox.** Hoje o "Passar para vendedor" está no
+  menu do card do funil e na tela Leads sem vendedor. Por regra, a automação "Atribuir a um atendente" (#3514)
   continua disponível.
 - **Lead que chega sem conversa** (formulário, API, importação) não passa pelo
   rodízio de conversas e, portanto, não pelo fluxo SDR.
 - **Bearer token** nessas rotas.
+- **Aviso de negócio parado com quem deixou de ser SDR.** Desmarcar um SDR tira
+  só a marca: os negócios que estavam com ele continuam com ele, e o gerente
+  reatribui pelo campo Responsável.
 
 ## Laço de retorno (sistema vivo)
 
