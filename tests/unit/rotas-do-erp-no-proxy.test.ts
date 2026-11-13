@@ -14,6 +14,7 @@ const ID = "3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10";
 
 const ABREM: Record<string, string[]> = {
   "equipe e contato": [`/api/v1/contacts/${ID}`, "/api/v1/team/assignable"],
+  "ler o negócio": ["/api/v1/leads", `/api/v1/leads/${ID}`, "/api/v1/leads/by-external/erp/PV-4821"],
 };
 
 const NAO_ABREM: Record<string, string[]> = {
@@ -27,6 +28,16 @@ const NAO_ABREM: Record<string, string[]> = {
     "/api/v1/team/invite",
     `/api/v1/team/${ID}`,
     `/api/v1/team/${ID}/role`,
+  ],
+  "ler o negócio": [
+    "/api/v1/leads/bulk",
+    "/api/v1/leads/import",
+    "/api/v1/leads/at-risk",
+    "/api/v1/leads/by-external/erp",
+    "/api/v1/leads/by-external/erp/PV-4821/extra",
+    `/api/v1/leads/${ID}/clone`,
+    `/api/v1/leads/${ID}/timeline`,
+    `/api/v1/leads/${ID}/passar-ao-vendedor`,
   ],
 };
 

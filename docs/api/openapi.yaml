@@ -656,6 +656,47 @@ paths:
 
   # ───────────────────────────── Leads ─────────────────────────────
   /api/v1/leads:
+    get:
+      tags: [Leads]
+      operationId: listarLeads
+      summary: Listar negócios (sincronização incremental)
+      description: |
+        Lista os negócios da organização em ordem **estável** de `updated_at` e `id`
+        (do mais antigo para o mais novo), para o ERP sincronizar o que mudou: guarde o
+        maior `updated_at` que recebeu e passe em `updated_since` na próxima rodada, ou
+        siga `meta.cursor` até `has_more` ser `false`. É a rede de segurança dos
+        webhooks: o que um aviso perdido não entregou, a varredura acha.
+
+        Contatos marcados como pessoais ficam de fora, como no quadro.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: pipeline_id, in: query, schema: { type: string, format: uuid } }
+        - { name: stage_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [open, won, lost] } }
+        - { name: owner_user_id, in: query, schema: { type: string, format: uuid } }
+        - { name: source, in: query, schema: { type: string }, description: "Origem do negócio (ex.: `erp`)." }
+        - { name: external_id, in: query, schema: { type: string }, description: Identificador do seu sistema. }
+        - { name: updated_since, in: query, schema: { type: string, format: date-time }, description: "Só os alterados a partir deste instante (inclusive)." }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string }, description: Valor de `meta.cursor` da página anterior. }
+      responses:
+        "200":
+          description: Página de negócios.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/LeadLido" } }
+                  meta: { $ref: "#/components/schemas/MetaCursor" }
+        "400": { $ref: "#/components/responses/CursorInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
     post:
       tags: [Leads]
       operationId: criarLead
@@ -668,8 +709,12 @@ paths:
         `funil_arquivado`). Para fechar um negócio, crie numa etapa aberta e use
         `POST /api/v1/leads/{id}/move`.
 
-        **Evite card duplicado:** mande o cabeçalho `Idempotency-Key` (um UUID por
-        pedido do seu sistema). Se a chamada der timeout e você repetir com a mesma
+        **Evite card duplicado:** mande `external_id` com o número do pedido no seu
+        sistema (e `source`, por exemplo `erp`). Se já houver negócio com esse par na
+        organização, a resposta é **409 `lead_exists`** com o id dele em
+        `details.lead_id` — e `GET /api/v1/leads/by-external/{source}/{external_id}`
+        o devolve a qualquer momento. Além disso, mande o cabeçalho `Idempotency-Key`
+        (um UUID por pedido do seu sistema). Se a chamada der timeout e você repetir com a mesma
         chave e o mesmo corpo, recebe o mesmo card de volta em vez de criar outro.
 
         `contact_id` precisa ser de um contato que já existe: ache-o com
@@ -722,10 +767,11 @@ paths:
         "404": { $ref: "#/components/responses/NaoEncontrado" }
         "409":
           description: |
-            Só com `Idempotency-Key`. `idempotency_conflict`: a chave já foi usada
-            com outro corpo (gere uma chave nova). `idempotency_in_progress`: o
-            mesmo pedido ainda está sendo processado (repita em instantes, com a
-            mesma chave).
+            `lead_exists`: já existe negócio com este `source` + `external_id` (o id
+            em `details.lead_id`). Com `Idempotency-Key`, também
+            `idempotency_conflict` (a chave já foi usada com outro corpo: gere uma
+            nova) ou `idempotency_in_progress` (o mesmo pedido ainda em curso:
+            repita em instantes, com a mesma chave).
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "422":
           description: |
@@ -737,6 +783,35 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/by-external/{source}/{external_id}:
+    get:
+      tags: [Leads]
+      operationId: lerLeadPorIdExterno
+      summary: Achar o negócio pelo número do seu sistema
+      description: |
+        O mesmo de `GET /api/v1/leads/{id}`, achando o negócio pelo par `source` +
+        `external_id` com que ele foi criado. Codifique os dois na URL
+        (`encodeURIComponent`) se tiverem `/` ou espaço.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: source, in: path, required: true, schema: { type: string }, example: erp }
+        - { name: external_id, in: path, required: true, schema: { type: string }, example: PV-4821 }
+      responses:
+        "200":
+          description: O negócio.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/LeadLido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
 
   /api/v1/leads/{id}/move:
     post:
@@ -801,6 +876,35 @@ paths:
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /api/v1/leads/{id}:
+    get:
+      tags: [Leads]
+      operationId: lerLead
+      summary: Ler o negócio
+      description: |
+        O estado atual do negócio: etapa (com o nome), funil, status (`open`, `won`,
+        `lost`), responsável, valor, campos, motivos de ganho e de perda,
+        `closed_at`, `external_id` e `updated_at`. Use antes de agir para conferir o
+        estado (o negócio já foi ganho?) e para reconciliar quando um webhook se perder.
+
+        Negócio de outra organização, de contato pessoal ou id que não existe: 404.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      responses:
+        "200":
+          description: O negócio.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/LeadLido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
     patch:
       tags: [Leads]
       operationId: atualizarLead
@@ -2425,6 +2529,11 @@ components:
       type: object
       required: [pipeline_id, stage_id, title]
       properties:
+        external_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Só por token. Identificador do negócio no seu sistema (o número do pedido); único por organização junto com `source`.
         pipeline_id: { type: string, format: uuid }
         stage_id: { type: string, format: uuid, description: Etapa do mesmo funil; não pode ser de ganho ou perda. }
         title: { type: string, minLength: 2, maxLength: 200 }
@@ -2480,6 +2589,26 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    LeadLido:
+      description: O negócio como as leituras devolvem — a linha inteira mais os nomes.
+      allOf:
+        - $ref: "#/components/schemas/Lead"
+        - type: object
+          properties:
+            status: { type: string, enum: [open, won, lost] }
+            source: { type: string }
+            external_id: { type: [string, "null"] }
+            owner_user_id: { type: [string, "null"], format: uuid }
+            owner_user_name: { type: [string, "null"] }
+            won_reason: { type: [string, "null"] }
+            lost_reason: { type: [string, "null"] }
+            closed_at: { type: [string, "null"], format: date-time }
+            custom_fields: { type: object, additionalProperties: true }
+            tags: { type: array, items: { type: string } }
+            stage: { type: [object, "null"], properties: { id: { type: string, format: uuid }, name: { type: string } } }
+            stage_name: { type: [string, "null"] }
+            pipeline: { type: [object, "null"], properties: { id: { type: string, format: uuid }, name: { type: string } } }
+            pipeline_name: { type: [string, "null"] }
     MarcacaoDeCompromisso:
       type: object
       required: [event_type_id, starts_at]

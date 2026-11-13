@@ -251,6 +251,41 @@ export const createLeadSchema = z.object({
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 
 /**
+ * O corpo do POST /api/v1/leads por TOKEN (`dsk_…`): o da sessão mais o
+ * `external_id`, o id do pedido/negócio no sistema de fora (ERP).
+ *
+ * Fica fora do `createLeadSchema` de propósito: a tela não tem esse campo, e o
+ * ramo da sessão segue byte a byte como era. `(organization_id, source,
+ * external_id)` é único (índice `uniq_crm_leads_org_source_external`), então o
+ * par `source` + `external_id` é a chave de correspondência do integrador.
+ */
+export const createLeadPorTokenSchema = createLeadSchema.extend({
+  external_id: z.string().trim().min(1).max(200).optional(),
+});
+export type CreateLeadPorTokenInput = z.infer<typeof createLeadPorTokenSchema>;
+
+/**
+ * Query de GET /api/v1/leads (sessão ou token). Ordem fixa por (updated_at, id)
+ * ascendente — feita para sincronização incremental: o integrador guarda o
+ * cursor (ou o maior `updated_at` visto) e volta a perguntar `updated_since`.
+ */
+export const listLeadsQuerySchema = z.object({
+  pipeline_id: z.string().uuid().optional(),
+  stage_id: z.string().uuid().optional(),
+  status: z.enum(["open", "won", "lost"]).optional(),
+  owner_user_id: z.string().uuid().optional(),
+  source: z.string().trim().min(1).max(200).optional(),
+  external_id: z.string().trim().min(1).max(200).optional(),
+  updated_since: z
+    .string()
+    .refine((s) => /^\d{4}-\d{2}-\d{2}T/.test(s) && !Number.isNaN(Date.parse(s)), "updated_since deve ser ISO-8601")
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).max(500).optional(),
+});
+export type ListLeadsQueryInput = z.infer<typeof listLeadsQuerySchema>;
+
+/**
  * updateLeadSchema → PATCH /api/v1/leads/[id]
  * Stage/pipeline transitions go through /move /win /lose endpoints.
  */

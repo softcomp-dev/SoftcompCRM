@@ -152,6 +152,10 @@ export const ApiErrorCodes = {
   // (índice uniq_contacts_org_phone). O corpo traz `details.contact_id` para a
   // tela oferecer o contato existente em vez de só mostrar que deu erro.
   contact_exists: "contact_exists",
+  // POST /api/v1/leads por token com `external_id` que já existe na origem
+  // (`source`) da organização (índice uniq_crm_leads_org_source_external). O
+  // corpo traz `details.lead_id` para o ERP ligar ao negócio que já existe.
+  lead_exists: "lead_exists",
   // POST/PATCH /api/v1/attendants/sectors com nome que já existe na organização
   // (índice attendant_sectors_org_name_unique, migration 0801).
   sector_name_taken: "sector_name_taken",

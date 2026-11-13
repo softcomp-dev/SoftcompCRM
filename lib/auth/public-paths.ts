@@ -135,6 +135,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/contacts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   // Quem pode ser responsável — com e-mail no ramo de token, para o ERP casar o vendedor.
   /^\/api\/v1\/team\/assignable$/,
+  // Achar o negócio pelo número do pedido (`source` + `external_id`). Os dois
+  // segmentos são texto livre do ERP, então `[^/]+` — mas presos ao literal
+  // `by-external` e ancorados: nada mais abaixo de `/leads/` abre por aqui.
+  // (`GET /leads` e `GET /leads/{id}` usam as entradas de criar e editar acima.)
+  /^\/api\/v1\/leads\/by-external\/[^/]+\/[^/]+$/,
   // ── fim das rotas do ERP ──
   // ENVIO SERVER-TO-SERVER. Mesma dualidade de `/api/v1/contacts` acima, com
   // `mcp:write` em vez de `mcp:read`: sessão de navegador OU Bearer `dsk_…`,

@@ -20388,6 +20388,7 @@ export const DICIONARIO: Traducoes = {
   "chegou há": { es: "llegó hace" },
   "Escolha o vendedor": { es: "Elige el vendedor" },
   "Passar": { es: "Pasar" },
+  "Já existe um negócio com este external_id nesta origem.": { es: "Ya existe un negocio con este external_id en este origen." },
   "1 negócio aberto continua com essa pessoa. Reatribua pelo campo Responsável no funil.": { es: "1 negocio abierto sigue con esa persona. Reasígnalo en el campo Responsable del embudo." },
   "{n} negócios abertos continuam com essa pessoa. Reatribua pelo campo Responsável no funil.": { es: "{n} negocios abiertos siguen con esa persona. Reasígnalos en el campo Responsable del embudo." },
   "Abrir o negócio": { es: "Abrir el negocio" },

@@ -514,6 +514,37 @@ export async function getLeadHandler(
 // create
 // ---------------------------------------------------------------------------
 
+/**
+ * O negócio da organização com este par (`source`, `external_id`), ou `null`.
+ * O filtro de organização é obrigatório: o client do token ignora a RLS.
+ */
+export async function leadDaOrigemExterna(
+  supabase: SB,
+  organizationId: string,
+  source: string,
+  externalId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("crm_leads")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("source", source)
+    .eq("external_id", externalId)
+    .maybeSingle();
+  return (data as { id?: string } | null)?.id ?? null;
+}
+
+/** O 409 `lead_exists`, com o id do negócio que já ocupa o par. */
+export function leadJaExiste(ctx: HandlerCtx, leadId: string): ApiError {
+  return new ApiError(
+    409,
+    "lead_exists",
+    { lead_id: leadId },
+    ctx.requestId,
+    traduzir("Já existe um negócio com este external_id nesta origem.", ctx.idioma ?? "pt-BR"),
+  );
+}
+
 export async function createLeadHandler(
   supabase: SB,
   ctx: HandlerCtx,
@@ -836,6 +867,21 @@ export async function createLeadHandler(
 
   const recusaNoInsert = recusaDaGuardaDoBanco(ctx, insErr);
   if (recusaNoInsert) throw recusaNoInsert;
+
+  // `external_id` repetido na mesma origem (índice único parcial
+  // `uniq_crm_leads_org_source_external`): quem perdeu a corrida entre a
+  // consulta da rota e o INSERT recebe o MESMO 409 de quem foi barrado antes —
+  // nunca 500. Só vira 409 se o par existir de fato; um 23505 de outra causa
+  // segue para o 500 de sempre.
+  if (insErr?.code === "23505" && input.external_id) {
+    const existente = await leadDaOrigemExterna(
+      supabase,
+      ctx.organization_id,
+      input.source,
+      input.external_id,
+    );
+    if (existente) throw leadJaExiste(ctx, existente);
+  }
 
   // ── A PERDA SEM MOTIVO NA PRÓPRIA CRIAÇÃO (issue #2743) ────────────────────
   //

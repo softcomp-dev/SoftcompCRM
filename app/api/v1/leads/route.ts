@@ -3,6 +3,8 @@ import { carteiraDoContato } from "@/lib/carteira/dono";
 import { MOTIVO_DA_RECUSA, recusaNegocioNaCarteiraDeOutro } from "@/lib/carteira/negocio-novo";
 import { traduzir } from "@/lib/i18n/dicionario";
 /**
+ * GET  /api/v1/leads — lista negócios (sessão ou token `mcp:read`), em ordem
+ *      estável (updated_at, id) para sincronização incremental.
  * POST /api/v1/leads — create lead (handler em ./_handler.ts).
  */
 import { randomUUID } from "node:crypto";
@@ -20,14 +22,66 @@ import {
   AVISO_NEGOCIO_ABERTO_EXISTENTE,
   negocioAbertoExistente,
 } from "@/lib/leads/negocio-aberto-duplicado";
-import { createLeadSchema, validateRequest, type CreateLeadInput } from "@/lib/schemas";
+import {
+  createLeadPorTokenSchema,
+  createLeadSchema,
+  listLeadsQuerySchema,
+  validateRequest,
+  type CreateLeadInput,
+  type CreateLeadPorTokenInput,
+} from "@/lib/schemas";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
 
-import { createLeadHandler } from "./_handler";
+import { createLeadHandler, leadDaOrigemExterna, leadJaExiste } from "./_handler";
+import { enriquecerNegocios, listarNegociosPorAtualizacao, resolverAuthDeLeitura } from "./_leitura";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * LISTAR NEGÓCIOS (viewer+, sessão ou `Bearer dsk_…` com `mcp:read`).
+ *
+ * Filtros: pipeline_id, stage_id, status, owner_user_id, source, external_id e
+ * updated_since. Ordem fixa por (updated_at, id) ascendente, cursor opaco
+ * (400 `invalid_cursor` se adulterado). Com sessão a RLS decide o que se vê
+ * (inclusive o "só os seus"); com token a organização é a da linha do token.
+ * Negócio de contato pessoal e a prova interna de meta ficam de fora, como no
+ * quadro e na tool MCP `crm_list_leads`.
+ */
+export async function GET(req: NextRequest): Promise<Response> {
+  const requestId = randomUUID();
+  const authz = await resolverAuthDeLeitura(req, requestId);
+  if (!authz.ok) return authz.response;
+  const { supabase, organizationId, actor, idioma } = authz;
+
+  const params = new URL(req.url).searchParams;
+  const parsed = listLeadsQuerySchema.safeParse(Object.fromEntries(params.entries()));
+  if (!parsed.success) {
+    return fail("validation_failed", traduzir("Query inválida.", idioma ?? "pt-BR"), 422, {
+      details: parsed.error.flatten().fieldErrors as Record<string, unknown>,
+      requestId,
+    });
+  }
+
+  try {
+    const lista = await listarNegociosPorAtualizacao(
+      supabase,
+      { organization_id: organizationId, actor, requestId, idioma },
+      parsed.data,
+    );
+    const leads = await enriquecerNegocios(supabase, organizationId, lista.leads);
+    return ok(leads, { requestId, meta: { cursor: lista.cursor, has_more: lista.has_more } });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, {
+        details: err.details as Record<string, unknown> | undefined,
+        requestId,
+      });
+    }
+    throw err;
+  }
+}
 
 export async function POST(req: NextRequest): Promise<Response> {
   const supportDenied = await requireSupportWrite();
@@ -215,9 +269,9 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
   const tetoEstourado = await tetoDeEscritaDoToken(authz, "leads", requestId);
   if (tetoEstourado) return tetoEstourado;
 
-  let input: CreateLeadInput;
+  let input: CreateLeadPorTokenInput;
   try {
-    input = await validateRequest(createLeadSchema, req);
+    input = await validateRequest(createLeadPorTokenSchema, req);
   } catch (err) {
     if (err instanceof ApiError) {
       return fail(err.code, err.message, err.status, {
@@ -247,6 +301,21 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
   /** O corpo da resposta, como o recibo o guarda: o card e, se houver, o aviso. */
   type Criado = { data: Record<string, unknown>; meta?: Record<string, unknown> };
   const criar = async (): Promise<Criado> => {
+    // `external_id` já ocupado na origem: 409 com o id do negócio que existe.
+    // Dentro de `criar`, para que a repetição COM a mesma Idempotency-Key devolva
+    // o recibo do 201 em vez de cair aqui. A corrida entre esta consulta e o
+    // INSERT é do 23505 no handler.
+    if (input.external_id) {
+      const existente = await leadDaOrigemExterna(
+        authz.supabase,
+        authz.organizationId,
+        input.source,
+        input.external_id,
+      );
+      if (existente) {
+        throw leadJaExiste({ organization_id: authz.organizationId, actor: authz.actor, requestId }, existente);
+      }
+    }
     const lead = await createLeadHandler(
       authz.supabase,
       { organization_id: authz.organizationId, actor: authz.actor, requestId },
