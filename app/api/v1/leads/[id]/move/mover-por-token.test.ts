@@ -193,8 +193,9 @@ describe("POST /api/v1/leads/[id]/move — alcançável sem cookie (proxy)", () 
 
   it("NÃO libera os irmãos, que não têm Bearer", () => {
     expect(isPublicPath(`/api/v1/leads/${LEAD}/clone`)).toBe(false);
-    expect(isPublicPath(`/api/v1/leads/${LEAD}/win`)).toBe(false);
-    expect(isPublicPath(`/api/v1/leads/${LEAD}/lose`)).toBe(false);
+    // `/win` e `/lose` passaram a aceitar token (o ERP fecha o negócio numa
+    // chamada) e abrem no proxy — ver tests/unit/rotas-do-erp-no-proxy.test.ts.
+    expect(isPublicPath(`/api/v1/leads/${LEAD}/retomar`)).toBe(false);
     expect(isPublicPath("/api/v1/leads/nao-e-uuid/move")).toBe(false);
   });
 });

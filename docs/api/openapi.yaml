@@ -93,6 +93,8 @@ tags:
   - name: Mensagens
   - name: Equipe
     description: Os membros da organização — de onde sai o `owner_user_id` do negócio.
+  - name: Tarefas
+    description: O que o vendedor precisa fazer, ligado ao negócio e ao contato.
   - name: Funis
     description: Funis e etapas — de onde saem o `pipeline_id` e o `stage_id` para criar e mover card.
   - name: Leads
@@ -812,6 +814,245 @@ paths:
         "403": { $ref: "#/components/responses/Proibido" }
         "404": { $ref: "#/components/responses/NaoEncontrado" }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
+
+  /api/v1/leads/{id}/win:
+    post:
+      tags: [Leads]
+      operationId: ganharLead
+      summary: Marcar o negócio como ganho
+      description: |
+        Fecha o negócio como ganho numa chamada só — por exemplo, quando o pedido é
+        faturado no ERP. A etapa de ganho do funil é escolhida aqui: você não precisa
+        saber o id dela. Valem as regras da tela: motivo do vocabulário do funil e
+        campos exigidos. Negócio já ganho responde 200 sem gravar de novo.
+
+        Atenção: esta rota não aplica a regra de reabertura do funil — um negócio
+        perdido passa a ganho. Se o seu funil cria um negócio novo ao reabrir, use
+        `POST /api/v1/leads/{id}/move`, que aplica a regra.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                won_reason: { type: [string, "null"], maxLength: 500, description: "Exigido se o funil pedir; do vocabulário do funil, quando houver." }
+            example: { won_reason: Pedido faturado }
+      responses:
+        "200":
+          description: Negócio ganho.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Lead" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422":
+          description: |
+            Regra do funil: motivo fora do vocabulário (`won_reason_invalid`,
+            `lost_reason_invalid`), motivo obrigatório ausente
+            (`lost_reason_required`), campos exigidos faltando
+            (`required_fields_missing` com `details.faltando`) ou funil sem etapa de
+            fechamento (`pipeline_no_won_stage`, `pipeline_no_lost_stage`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/{id}/lose:
+    post:
+      tags: [Leads]
+      operationId: perderLead
+      summary: Marcar o negócio como perdido
+      description: |
+        Fecha o negócio como perdido numa chamada só — por exemplo, quando o pedido é
+        cancelado no ERP. A etapa de perda do funil é escolhida aqui. O motivo é
+        obrigatório e precisa ser do vocabulário do funil (os motivos padrão ou os
+        que o funil declarou). A mesma observação de reabertura do `win` vale aqui.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lost_reason]
+              properties:
+                lost_reason: { type: string, minLength: 1, maxLength: 500 }
+            example: { lost_reason: preco }
+      responses:
+        "200":
+          description: Negócio perdido.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Lead" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "422":
+          description: |
+            Regra do funil: motivo fora do vocabulário (`won_reason_invalid`,
+            `lost_reason_invalid`), motivo obrigatório ausente
+            (`lost_reason_required`), campos exigidos faltando
+            (`required_fields_missing` com `details.faltando`) ou funil sem etapa de
+            fechamento (`pipeline_no_won_stage`, `pipeline_no_lost_stage`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/leads/{id}/notes:
+    post:
+      tags: [Leads]
+      operationId: registrarNotaNoLead
+      summary: Registrar nota na linha do tempo do negócio
+      description: |
+        Registra um fato que o vendedor precisa ver no negócio — "NF 1234 emitida",
+        "boleto vencido". Aparece na linha do tempo como nota, com o token como autor
+        (sistema). `occurred_at` diz quando o fato aconteceu (padrão: agora; não pode
+        estar mais de 5 minutos no futuro). Mande `Idempotency-Key` para não registrar
+        duas vezes numa retentativa.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 5000 }
+                occurred_at: { type: string, format: date-time }
+            example: { body: "NF 1234 emitida no valor de R$ 1.500,00", occurred_at: "2026-11-13T14:00:00Z" }
+      responses:
+        "201":
+          description: Nota registrada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      lead_id: { type: string, format: uuid }
+                      type: { type: string, enum: [note] }
+                      body: { type: string }
+                      occurred_at: { type: string, format: date-time }
+                      created_at: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409":
+          description: "`idempotency_conflict` ou `idempotency_in_progress`."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Tarefas ─────────────────────────────
+  /api/v1/tasks:
+    get:
+      tags: [Tarefas]
+      operationId: listarTarefas
+      summary: Listar tarefas
+      description: |
+        As tarefas da organização, com filtros. Por token, `assigned_to=me` não existe
+        (o token não é uma pessoa): passe o id do membro, ou `ninguem` para as sem
+        responsável.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, in_progress, done, cancelled] } }
+        - { name: priority, in: query, schema: { type: string, enum: [low, medium, high, urgent] } }
+        - { name: lead_id, in: query, schema: { type: string, format: uuid } }
+        - { name: contact_id, in: query, schema: { type: string, format: uuid } }
+        - { name: due_from, in: query, schema: { type: string, format: date-time } }
+        - { name: due_to, in: query, schema: { type: string, format: date-time } }
+        - { name: aberto, in: query, schema: { type: string, enum: ["true", "false"] }, description: Só as que ainda pedem ação. }
+        - { name: assigned_to, in: query, schema: { type: string }, description: "Id do membro ou `ninguem`." }
+      responses:
+        "200":
+          description: Tarefas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+    post:
+      tags: [Tarefas]
+      operationId: criarTarefa
+      summary: Criar tarefa para o vendedor
+      description: |
+        Cria uma tarefa ("ligar para cobrar a parcela", "confirmar a entrega") ligada
+        ao negócio, ao contato e a um responsável. Negócio, contato e responsável são
+        conferidos contra a organização do token (de outra organização: 422). Mande
+        `Idempotency-Key` para não duplicar.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 255 }
+                description: { type: [string, "null"], maxLength: 5000 }
+                due_date: { type: [string, "null"], format: date-time }
+                priority: { type: string, enum: [low, medium, high, urgent], default: medium }
+                status: { type: string, enum: [pending, in_progress, done, cancelled], default: pending }
+                lead_id: { type: [string, "null"], format: uuid }
+                contact_id: { type: [string, "null"], format: uuid }
+                assigned_to: { type: [string, "null"], format: uuid, description: "Id do membro (veja `GET /api/v1/team/assignable`)." }
+            example:
+              title: Cobrar parcela 2 do pedido PV-4821
+              due_date: "2026-11-20T12:00:00-03:00"
+              priority: high
+              lead_id: 3f1c2a9e-1b7d-4c55-9a51-2d1b0c7e8a10
+              assigned_to: 7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f
+      responses:
+        "201":
+          description: Tarefa criada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { task: { type: object, additionalProperties: true } } } } } } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "409":
+          description: "`idempotency_conflict`, `idempotency_in_progress` ou `state_conflict` (demanda encerrada)."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
 
   /api/v1/leads/{id}/move:
     post:

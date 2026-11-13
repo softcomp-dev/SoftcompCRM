@@ -140,6 +140,12 @@ export const PUBLIC_PATHS: RegExp[] = [
   // `by-external` e ancorados: nada mais abaixo de `/leads/` abre por aqui.
   // (`GET /leads` e `GET /leads/{id}` usam as entradas de criar e editar acima.)
   /^\/api\/v1\/leads\/by-external\/[^/]+\/[^/]+$/,
+  // Fechar o negócio (ganho/perda escolhem a etapa sozinhas), nota na linha do
+  // tempo e tarefas. Os irmãos de `/leads/{id}/*` e `/tasks/{id}` seguem atrás do proxy.
+  /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/win$/i,
+  /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/lose$/i,
+  /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/notes$/i,
+  /^\/api\/v1\/tasks$/,
   // ── fim das rotas do ERP ──
   // ENVIO SERVER-TO-SERVER. Mesma dualidade de `/api/v1/contacts` acima, com
   // `mcp:write` em vez de `mcp:read`: sessão de navegador OU Bearer `dsk_…`,

@@ -27,12 +27,14 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { chaveDaRequisicao, comIdempotencia } from "@/lib/api/idempotency";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { IDIOMA_PADRAO } from "@/lib/i18n/idiomas";
 import { portaDaAplicacao } from "@/lib/db";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { registraAtividadeDaTarefa } from "@/lib/tarefas/atividade";
 import { conferirDemanda } from "@/lib/tarefas/demanda";
 import { conferirResponsavel } from "@/lib/tarefas/responsavel";
@@ -44,6 +46,8 @@ import {
 } from "@/lib/tarefas/tipos";
 
 export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * O teto da lista — e o máximo que `?limite=` aceita. Está nomeado porque agora
@@ -119,9 +123,17 @@ const listaSchema = z.object({
 export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
 
-  const authz = await requireRole("viewer", { requestId, resource: "crm_tasks" });
+  // Dual: sessão (viewer+) ou `Bearer dsk_…` com `mcp:read` — o ERP lê o que
+  // pediu ao vendedor. Com token o client é o de serviço (ignora a RLS), e a
+  // consulta abaixo já filtra `organization_id` à mão.
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "crm_tasks",
+    role: "viewer",
+    scope: "mcp:read",
+  });
   if (!authz.ok) return authz.response;
-  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const t = (texto: string) => traduzir(texto, authz.idioma ?? IDIOMA_PADRAO);
 
   const parsed = listaSchema.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!parsed.success) {
@@ -132,14 +144,24 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
   const filtros = parsed.data;
 
-  const supabase = await createClient();
+  // `me` é o usuário da SESSÃO; um token de servidor não é ninguém, e deixar o
+  // filtro cair em `assigned_to = <id do token>` devolveria lista vazia como se
+  // fosse resposta. Recusa com a saída: passe o id do membro.
+  if (filtros.assigned_to === "me" && authz.via === "token") {
+    return fail("validation_failed", t("Com token, informe o id do responsável em vez de \"me\"."), 422, {
+      requestId,
+      details: { assigned_to: ["me só vale para sessão de usuário"] },
+    });
+  }
+
+  const supabase = authz.supabase;
   // ⚠️ `organization_id` à mão mesmo com RLS ligada: é a regra do CLAUDE.md, e
   // ela não é redundante — o dia em que esta rota trocar para o admin client
   // (que bypassa RLS) o filtro já está aqui.
   let query = supabase
     .from("crm_tasks")
     .select(filtros.pipeline_id ? COLUNAS_NO_FUNIL : COLUNAS)
-    .eq("organization_id", authz.org.orgId)
+    .eq("organization_id", authz.organizationId)
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(filtros.limite ?? LIMITE_MAXIMO);
@@ -152,7 +174,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (filtros.due_from) query = query.gte("due_date", filtros.due_from);
   if (filtros.due_to) query = query.lte("due_date", filtros.due_to);
   if (filtros.aberto === "true") query = query.in("status", [...SITUACOES_ABERTAS_DA_TAREFA]);
-  if (filtros.assigned_to === "me") query = query.eq("assigned_to", authz.user.id);
+  if (filtros.assigned_to === "me") query = query.eq("assigned_to", authz.actor.id);
   else if (filtros.assigned_to === "ninguem") query = query.is("assigned_to", null);
   else if (filtros.assigned_to) query = query.eq("assigned_to", filtros.assigned_to);
   if (filtros.pipeline_id) query = query.eq("lead.pipeline_id", filtros.pipeline_id);
@@ -171,10 +193,25 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const requestId = randomUUID();
 
-  // `agent` e não `manager`: criar tarefa é o gesto de quem ATENDE, todo dia.
-  const authz = await requireRole("agent", { requestId, resource: "crm_tasks" });
+  // Dual: sessão (agent+) ou `Bearer dsk_…` com `mcp:write`. `agent` e não
+  // `manager`: criar tarefa é o gesto de quem ATENDE, todo dia.
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "crm_tasks",
+    role: "agent",
+    scope: "mcp:write",
+  });
   if (!authz.ok) return authz.response;
-  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const t = (texto: string) => traduzir(texto, authz.idioma ?? IDIOMA_PADRAO);
+  const orgId = authz.organizationId;
+
+  const chave = chaveDaRequisicao(req);
+  if (chave !== null && !UUID.test(chave)) {
+    return fail("validation_failed", "Idempotency-Key deve ser um UUID.", 400, { requestId });
+  }
+
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "tasks", requestId);
+  if (tetoEstourado) return tetoEstourado;
 
   const parsed = criacaoSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -189,11 +226,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // outra organização (ou de quem saiu da equipe) gravaria sem erro. A régua
     // e o porquê do filtro de organização estão em `lib/tarefas/responsavel.ts`
     // (SQL direto na porta de `lib/db` — o pool NÃO passa por RLS).
-    const veredito = await conferirResponsavel(
-      portaDaAplicacao(),
-      authz.org.orgId,
-      parsed.data.assigned_to,
-    );
+    const veredito = await conferirResponsavel(portaDaAplicacao(), orgId, parsed.data.assigned_to);
     if (veredito === "falha_na_consulta") {
       return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
     }
@@ -204,16 +237,39 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  const supabase = await createClient();
+  const supabase = authz.supabase;
+
+  if (authz.via === "token") {
+    // Negócio e contato: a chave estrangeira não passa pela RLS e o client do
+    // token a ignora — sem esta conferência, o id de OUTRA organização gravaria
+    // sem erro e a tarefa apareceria presa a um negócio que não é desta org.
+    // (O ramo da sessão segue como sempre: a RLS do cookie é o que o segura.)
+    for (const [tabela, id] of [
+      ["crm_leads", parsed.data.lead_id],
+      ["contacts", parsed.data.contact_id],
+    ] as const) {
+      if (!id) continue;
+      const { data: existe, error: erroDaLeitura } = await supabase
+        .from(tabela)
+        .select("id")
+        .eq("id", id)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+      if (erroDaLeitura) {
+        return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
+      }
+      if (!existe) {
+        return fail("validation_failed", t("O negócio, o contato ou a demanda vinculada não existe."), 422, {
+          requestId,
+        });
+      }
+    }
+  }
 
   if (parsed.data.demanda_id) {
     // A chave estrangeira não passa pela RLS: sem esta conferência, a demanda
     // de outra organização gravaria sem erro. A régua está em `lib/tarefas/demanda.ts`.
-    const veredito = await conferirDemanda(
-      portaDaAplicacao(),
-      authz.org.orgId,
-      parsed.data.demanda_id,
-    );
+    const veredito = await conferirDemanda(portaDaAplicacao(), orgId, parsed.data.demanda_id);
     if (veredito === "falha_na_consulta") {
       return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
     }
@@ -229,46 +285,101 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  const { data, error } = await supabase
-    .from("crm_tasks")
-    .insert({
-      ...parsed.data,
-      organization_id: authz.org.orgId,
-      created_by: authz.user.id,
-    })
-    .select(COLUNAS)
-    .single();
+  const actorUserId = authz.actor.type === "user" ? authz.actor.id : null;
 
-  if (error) {
-    // 23503 = negócio, contato ou demanda apagado no meio, entre a escolha e a
-    // gravação. A recusa nomeia os campos porque quem lê é quem escolheu na tela.
-    if (error.code === "23503") {
-      return fail("validation_failed", t("O negócio, o contato ou a demanda vinculada não existe."), 422, {
-        requestId,
-      });
+  /** Resultado da criação: a tarefa, ou o 4xx/5xx que a recusou. */
+  type Criada = { task: Tarefa };
+  class RecusaDaCriacao extends Error {
+    constructor(readonly resposta: Response) {
+      super("recusa_da_criacao");
     }
-    return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
   }
 
-  const tarefa = data as unknown as Tarefa;
+  const criar = async (): Promise<{ resposta: Criada; status: number }> => {
+    const { data, error } = await supabase
+      .from("crm_tasks")
+      .insert({
+        ...parsed.data,
+        organization_id: orgId,
+        // Token não é pessoa: `created_by` tem FK para `auth.users`, e gravar o
+        // id do token ali derrubaria o INSERT. A autoria do token está no audit
+        // (`actor_api_token_id`) e na linha do tempo.
+        created_by: actorUserId,
+      })
+      .select(COLUNAS)
+      .single();
 
-  await audit({
-    organizationId: authz.org.orgId,
-    actorUserId: authz.user.id,
-    action: "crm_task.created",
-    resourceType: "crm_tasks",
-    resourceId: tarefa.id,
-    requestId,
-    metadata: { due_date: tarefa.due_date, priority: tarefa.priority },
-  });
+    if (error) {
+      // 23503 = negócio, contato ou demanda apagado no meio, entre a escolha e a
+      // gravação. A recusa nomeia os campos porque quem lê é quem escolheu na tela.
+      if (error.code === "23503") {
+        throw new RecusaDaCriacao(
+          fail("validation_failed", t("O negócio, o contato ou a demanda vinculada não existe."), 422, {
+            requestId,
+          }),
+        );
+      }
+      throw new RecusaDaCriacao(fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId }));
+    }
 
-  // O laço de retorno: tarefa presa a um negócio aparece na linha do tempo dele.
-  await registraAtividadeDaTarefa(portaDaAplicacao(), {
-    organizationId: authz.org.orgId,
-    tarefa,
-    tipo: "task_created",
-    actor: { type: "user", id: authz.user.id },
-  });
+    const tarefa = data as unknown as Tarefa;
 
-  return ok({ task: tarefa }, { requestId, status: 201 });
+    await audit({
+      organizationId: orgId,
+      actorUserId,
+      actorApiTokenId: authz.apiTokenId ?? null,
+      action: "crm_task.created",
+      resourceType: "crm_tasks",
+      resourceId: tarefa.id,
+      requestId,
+      metadata: { due_date: tarefa.due_date, priority: tarefa.priority },
+    });
+
+    // O laço de retorno: tarefa presa a um negócio aparece na linha do tempo dele.
+    await registraAtividadeDaTarefa(portaDaAplicacao(), {
+      organizationId: orgId,
+      tarefa,
+      tipo: "task_created",
+      actor: authz.actor,
+    });
+
+    return { resposta: { task: tarefa }, status: 201 };
+  };
+
+  try {
+    const desfecho =
+      chave === null
+        ? { tipo: "executou" as const, ...(await criar()) }
+        : await comIdempotencia<Criada>({
+            // O recibo mora numa tabela que a sessão não escreve: o client de
+            // serviço entra, e o helper filtra por organização em toda consulta.
+            db: createAdminClient(),
+            organizationId: orgId,
+            endpoint: "POST /api/v1/tasks",
+            chave,
+            corpo: parsed.data, // o corpo VALIDADO define a identidade da operação
+            executar: criar,
+          });
+
+    if (desfecho.tipo === "conflito") {
+      return fail(
+        "idempotency_conflict",
+        "Esta Idempotency-Key já foi usada com outro corpo. Gere uma chave nova para um pedido diferente.",
+        409,
+        { requestId },
+      );
+    }
+    if (desfecho.tipo === "em_curso") {
+      return fail(
+        "idempotency_in_progress",
+        "O mesmo pedido ainda está sendo processado. Tente de novo em instantes, com a mesma chave.",
+        409,
+        { requestId },
+      );
+    }
+    return ok(desfecho.resposta, { requestId, status: 201 });
+  } catch (err) {
+    if (err instanceof RecusaDaCriacao) return err.resposta;
+    throw err;
+  }
 }
