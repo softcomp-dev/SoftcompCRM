@@ -49,6 +49,13 @@ export interface ColunaConsolidada {
   etapas: Array<{ stage_id: string; pipeline_id: string; organization_id: string }>;
 }
 
+/**
+ * Quantos negócios cada etapa mostra no funil consolidado. O teto é por ETAPA
+ * porque `position_in_stage` só ordena dentro de uma etapa: por funil, o corte
+ * guardava uma mistura arbitrária das colunas.
+ */
+export const TETO_DE_NEGOCIOS_POR_ETAPA = 100;
+
 export const CHAVE_GANHO = "__ganho";
 export const CHAVE_PERDIDO = "__perdido";
 
