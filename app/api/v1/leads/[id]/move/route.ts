@@ -14,6 +14,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { falhaDoHandlerParaToken, recusaDaEtapaParaToken } from "@/lib/api/integracao-por-token";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
@@ -422,6 +423,14 @@ async function moverPorToken(
     throw err;
   }
 
+  const etapaRecusada = await recusaDaEtapaParaToken(authz.supabase, {
+    organizationId: authz.organizationId,
+    stageId: input.stage_id,
+    uso: "mover",
+    requestId,
+  });
+  if (etapaRecusada) return etapaRecusada;
+
   try {
     const lead = await moveLeadHandler(
       authz.supabase,
@@ -437,12 +446,7 @@ async function moverPorToken(
     );
     return ok(lead, { requestId });
   } catch (err) {
-    if (err instanceof ApiError) {
-      return fail(err.code, err.message, err.status, {
-        details: err.details as Record<string, unknown> | undefined,
-        requestId,
-      });
-    }
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "POST /api/v1/leads/{id}/move");
     throw err;
   }
 }

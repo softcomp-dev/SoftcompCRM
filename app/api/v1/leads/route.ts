@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
 import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { chaveDaRequisicao, comIdempotencia, type DesfechoIdempotente } from "@/lib/api/idempotency";
+import { falhaDoHandlerParaToken, recusaDaEtapaParaToken } from "@/lib/api/integracao-por-token";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
@@ -180,6 +182,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * CRIAR CARD POR TOKEN (`Bearer dsk_…` com `mcp:write`, papel `agent` — o mesmo
  * da tool MCP `crm_create_lead`). Existe para integração de servidor (ERP), que
@@ -201,6 +205,13 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
   });
   if (!authz.ok) return authz.response;
 
+  // Idempotência (opcional): o ERP que repete a chamada depois de um timeout
+  // recebe o MESMO card de volta, em vez de criar o segundo.
+  const chave = chaveDaRequisicao(req);
+  if (chave !== null && !UUID.test(chave)) {
+    return fail("validation_failed", "Idempotency-Key deve ser um UUID.", 400, { requestId });
+  }
+
   const tetoEstourado = await tetoDeEscritaDoToken(authz, "leads", requestId);
   if (tetoEstourado) return tetoEstourado;
 
@@ -217,6 +228,14 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
     throw err;
   }
 
+  const etapaRecusada = await recusaDaEtapaParaToken(authz.supabase, {
+    organizationId: authz.organizationId,
+    stageId: input.stage_id,
+    uso: "criar",
+    requestId,
+  });
+  if (etapaRecusada) return etapaRecusada;
+
   const negocioExistente = input.contact_id
     ? await negocioAbertoExistente(authz.supabase, {
         organizationId: authz.organizationId,
@@ -225,15 +244,16 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
       })
     : null;
 
-  try {
+  /** O corpo da resposta, como o recibo o guarda: o card e, se houver, o aviso. */
+  type Criado = { data: Record<string, unknown>; meta?: Record<string, unknown> };
+  const criar = async (): Promise<Criado> => {
     const lead = await createLeadHandler(
       authz.supabase,
       { organization_id: authz.organizationId, actor: authz.actor, requestId },
       input,
     );
-    return ok(lead, {
-      requestId,
-      status: 201,
+    return {
+      data: lead,
       ...(negocioExistente
         ? {
             meta: {
@@ -242,11 +262,47 @@ async function criarPorToken(req: NextRequest, requestId: string): Promise<Respo
             },
           }
         : {}),
+    };
+  };
+
+  try {
+    const desfecho: DesfechoIdempotente<Criado> =
+      chave === null
+        ? { tipo: "executou", resposta: await criar(), status: 201 }
+        : await comIdempotencia({
+            // O client do token ignora a RLS: quem isola é `organizationId`,
+            // que o helper filtra em toda consulta.
+            db: authz.supabase,
+            organizationId: authz.organizationId,
+            endpoint: "POST /api/v1/leads",
+            chave,
+            corpo: input, // o corpo VALIDADO define a identidade da operação
+            executar: async () => ({ resposta: await criar(), status: 201 }),
+          });
+
+    if (desfecho.tipo === "conflito") {
+      return fail(
+        "idempotency_conflict",
+        "Esta Idempotency-Key já foi usada com outro corpo. Gere uma chave nova para um pedido diferente.",
+        409,
+        { requestId },
+      );
+    }
+    if (desfecho.tipo === "em_curso") {
+      return fail(
+        "idempotency_in_progress",
+        "O mesmo pedido ainda está sendo processado. Tente de novo em instantes, com a mesma chave.",
+        409,
+        { requestId },
+      );
+    }
+    return ok(desfecho.resposta.data, {
+      requestId,
+      status: 201,
+      ...(desfecho.resposta.meta ? { meta: desfecho.resposta.meta } : {}),
     });
   } catch (err) {
-    if (err instanceof ApiError) {
-      return fail(err.code, err.message, err.status, { requestId });
-    }
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "POST /api/v1/leads");
     throw err;
   }
 }

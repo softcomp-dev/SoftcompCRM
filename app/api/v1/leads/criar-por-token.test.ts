@@ -37,6 +37,14 @@ vi.mock("@/lib/leads/negocio-aberto-duplicado", async () => {
   );
   return { ...actual, negocioAbertoExistente: vi.fn(async () => null) };
 });
+vi.mock("@/lib/api/integracao-por-token", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/integracao-por-token")>(
+    "@/lib/api/integracao-por-token",
+  );
+  // A régua da etapa tem suíte própria (lib/api/integracao-por-token.test.ts);
+  // aqui ela entra como espião, aprovando por padrão.
+  return { ...actual, recusaDaEtapaParaToken: vi.fn(async () => null) };
+});
 vi.mock("@/lib/mcp/auth", async () => {
   const actual = await vi.importActual<typeof import("@/lib/mcp/auth")>("@/lib/mcp/auth");
   return { ...actual, validateBearerToken: vi.fn() };
@@ -178,6 +186,91 @@ describe("POST /api/v1/leads — Bearer", () => {
     });
     const body = (await res.json()) as { meta?: { avisos?: string[] } };
     expect(body.meta?.avisos).toHaveLength(1);
+  });
+});
+
+describe("POST /api/v1/leads — Idempotency-Key", () => {
+  const CHAVE = "5f0c6a52-6a3e-4b1d-9c1e-2f7a8b9c0d11";
+
+  /** `idempotency_keys` em memória, com o índice único (org + chave + endpoint). */
+  function bancoComRecibos() {
+    type Linha = Record<string, unknown>;
+    const linhas: Linha[] = [];
+    const from = () => {
+      const filtros: Array<(l: Linha) => boolean> = [];
+      let patch: Linha | null = null;
+      const casa = () => linhas.filter((l) => filtros.every((f) => f(l)));
+      const q = {
+        select: () => q,
+        eq: (c: string, v: unknown) => (filtros.push((l) => l[c] === v), q),
+        gt: (c: string, v: string) => (filtros.push((l) => String(l[c]) > v), q),
+        insert: async (linha: Linha) => {
+          const repetida = linhas.some(
+            (l) => l.organization_id === linha.organization_id && l.key === linha.key && l.endpoint === linha.endpoint,
+          );
+          if (repetida) return { error: { code: "23505" } };
+          linhas.push({ id: `recibo-${linhas.length}`, ...linha });
+          return { error: null };
+        },
+        update: (p: Linha) => ((patch = p), q),
+        maybeSingle: async () => ({ data: casa()[0] ?? null, error: null }),
+        then: (res: (v: unknown) => void) => {
+          if (patch) for (const l of casa()) Object.assign(l, patch);
+          res({ data: null, error: null });
+        },
+      };
+      return q;
+    };
+    return { from, linhas } as never;
+  }
+
+  it("a mesma chave com o mesmo corpo devolve o MESMO card e não cria o segundo", async () => {
+    tokenOk();
+    vi.mocked(createAdminClient).mockReturnValue(bancoComRecibos());
+    const { POST } = await import("./route");
+    const comChave = { authorization: "Bearer dsk_abc_def", "idempotency-key": CHAVE };
+
+    const primeira = await POST(req(corpo, comChave));
+    const segunda = await POST(req(corpo, comChave));
+
+    expect(primeira.status).toBe(201);
+    expect(segunda.status).toBe(201);
+    expect(((await segunda.json()) as { data: { id: string } }).data.id).toBe("lead-novo");
+    expect(createLeadHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("a mesma chave com OUTRO corpo é 409 idempotency_conflict, sem criar", async () => {
+    tokenOk();
+    vi.mocked(createAdminClient).mockReturnValue(bancoComRecibos());
+    const { POST } = await import("./route");
+    const comChave = { authorization: "Bearer dsk_abc_def", "idempotency-key": CHAVE };
+
+    await POST(req(corpo, comChave));
+    const outra = await POST(req({ ...corpo, title: "Pedido 99999" }, comChave));
+
+    expect(outra.status).toBe(409);
+    expect(((await outra.json()) as { error: { code: string } }).error.code).toBe("idempotency_conflict");
+    expect(createLeadHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("chave que não é UUID → 400, nada é criado", async () => {
+    tokenOk();
+    const { POST } = await import("./route");
+
+    const res = await POST(req(corpo, { authorization: "Bearer dsk_abc_def", "idempotency-key": "pedido-12345" }));
+
+    expect(res.status).toBe(400);
+    expect(createLeadHandler).not.toHaveBeenCalled();
+  });
+
+  it("sem chave, cada chamada cria um card (o comportamento de sempre)", async () => {
+    tokenOk();
+    const { POST } = await import("./route");
+
+    await POST(req(corpo));
+    await POST(req(corpo));
+
+    expect(createLeadHandler).toHaveBeenCalledTimes(2);
   });
 });
 

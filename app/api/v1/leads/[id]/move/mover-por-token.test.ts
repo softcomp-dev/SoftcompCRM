@@ -36,6 +36,14 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
 vi.mock("../../_handler", () => ({
   moveLeadHandler: vi.fn(async () => ({ id: "lead-1", stage_id: "etapa-nova" })),
 }));
+vi.mock("@/lib/api/integracao-por-token", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/integracao-por-token")>(
+    "@/lib/api/integracao-por-token",
+  );
+  // A régua da etapa tem suíte própria (lib/api/integracao-por-token.test.ts);
+  // aqui ela entra como espião, aprovando por padrão.
+  return { ...actual, recusaDaEtapaParaToken: vi.fn(async () => null) };
+});
 vi.mock("@/lib/mcp/auth", async () => {
   const actual = await vi.importActual<typeof import("@/lib/mcp/auth")>("@/lib/mcp/auth");
   return { ...actual, validateBearerToken: vi.fn() };
