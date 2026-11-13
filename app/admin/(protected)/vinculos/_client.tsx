@@ -298,7 +298,7 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
     }
   }
 
-  const nomeDaEmpresa = (id: string) => empresas.find((e) => e.id === id)?.display_name ?? id;
+  const nomeDaEmpresa = (orgId: string) => empresas.find((e) => e.id === orgId)?.display_name ?? orgId;
 
   if (isLoading) {
     return <Skeleton className="h-64 w-full rounded-lg" />;

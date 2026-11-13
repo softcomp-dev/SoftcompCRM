@@ -292,7 +292,11 @@ describe("CERCA — quem escreve vínculo, papel ou estado de org invalida", () 
 
   /** Arquivos que a revisão precisa conferir sempre que um caminho novo nascer. */
   const ESCRITAS_DE_AUTORIZACAO = [
-    "app/api/v1/team/[user_id]/revoke/route.ts",
+    // A revogação (da tela de Equipe e da de Vínculos do /admin) mora num
+    // módulo só desde o refactor 4c4c36a96; é ele quem invalida.
+    "lib/team/revogar-vinculo.ts",
+    // Vínculos diretos do dono da instalação: cria, reativa e troca papel.
+    "app/api/v1/admin/users/[id]/vinculos/route.ts",
     "app/api/v1/team/[user_id]/reactivate/route.ts",
     "app/api/v1/team/[user_id]/_shared.ts",
     "app/api/v1/team/[user_id]/interface/route.ts",
