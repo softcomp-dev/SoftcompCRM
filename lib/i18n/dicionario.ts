@@ -20388,6 +20388,8 @@ export const DICIONARIO: Traducoes = {
   "chegou há": { es: "llegó hace" },
   "Escolha o vendedor": { es: "Elige el vendedor" },
   "Passar": { es: "Pasar" },
+  "1 negócio aberto continua com essa pessoa. Reatribua pelo campo Responsável no funil.": { es: "1 negocio abierto sigue con esa persona. Reasígnalo en el campo Responsable del embudo." },
+  "{n} negócios abertos continuam com essa pessoa. Reatribua pelo campo Responsável no funil.": { es: "{n} negocios abiertos siguen con esa persona. Reasígnalos en el campo Responsable del embudo." },
   "Abrir o negócio": { es: "Abrir el negocio" },
   "Esta etapa pede um arquivo anexado. Abra o negócio para anexar e mover.": { es: "Esta etapa pide un archivo adjunto. Abre el negocio para adjuntarlo y moverlo." },
   "Algumas etapas têm muitos negócios: mostrando os 100 primeiros de cada uma.": { es: "Algunas etapas tienen muchos negocios: se muestran los primeros 100 de cada una." },

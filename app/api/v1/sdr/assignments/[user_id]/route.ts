@@ -16,7 +16,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
-import { desmarcarSdr } from "@/lib/sdr/atribuicao";
+import { contarNegociosAbertosDe, desmarcarSdr } from "@/lib/sdr/atribuicao";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { interruptorDaOrganizacao } from "../../_shared";
@@ -48,7 +48,10 @@ export async function DELETE(
 
   const r = await desmarcarSdr(db, orgId, alvo.data);
   switch (r.tipo) {
-    case "desmarcado":
+    case "desmarcado": {
+      // Os negócios abertos continuam com ele: a resposta diz quantos, para a
+      // tela avisar o gestor na hora em vez de deixá-los parados sem ninguém ver.
+      const negociosAbertos = await contarNegociosAbertosDe(db, orgId, r.membro.user_id);
       void audit({
         action: "sdr.unassigned",
         actorUserId: authz.user.id,
@@ -56,9 +59,16 @@ export async function DELETE(
         resourceType: "membership",
         resourceId: r.membro.user_id,
         requestId,
-        metadata: { target_user_id: r.membro.user_id },
+        metadata: {
+          target_user_id: r.membro.user_id,
+          ...(negociosAbertos !== null ? { negocios_abertos: negociosAbertos } : {}),
+        },
       });
-      return ok({ user_id: r.membro.user_id, assigned: false }, { requestId });
+      return ok(
+        { user_id: r.membro.user_id, assigned: false, negocios_abertos: negociosAbertos },
+        { requestId },
+      );
+    }
     case "nao_marcado":
       return ok({ user_id: r.membro.user_id, assigned: false }, { requestId });
     case "nao_encontrado":

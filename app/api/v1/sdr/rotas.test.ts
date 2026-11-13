@@ -25,7 +25,7 @@ type Linha = Record<string, unknown>;
 let tabelas: Record<string, Linha[]>;
 
 function fakeDb() {
-  function consulta(tabela: string, op: "select" | "update", valores?: Linha) {
+  function consulta(tabela: string, op: "select" | "update", valores?: Linha, contar = false) {
     const filtros: Array<(l: Linha) => boolean> = [];
     const executar = () => {
       const achadas = (tabelas[tabela] ?? []).filter((l) => filtros.every((f) => f(l)));
@@ -41,13 +41,17 @@ function fakeDb() {
       select: () => q,
       order: () => q,
       maybeSingle: async () => ({ data: executar()[0] ?? null, error: null }),
-      then: (res: (v: unknown) => void) => res({ data: executar(), error: null }),
+      then: (res: (v: unknown) => void) => {
+        const linhas = executar();
+        res(contar ? { count: linhas.length, error: null } : { data: linhas, error: null });
+      },
     };
     return q;
   }
   return {
     from: (tabela: string) => ({
-      select: () => consulta(tabela, "select"),
+      select: (_cols?: string, opts?: { count?: string; head?: boolean }) =>
+        consulta(tabela, "select", undefined, opts?.head === true),
       update: (v: Linha) => consulta(tabela, "update", v),
     }),
   };
@@ -208,6 +212,29 @@ describe("atribuição (sdr/assignments)", () => {
     expect((await DELETE(req(`/api/v1/sdr/assignments/${AGENTE}`, "DELETE"), ctx)).status).toBe(200);
     expect((await DELETE(req(`/api/v1/sdr/assignments/${AGENTE}`, "DELETE"), ctx)).status).toBe(200);
     expect(vi.mocked(audit).mock.calls.map(([a]) => a.action)).toEqual(["sdr.unassigned"]);
+  });
+
+  it("desmarcar diz quantos negócios ABERTOS da empresa continuam com a pessoa", async () => {
+    await ligar();
+    const { POST } = await assignments();
+    await POST(req("/api/v1/sdr/assignments", "POST", { user_id: AGENTE }));
+    tabelas.crm_leads = [
+      { organization_id: ORG, owner_user_id: AGENTE, status: "open" },
+      { organization_id: ORG, owner_user_id: AGENTE, status: "open" },
+      { organization_id: ORG, owner_user_id: AGENTE, status: "won" },
+      { organization_id: ORG, owner_user_id: ADMIN, status: "open" },
+      // Outra empresa não conta.
+      { organization_id: "99999999-9999-4999-8999-999999999999", owner_user_id: AGENTE, status: "open" },
+    ];
+    vi.mocked(audit).mockClear();
+
+    const { DELETE } = await umAssignment();
+    const res = await DELETE(req(`/api/v1/sdr/assignments/${AGENTE}`, "DELETE"), {
+      params: Promise.resolve({ user_id: AGENTE }),
+    });
+
+    expect((await res.json()).data).toEqual({ user_id: AGENTE, assigned: false, negocios_abertos: 2 });
+    expect(vi.mocked(audit).mock.calls[0]?.[0].metadata).toMatchObject({ negocios_abertos: 2 });
   });
 });
 

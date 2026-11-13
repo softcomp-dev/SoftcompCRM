@@ -196,7 +196,7 @@ Todas pela sessão (cookie). Ainda não aceitam `Bearer dsk_...`
 | `PATCH /api/v1/settings/sdr` `{ enabled }` | admin | — | `{ enabled }`; 409 `conflict` se outra escrita correu |
 | `GET /api/v1/sdr/assignments` | manager+ | 409 `sdr_disabled` | `[{ user_id, full_name, role, assigned_since, active, inactive_reason }]`, `meta.total` |
 | `POST /api/v1/sdr/assignments` `{ user_id }` | admin | 409 `sdr_disabled` | 201 marcou · 200 já era · 404 · 409 revogado · 422 `sdr_role_ineligible` |
-| `DELETE /api/v1/sdr/assignments/{user_id}` | admin | 409 `sdr_disabled` | 200 (idempotente) · 404 |
+| `DELETE /api/v1/sdr/assignments/{user_id}` | admin | 409 `sdr_disabled` | 200 (idempotente) `{ user_id, assigned: false, negocios_abertos }` · 404 |
 | `GET /api/v1/sdr/permissions[?user_id=]` | o próprio: viewer+; outro: manager+ | responde | ver abaixo |
 | `GET /api/v1/sdr/vendedores` | agent+ | responde (`pode_passar: false`) | `{ user_id, pode_passar, motivo, vendedores: [user_id] }` |
 | `GET /api/v1/sdr/negocios` | agent+ e SDR ativo | 409 `sdr_disabled` | `[{ id, title, value_cents, currency, created_at, pipeline_name, stage_name, contact_name, situacao: "comigo" \| "fila" \| "ia", owner_agent_name, … }]`, `meta.total`, `meta.has_more` (teto de 200) · 403 `sdr_handoff_forbidden` |
@@ -227,6 +227,15 @@ Auditoria: `sdr.settings_changed`, `sdr.assigned`, `sdr.unassigned` e
 `sdr.lead_handed_off` (o vendedor, se a carteira passou e quantas conversas). A chamada
 idempotente que não muda nada não audita.
 
+## Desmarcar um SDR
+
+Desmarcar tira só a marca: os negócios abertos que estavam com a pessoa
+continuam com ela (devolvê-los para a fila sem perguntar tiraria do cliente o
+atendente que ele já conhece). Em troca, a resposta do `DELETE` traz
+`negocios_abertos`, a auditoria `sdr.unassigned` guarda o número, e a tela de
+Equipe avisa o gestor na hora — "N negócios abertos continuam com essa pessoa"
+— para ele reatribuir pelo campo Responsável.
+
 ## O que ainda não existe
 
 - **Relatório "por SDR".**
@@ -236,9 +245,6 @@ idempotente que não muda nada não audita.
 - **Lead que chega sem conversa** (formulário, API, importação) não passa pelo
   rodízio de conversas e, portanto, não pelo fluxo SDR.
 - **Bearer token** nessas rotas.
-- **Aviso de negócio parado com quem deixou de ser SDR.** Desmarcar um SDR tira
-  só a marca: os negócios que estavam com ele continuam com ele, e o gerente
-  reatribui pelo campo Responsável.
 
 ## Laço de retorno (sistema vivo)
 

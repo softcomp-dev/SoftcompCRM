@@ -73,16 +73,34 @@ export function useSetSdr() {
   return useMutation({
     mutationFn: async ({ userId, assigned }: { userId: string; assigned: boolean }) =>
       assigned
-        ? apiClient.post("/api/v1/sdr/assignments", { user_id: userId })
-        : apiClient.delete(`/api/v1/sdr/assignments/${userId}`),
-    onSuccess: (_res, { assigned }) => {
+        ? apiClient.post<{ data: { negocios_abertos?: number | null } }>("/api/v1/sdr/assignments", {
+            user_id: userId,
+          })
+        : apiClient.delete<{ data: { negocios_abertos?: number | null } }>(`/api/v1/sdr/assignments/${userId}`),
+    onSuccess: (res, { assigned }) => {
       toast.success(assigned ? t("Membro marcado como SDR.") : t("Membro deixou de ser SDR."));
+      // Desmarcar tira só a marca: o que estava com ele continua com ele.
+      const abertos = assigned ? 0 : (res?.data?.negocios_abertos ?? 0);
+      if (abertos > 0) toast.warning(avisoDeNegociosQueFicaram(abertos, t));
     },
     onError: (err) => showApiError(err),
     // SDR_KEY inteiro: marcar o primeiro SDR (ou desmarcar o último) muda o
     // fluxo da distribuição, que vem no GET do interruptor.
     onSettled: () => qc.invalidateQueries({ queryKey: SDR_KEY }),
   });
+}
+
+/**
+ * O aviso depois de desmarcar um SDR que tinha negócios abertos. Pura, para
+ * teste: a frase muda entre um e vários.
+ */
+export function avisoDeNegociosQueFicaram(abertos: number, t: (texto: string) => string = (s) => s): string {
+  return abertos === 1
+    ? t("1 negócio aberto continua com essa pessoa. Reatribua pelo campo Responsável no funil.")
+    : t("{n} negócios abertos continuam com essa pessoa. Reatribua pelo campo Responsável no funil.").replace(
+        "{n}",
+        String(abertos),
+      );
 }
 
 /** O que `GET /api/v1/sdr/vendedores` devolve: se este membro pode passar, e para quem (ids). */

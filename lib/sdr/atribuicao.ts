@@ -137,6 +137,22 @@ export async function desmarcarSdr(db: Db, orgId: string, userId: string): Promi
   return { tipo: "conflito" };
 }
 
+/**
+ * Quantos negócios ABERTOS estão com este membro na organização. Desmarcar um
+ * SDR tira só a marca: os negócios dele ficam com ele, e o gestor precisa
+ * saber disso na hora, para reatribuir. Erro de leitura vira `null` (o
+ * desmarcar não falha por causa de um aviso).
+ */
+export async function contarNegociosAbertosDe(db: Db, orgId: string, userId: string): Promise<number | null> {
+  const { count, error } = await db
+    .from("crm_leads")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId)
+    .eq("owner_user_id", userId)
+    .eq("status", "open");
+  return error ? null : (count ?? 0);
+}
+
 /** Todos os membros marcados da organização, ativos ou não — quem consome decide pelo cálculo. */
 export async function listarMarcados(
   db: Db,
