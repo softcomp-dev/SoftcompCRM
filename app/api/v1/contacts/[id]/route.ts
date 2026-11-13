@@ -12,6 +12,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ApiError } from "@/lib/api/types";
 import { ok, fail, noContent } from "@/lib/api/wrappers";
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { falhaDoHandlerParaToken } from "@/lib/api/integracao-por-token";
+import { extractBearer } from "@/lib/mcp/auth";
 import { orgAtivaDaApi, requireRole } from "@/lib/auth/require-role";
 import { loadAuthUser } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -22,6 +25,8 @@ import { createClient } from "@/lib/supabase/server";
 import { deleteContactHandler, getContactHandler, patchContactHandler } from "../_handler";
 
 export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Os telefones da ficha além do principal (Spec 31, B1), e o tipo e o WhatsApp
@@ -78,12 +83,102 @@ async function telefonesDaFicha(
   };
 }
 
+/**
+ * LER A FICHA POR TOKEN (`Bearer dsk_…` com `mcp:read`, papel `viewer`).
+ *
+ * É a mesma ficha da sessão, pelo mesmo `getContactHandler` — com o client de
+ * serviço, que ignora a RLS: a organização vem da linha do token e o handler a
+ * repete em toda consulta, então id de outra organização é 404. O CPF nunca sai
+ * em claro: o handler só o decifra para `actor.type === "user"`, e o cabeçalho
+ * `X-Decrypt-Purpose` é ignorado aqui (a ficha diz só `cpf_available`).
+ */
+async function lerPorToken(
+  req: NextRequest,
+  requestId: string,
+  id: string,
+): Promise<Response> {
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "contacts",
+    role: "viewer",
+    scope: "mcp:read",
+  });
+  if (!authz.ok) return authz.response;
+
+  try {
+    const result = await getContactHandler(
+      authz.supabase,
+      { organization_id: authz.organizationId, actor: authz.actor, requestId },
+      { contactId: id, decryptPurpose: null },
+    );
+    const telefones = await telefonesDaFicha(authz.supabase, authz.organizationId, id, requestId);
+    return ok({ ...result, ...telefones }, { requestId });
+  } catch (err) {
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "GET /api/v1/contacts/{id}");
+    throw err;
+  }
+}
+
+/**
+ * EDITAR A FICHA POR TOKEN (`Bearer dsk_…` com `mcp:write`, papel `agent`).
+ *
+ * O mesmo patch da tela, pelo mesmo `patchContactHandler`, com a régua de
+ * documento do PAÍS da organização do token. O handler não decide nada pelo
+ * papel nem pelo usuário (não há "só os seus" nem conversa do criador no PATCH),
+ * e a auditoria já grava o ator pelo tipo: `actor_type: "api_token"` + id do token.
+ * Telefone, e-mail ou CPF de outro contato volta 409 `contact_exists` com o id
+ * de quem já o tem em `details`.
+ */
+async function editarPorToken(
+  req: NextRequest,
+  requestId: string,
+  id: string,
+): Promise<Response> {
+  const authz = await resolveAuthDual(req, {
+    requestId,
+    resource: "contacts",
+    role: "agent",
+    scope: "mcp:write",
+  });
+  if (!authz.ok) return authz.response;
+
+  const tetoEstourado = await tetoDeEscritaDoToken(authz, "contacts", requestId);
+  if (tetoEstourado) return tetoEstourado;
+
+  const perfil = await perfilDaOrganizacao(authz.supabase, authz.organizationId);
+  let input;
+  try {
+    input = await validateRequest(contactPatchSchemaDoPais(perfil), req);
+  } catch (err) {
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "PATCH /api/v1/contacts/{id}");
+    throw err;
+  }
+
+  try {
+    const contact = await patchContactHandler(
+      authz.supabase,
+      { organization_id: authz.organizationId, actor: authz.actor, requestId },
+      id,
+      input,
+    );
+    return ok(contact, { requestId });
+  } catch (err) {
+    if (err instanceof ApiError) return falhaDoHandlerParaToken(err, requestId, "PATCH /api/v1/contacts/{id}");
+    throw err;
+  }
+}
+
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const requestId = randomUUID();
   const { id } = await ctx.params;
+  if (extractBearer(req.headers.get("authorization"))) {
+    // Id que não é UUID nunca existe: 404 limpo em vez do 500 do cast do banco.
+    if (!UUID.test(id)) return fail("not_found", "Contato não encontrado.", 404, { requestId });
+    return lerPorToken(req, requestId, id);
+  }
 
   const supabase = await createClient();
   const {
@@ -135,6 +230,10 @@ export async function PATCH(
 
   const requestId = randomUUID();
   const { id } = await ctx.params;
+  if (extractBearer(req.headers.get("authorization"))) {
+    if (!UUID.test(id)) return fail("not_found", "Contato não encontrado.", 404, { requestId });
+    return editarPorToken(req, requestId, id);
+  }
 
   const supabase = await createClient();
   // spec 13 §4: escrita é agent+ (viewer é read-only).
@@ -182,13 +281,25 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const requestId = randomUUID();
+  // Excluir ficha (e todo o histórico dela) é decisão de pessoa, com o fluxo de
+  // LGPD próprio: não entra por token. Como o proxy libera o CAMINHO e não o
+  // método, a recusa mora aqui — antes de qualquer efeito.
+  if (extractBearer(req.headers.get("authorization"))) {
+    return fail(
+      "forbidden",
+      "Excluir contato não é permitido por token. Use a tela, ou o fluxo de LGPD para anonimizar.",
+      403,
+      { requestId },
+    );
+  }
+
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
-  const requestId = randomUUID();
   const { id } = await ctx.params;
 
   const authz = await requireRole("agent", { requestId, resource: "contacts" });

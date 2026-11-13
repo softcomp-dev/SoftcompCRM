@@ -91,6 +91,8 @@ tags:
   - name: Contatos
   - name: Conversas
   - name: Mensagens
+  - name: Equipe
+    description: Os membros da organização — de onde sai o `owner_user_id` do negócio.
   - name: Funis
     description: Funis e etapas — de onde saem o `pipeline_id` e o `stage_id` para criar e mover card.
   - name: Leads
@@ -240,6 +242,104 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
         "422": { $ref: "#/components/responses/Validacao" }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/contacts/{id}:
+    get:
+      tags: [Contatos]
+      operationId: lerContato
+      summary: Ler a ficha do contato
+      description: |
+        A mesma ficha que a tela mostra, com os telefones extras. O CPF nunca sai em
+        claro por token: só `cpf_available`. Contato de outra organização (ou id que
+        não existe) responde 404.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      responses:
+        "200":
+          description: Ficha do contato.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Contato" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    patch:
+      tags: [Contatos]
+      operationId: atualizarContato
+      summary: Atualizar a ficha do contato
+      description: |
+        Envie só os campos que mudam (os mesmos da criação). O documento segue a régua
+        do país da organização. Telefone, e-mail ou CPF que já é de outro contato
+        responde **409 `contact_exists`** com o id dele em `details.contact_id`.
+
+        Não há rota de exclusão por token: `DELETE` com Bearer responde 403. Para
+        apagar dados de uma pessoa use o fluxo de LGPD na tela.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CriacaoDeContato" }
+            example: { city: Belo Horizonte, state: MG, custom_fields: { codigo_cliente: "C-1001" } }
+      responses:
+        "200":
+          description: Ficha atualizada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Contato" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409":
+          description: "`contact_exists`: o dado já é de outro contato (`details.contact_id`)."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Equipe ─────────────────────────────
+  /api/v1/team/assignable:
+    get:
+      tags: [Equipe]
+      operationId: listarResponsaveis
+      summary: Quem pode ser responsável por um negócio
+      description: |
+        Os membros ativos, que aceitaram o convite e não são somente leitura. Por
+        token a resposta traz o **e-mail** de cada um: é a chave para casar o vendedor
+        do ERP com o do CRM antes de mandar `owner_user_id` no negócio.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      responses:
+        "200":
+          description: Membros.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/MembroResponsavel" } }
+              example:
+                data:
+                  - { user_id: 7c1e2d3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f, role: agent, full_name: Ana Vendedora, email: ana@empresa.com.br }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /api/v1/contacts/{id}/avatar:
@@ -2164,6 +2264,14 @@ components:
           properties:
             id: { type: string, format: uuid }
 
+    MembroResponsavel:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id: { type: string, format: uuid }
+        role: { type: string, enum: [agent, manager, admin] }
+        full_name: { type: [string, "null"] }
+        email: { type: [string, "null"], description: Só na chamada por token. }
     CriacaoDeContato:
       type: object
       description: Pelo menos um meio de contato (telefone ou e-mail) é o esperado.

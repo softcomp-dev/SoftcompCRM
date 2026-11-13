@@ -359,7 +359,9 @@ describe("GET .../avatar — PUBLIC_PATHS (borda do proxy)", () => {
     expect(isPublicPath(`/api/v1/contacts/${ID_FORA_DA_FORMA}/avatar`)).toBe(false);
     expect(isPublicPath(`/api/v1/contacts/${CONTATO_ID}/avatar/extra`)).toBe(false);
     expect(isPublicPath(`/api/v1/contacts/${CONTATO_ID}/person`)).toBe(false);
-    expect(isPublicPath(`/api/v1/contacts/${CONTATO_ID}`)).toBe(false);
+    // A ficha (`/contacts/{id}`, sem sub-path) passou a aceitar token para o ERP
+    // e abre no proxy — ver tests/unit/rotas-do-erp-no-proxy.test.ts. O que esta
+    // cerca guarda é que o `/avatar` não arrasta sub-paths nem irmãos.
     expect(isPublicPath("/api/v1/contacts/bulk/avatar")).toBe(false);
   });
 

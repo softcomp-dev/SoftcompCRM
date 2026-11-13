@@ -123,6 +123,19 @@ export const PUBLIC_PATHS: RegExp[] = [
   // público por engano. Âncora `$`: nenhum sub-path futuro de `/avatar` nasce
   // público de carona.
   /^\/api\/v1\/contacts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/avatar$/i,
+  // ── ROTAS DO ERP (docs/api/integracao-erp.md) ──────────────────────────────
+  // O ERP controla o fluxo do CRM por Bearer `dsk_…`. Cada rota abaixo resolve
+  // sessão OU token DENTRO do handler (`lib/api/auth-dual.ts`), com a org da
+  // linha do token. Id sempre em FORMA DE UUID e âncora `$`: os irmãos literais
+  // e os sub-paths seguem atrás do proxy. Quem confere a lista inteira — o que
+  // abre E o que não pode abrir — é `tests/unit/rotas-do-erp-no-proxy.test.ts`.
+  //
+  // Ficha do contato: GET e PATCH por token. O DELETE recusa Bearer no handler
+  // (o proxy libera caminho, não método).
+  /^\/api\/v1\/contacts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  // Quem pode ser responsável — com e-mail no ramo de token, para o ERP casar o vendedor.
+  /^\/api\/v1\/team\/assignable$/,
+  // ── fim das rotas do ERP ──
   // ENVIO SERVER-TO-SERVER. Mesma dualidade de `/api/v1/contacts` acima, com
   // `mcp:write` em vez de `mcp:read`: sessão de navegador OU Bearer `dsk_…`,
   // resolvidos por `lib/api/auth-dual.ts` DENTRO de cada rota, com a org saindo
