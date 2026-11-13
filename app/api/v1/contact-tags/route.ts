@@ -6,10 +6,9 @@ import { tagsPageQuerySchema, tagsPageResultSchema } from "@/lib/schemas/tags";
 import type { NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
-import { requireRole } from "@/lib/auth/require-role";
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { normalizarTag } from "@/lib/contacts/tag-normalizada";
 import { logger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +20,24 @@ const TETO_DE_TAGS = 200;
 
 export async function GET(_req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
-  const authz = await requireRole("viewer", { requestId, resource: "contacts" });
-  if (!authz.ok) return authz.response;
+  // Sessão (tela) ou Bearer `dsk_…` com `mcp:read` (ERP): a etiqueta é leitura de
+  // vocabulário da organização, papel `viewer` nos dois. Com token, o client é o de
+  // serviço (ignora a RLS) e a organização é a da LINHA DO TOKEN — ambas as leituras
+  // abaixo filtram por ela, a RPC por `p_org` e a consulta por `organization_id`.
+  const dual = await resolveAuthDual(_req, {
+    requestId,
+    resource: "contacts",
+    role: "viewer",
+    scope: "mcp:read",
+  });
+  if (!dual.ok) return dual.response;
+  // Leitura por token também conta no teto, como GET /pipelines (rota em
+  // PUBLIC_PATHS não tem contagem a montante).
+  const tetoEstourado = await tetoDeEscritaDoToken(dual, "contact_tags_leitura", requestId);
+  if (tetoEstourado) return tetoEstourado;
+  const authz = { org: { orgId: dual.organizationId } };
 
-  const supabase = await createClient();
+  const supabase = dual.supabase;
   if (_req.nextUrl.searchParams.has("busca")) {
     const query = tagsPageQuerySchema.safeParse({ busca: _req.nextUrl.searchParams.get("busca") });
     if (!query.success) return fail("validation_failed", "Confira a busca e a página.", 422, { requestId });

@@ -146,6 +146,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/lose$/i,
   /^\/api\/v1\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/notes$/i,
   /^\/api\/v1\/tasks$/,
+  // Configurar o webhook de saída pela API (papel admin no token: a regra guarda
+  // URL e segredo). `/runs` e `/{id}/runs` seguem só pela tela. Etiquetas: só leitura.
+  /^\/api\/v1\/automation-rules$/,
+  /^\/api\/v1\/automation-rules\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  /^\/api\/v1\/contact-tags$/,
   // ── fim das rotas do ERP ──
   // ENVIO SERVER-TO-SERVER. Mesma dualidade de `/api/v1/contacts` acima, com
   // `mcp:write` em vez de `mcp:read`: sessão de navegador OU Bearer `dsk_…`,

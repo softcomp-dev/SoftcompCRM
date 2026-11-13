@@ -93,6 +93,8 @@ tags:
   - name: Mensagens
   - name: Equipe
     description: Os membros da organização — de onde sai o `owner_user_id` do negócio.
+  - name: Automações
+    description: Regras "quando X, faça Y" — entre elas o webhook que avisa o seu sistema.
   - name: Tarefas
     description: O que o vendedor precisa fazer, ligado ao negócio e ao contato.
   - name: Funis
@@ -246,6 +248,35 @@ paths:
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /api/v1/contact-tags:
+    get:
+      tags: [Contatos]
+      operationId: listarEtiquetasDeContato
+      summary: Listar as etiquetas em uso
+      description: |
+        O vocabulário de etiquetas da organização, normalizado (caixa baixa) e
+        ordenado por uso. Com `busca`, só as que casam. Use para filtrar contatos
+        (`GET /api/v1/contacts?tag=`) com a grafia exata; para etiquetar um contato,
+        mande `tags` em `PATCH /api/v1/contacts/{id}`.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: viewer
+      parameters:
+        - { name: busca, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Etiquetas.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { type: string } }
+              example: { data: [cliente-vip, erp, atacado] }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+
   /api/v1/contacts/{id}:
     get:
       tags: [Contatos]
@@ -314,6 +345,130 @@ paths:
         "422": { $ref: "#/components/responses/Validacao" }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
+
+  # ───────────────────────────── Automações ─────────────────────────────
+  /api/v1/automation-rules:
+    get:
+      tags: [Automações]
+      operationId: listarRegrasDeAutomacao
+      summary: Listar regras de automação
+      description: |
+        As regras "quando acontecer X, faça Y" da organização — entre elas as que
+        avisam o seu sistema por webhook. O segredo de assinatura de um webhook nunca
+        volta: a ação traz `secret_configured: true` no lugar.
+      x-escopos: [mcp:read]
+      x-papel-minimo-do-token: admin
+      responses:
+        "200":
+          description: Regras.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/RegraDeAutomacao" } }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+    post:
+      tags: [Automações]
+      operationId: criarRegraDeAutomacao
+      summary: Criar regra de automação (por exemplo, avisar o ERP por webhook)
+      description: |
+        Configura o aviso de volta para o seu sistema sem entrar na tela. Exige token
+        com papel **admin**: a regra guarda URL e segredo. A regra **nasce pausada** —
+        ative com `PATCH` (`is_active: true`) depois de conferir. A URL do webhook
+        passa pelas mesmas proteções da tela (só `https` público). O segredo é cifrado
+        e nunca volta. Eventos disponíveis: `lead.created`, `lead.stage_changed`,
+        `lead.won`, `lead.lost`, `lead.reopened`, `lead.assigned`, `lead.tag_added`,
+        `message.received`, `message.failed`, `contact.tag_added`,
+        `contact.phone_added`, `contact.birthday`, `appointment.created`. Como o
+        receptor confere a assinatura: `docs/integracao/webhooks-de-saida.md`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegraDeAutomacaoNova" }
+            example:
+              name: Avisar o ERP quando o negócio for ganho
+              trigger_event: lead.won
+              actions:
+                - { type: call_webhook, config: { url: "https://erp.exemplo.com.br/crm/eventos", secret: "um-segredo-longo-e-aleatorio" } }
+      responses:
+        "201":
+          description: Regra criada (pausada).
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/RegraDeAutomacao" } } } } }
+        "409":
+          description: "`idempotency_conflict` ou `idempotency_in_progress`."
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422":
+          description: |
+            URL de webhook insegura (endereço interno, sem https), fonte de webhook de
+            outra organização, campo de data inválido ou cifra do segredo indisponível
+            (`encryption_unavailable`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /api/v1/automation-rules/{id}:
+    patch:
+      tags: [Automações]
+      operationId: editarRegraDeAutomacao
+      summary: Editar, ativar ou pausar regra
+      description: |
+        Envie só o que muda. **Ao trocar `actions`, reenvie o `secret` de cada
+        webhook**: o segredo guardado não volta para você, então o que não for
+        reenviado não é preservado.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegraDeAutomacaoEdicao" }
+            example: { is_active: true }
+      responses:
+        "200":
+          description: Regra atualizada.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content: { application/json: { schema: { type: object, properties: { data: { $ref: "#/components/schemas/RegraDeAutomacao" } } } } }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "400": { $ref: "#/components/responses/CorpoMalformado" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "422":
+          description: |
+            URL de webhook insegura (endereço interno, sem https), fonte de webhook de
+            outra organização, campo de data inválido ou cifra do segredo indisponível
+            (`encryption_unavailable`).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    delete:
+      tags: [Automações]
+      operationId: apagarRegraDeAutomacao
+      summary: Apagar regra
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: admin
+      parameters:
+        - $ref: "#/components/parameters/IdUuid"
+      responses:
+        "204": { description: Apagada. }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
 
   # ───────────────────────────── Equipe ─────────────────────────────
   /api/v1/team/assignable:
@@ -2609,6 +2764,53 @@ components:
           properties:
             id: { type: string, format: uuid }
 
+    RegraDeAutomacaoNova:
+      type: object
+      required: [name, trigger_event, actions]
+      properties:
+        name: { type: string, maxLength: 120 }
+        trigger_event: { type: string, description: O evento que dispara (lista na descrição da operação). }
+        conditions: { type: array, items: { type: object, additionalProperties: true } }
+        trigger_config: { type: object, additionalProperties: true }
+        actions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string, example: call_webhook }
+              config:
+                type: object
+                additionalProperties: true
+                description: "Em `call_webhook`: `url` (https público) e `secret` (opcional, só de escrita)."
+    RegraDeAutomacaoEdicao:
+      type: object
+      properties:
+        name: { type: string, maxLength: 120 }
+        trigger_event: { type: string }
+        conditions: { type: array, items: { type: object, additionalProperties: true } }
+        trigger_config: { type: object, additionalProperties: true }
+        actions: { type: array, items: { type: object, additionalProperties: true } }
+        is_active: { type: boolean }
+    RegraDeAutomacao:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        is_active: { type: boolean }
+        trigger_event: { type: string }
+        conditions: { type: array, items: { type: object, additionalProperties: true } }
+        trigger_config: { type: object, additionalProperties: true }
+        actions:
+          type: array
+          items: { type: object, additionalProperties: true }
+          description: "`call_webhook` traz `secret_configured`, nunca o segredo."
+        run_count: { type: integer }
+        last_run_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     MembroResponsavel:
       type: object
       required: [user_id, role]
