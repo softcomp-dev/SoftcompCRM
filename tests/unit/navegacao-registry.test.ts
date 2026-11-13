@@ -184,6 +184,9 @@ describe("hubSections", () => {
       "/app/agenda/lista-de-espera",
       "/app/kanban",
       "/app/campaigns",
+      // A visão consolidada (várias empresas juntas): sem item no menu lateral,
+      // a porta é este hub e o seletor de empresa do cabeçalho.
+      "/app/consolidado",
       "/app/contacts",
       "/app/companies",
       "/app/people",
@@ -195,6 +198,8 @@ describe("hubSections", () => {
       "/app/calls",
       // #3933: a fila de ligações ativas, ao lado do histórico de chamadas. Só com o módulo ligado.
       "/app/cold-call",
+      // A fila do SDR (docs/features/sdr.md). Só com a função SDR ligada na empresa.
+      "/app/sdr",
       "/app/comandas",
       "/app/cadencias",
       "/app/products",

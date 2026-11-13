@@ -407,6 +407,24 @@ export const NAV_CATALOG = [
     modulo: "cold_call",
   },
   {
+    // A fila do SDR (docs/features/sdr.md): os negócios que estão com ele ou sem
+    // dono humano, para escolher o vendedor de cada um. Só aparece com a função
+    // SDR ligada na empresa. Quem não é SDR e abre a tela lê o porquê; quem
+    // recusa é a rota (`/api/v1/sdr/negocios`), não o menu.
+    //
+    // SEM sidebar, pelo critério de Cold Call: o menu de 900px
+    // (`tests/e2e/navegacao.spec.ts`) não ganha item por recurso opcional. A
+    // porta vive no hub "Ver tudo em CRM" e no ⌘K.
+    href: "/app/sdr",
+    label: "Leads sem vendedor",
+    description: "Para quem é SDR: os negócios com você ou sem dono, para escolher o vendedor de cada um.",
+    icon: "Signpost",
+    group: "crm",
+    section: "O dia a dia da venda",
+    minRole: "agent",
+    capacidade: "sdr",
+  },
+  {
     // ⚠️ Esta tela nasceu porque a FERRAMENTA já existia sem ela. O agente de IA
     // vinha com "procurar produto na loja" ligada por padrão, lendo uma tabela
     // que ninguém nunca preencheu — e o efeito não era silêncio: era o agente
