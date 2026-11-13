@@ -22,6 +22,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import {
   diferencaDosVinculos,
+  statusDoVinculo,
   totalDeMudancas,
   type MarcaDaEmpresa,
   type VinculoGravado,
@@ -172,7 +173,9 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
   // O papel de quem nunca esteve na empresa é o do SELETOR no momento em que
   // ela for marcada (ver `marcar`), por isso aqui basta um valor qualquer.
   const marcasDoGravado = useCallback((): Map<string, MarcaDaEmpresa> => {
-    const ativos = new Map(gravados.filter((v) => !v.revoked_at).map((v) => [v.organization_id, v.role]));
+    const ativos = new Map(
+      gravados.filter((v) => statusDoVinculo(v) === "ativo").map((v) => [v.organization_id, v.role]),
+    );
     const anteriores = new Map(gravados.map((v) => [v.organization_id, v.role]));
     return new Map(
       empresas.map((e) => [
@@ -196,7 +199,7 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
   const diferenca = useMemo(() => diferencaDosVinculos(gravados, tela), [gravados, tela]);
   const mudancas = totalDeMudancas(diferenca);
   const statusGravado = useMemo(
-    () => new Map(gravados.map((v) => [v.organization_id, v.revoked_at ? "revogado" : "ativo"])),
+    () => new Map(gravados.map((v) => [v.organization_id, statusDoVinculo(v)])),
     [gravados],
   );
 
@@ -212,7 +215,11 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
     setTela((prev) => {
       const prox = new Map(prev);
       const atual = prox.get(orgId) ?? { marcada: false, papel: papelPadrao };
-      prox.set(orgId, { ...atual, marcada, papel: marcada && !atual.marcada && !statusGravado.has(orgId) ? papelPadrao : atual.papel });
+      // Só o vínculo ATIVO guarda o papel dele. Empresa nova, revogada ou com
+      // convite pendente entra com o papel do seletor: remarcar um ex-admin não
+      // pode devolver o papel de administrador sem ninguém ter escolhido isso.
+      const entraAgora = marcada && !atual.marcada && statusGravado.get(orgId) !== "ativo";
+      prox.set(orgId, { ...atual, marcada, papel: entraAgora ? papelPadrao : atual.papel });
       return prox;
     });
 
@@ -232,7 +239,8 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
         const atual = prox.get(e.id) ?? { marcada: false, papel: papelPadrao };
         prox.set(e.id, {
           marcada,
-          papel: marcada && !atual.marcada && !statusGravado.has(e.id) ? papelPadrao : atual.papel,
+          papel:
+            marcada && !atual.marcada && statusGravado.get(e.id) !== "ativo" ? papelPadrao : atual.papel,
         });
       }
       return prox;
@@ -377,6 +385,7 @@ function EmpresasDaConta({ conta }: { conta: Conta }) {
                   </label>
                   {e.status !== "active" && <Badge variant="warning">{t("Suspensa")}</Badge>}
                   {status === "ativo" && <Badge variant="success">{t("Vinculada")}</Badge>}
+                  {status === "pendente" && <Badge variant="warning">{t("Convite pendente")}</Badge>}
                   {status === "revogado" && <Badge variant="neutral">{t("Revogada")}</Badge>}
                   <Select
                     value={marca.papel}

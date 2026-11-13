@@ -17,6 +17,21 @@ export interface VinculoGravado {
   organization_id: string;
   role: Role;
   revoked_at: string | null;
+  /** Nulo = convite ainda não aceito. Ausente (dado antigo) conta como aceito. */
+  accepted_at?: string | null;
+}
+
+export type StatusDoVinculo = "ativo" | "pendente" | "revogado";
+
+/**
+ * A situação de um vínculo gravado. Convite pendente NÃO é ativo: a linha
+ * existe, mas a pessoa não entra na empresa enquanto não aceitar (ou enquanto o
+ * dono da instalação não a vincular direto).
+ */
+export function statusDoVinculo(v: VinculoGravado): StatusDoVinculo {
+  if (v.revoked_at) return "revogado";
+  if (v.accepted_at === null) return "pendente";
+  return "ativo";
 }
 
 export interface DiferencaDosVinculos {
@@ -33,7 +48,7 @@ export function diferencaDosVinculos(
   tela: ReadonlyMap<string, MarcaDaEmpresa>,
 ): DiferencaDosVinculos {
   const ativos = new Map(
-    gravados.filter((v) => !v.revoked_at).map((v) => [v.organization_id, v.role]),
+    gravados.filter((v) => statusDoVinculo(v) === "ativo").map((v) => [v.organization_id, v.role]),
   );
   const vincular = new Map<Role, string[]>();
   const trocarPapel: Array<{ organization_id: string; role: Role }> = [];

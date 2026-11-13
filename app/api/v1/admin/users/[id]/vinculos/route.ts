@@ -183,7 +183,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
             .single()
         : await admin
             .from("user_organizations")
-            .update({ revoked_at: null, role, updated_at: nowIso })
+            // `accepted_at` entra também: a linha revogada (ou o convite
+            // pendente) pode nunca ter sido aceita, e sem o aceite a pessoa
+            // volta "vinculada" e sem acesso.
+            .update({ revoked_at: null, role, accepted_at: nowIso, updated_at: nowIso })
             .eq("id", passo.vinculoId)
             .eq("user_id", userId)
             .eq("organization_id", passo.organizationId)
@@ -203,7 +206,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
 
     vinculadas.push(passo.organizationId);
     await audit({
-      action: passo.tipo === "criar" ? "member.linked" : "member.reactivated",
+      action: passo.tipo === "reativar" ? "member.reactivated" : "member.linked",
       actorUserId: adminCtx.user.id,
       actingAsPlatformAdmin: true,
       bypassedRls: true,
@@ -215,7 +218,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
         target_user_id: userId,
         role,
         via: "admin_vinculos",
-        ...(passo.tipo === "reativar" ? { previous_role: passo.papelAnterior } : {}),
+        ...(passo.tipo === "criar" ? {} : { previous_role: passo.papelAnterior }),
+        ...(passo.tipo === "aceitar" ? { convite_pendente_aceito: true } : {}),
       },
     });
   }

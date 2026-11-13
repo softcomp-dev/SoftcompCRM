@@ -26,6 +26,17 @@ describe("planejarVinculos", () => {
     ]);
   });
 
+  it("convite pendente (sem aceite) vira ACEITAR, não 'já ativo': senão a pessoa segue sem acesso", () => {
+    const existentes: VinculoExistente[] = [
+      { id: "v-a", organization_id: A, role: "admin", revoked_at: null, accepted_at: null },
+      { id: "v-c", organization_id: C, role: "agent", revoked_at: null, accepted_at: "2026-01-01T00:00:00Z" },
+    ];
+    expect(planejarVinculos([A, C], existentes, instalacao)).toEqual([
+      { tipo: "aceitar", organizationId: A, vinculoId: "v-a", papelAnterior: "admin" },
+      { tipo: "ja_ativo", organizationId: C, papelAtual: "agent" },
+    ]);
+  });
+
   it("recusa empresa que não existe na instalação", () => {
     expect(planejarVinculos([FORA], [], instalacao)).toEqual([
       { tipo: "empresa_inexistente", organizationId: FORA },

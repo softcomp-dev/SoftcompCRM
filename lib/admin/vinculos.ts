@@ -41,6 +41,8 @@ export interface VinculoExistente {
   organization_id: string;
   role: Role;
   revoked_at: string | null;
+  /** Nulo = convite que a pessoa ainda não aceitou: a linha existe, o acesso não. */
+  accepted_at?: string | null;
 }
 
 export type PassoDoVinculo =
@@ -48,6 +50,13 @@ export type PassoDoVinculo =
   | { tipo: "criar"; organizationId: string }
   /** Esteve e foi revogado: devolve o acesso com o papel escolhido agora. */
   | { tipo: "reativar"; organizationId: string; vinculoId: string; papelAnterior: Role }
+  /**
+   * Há convite PENDENTE (nunca aceito): o vínculo direto do dono da instalação
+   * vale como aceite, com o papel escolhido agora. Tratado como "já ativo", a
+   * tela dizia "Vinculada" e a pessoa seguia sem acesso — nada no sistema abre
+   * uma empresa para quem não tem `accepted_at`.
+   */
+  | { tipo: "aceitar"; organizationId: string; vinculoId: string; papelAnterior: Role }
   /** Já está ativo: não mexe — trocar papel tem porta própria (PATCH). */
   | { tipo: "ja_ativo"; organizationId: string; papelAtual: Role }
   /** Empresa que não existe nesta instalação. */
@@ -81,6 +90,13 @@ export function planejarVinculos(
     } else if (atual.revoked_at) {
       passos.push({
         tipo: "reativar",
+        organizationId,
+        vinculoId: atual.id,
+        papelAnterior: atual.role,
+      });
+    } else if (atual.accepted_at === null) {
+      passos.push({
+        tipo: "aceitar",
         organizationId,
         vinculoId: atual.id,
         papelAnterior: atual.role,
