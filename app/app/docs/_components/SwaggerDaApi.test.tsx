@@ -25,7 +25,13 @@ vi.mock("./montarSwagger", () => ({
 vi.mock("swagger-ui-react/swagger-ui.css", () => ({}));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (texto: string) => texto }));
 
-import { SwaggerDaApi, carregarEspecificacao, semCookieDaSessao } from "./SwaggerDaApi";
+import {
+  SwaggerDaApi,
+  carregarEspecificacao,
+  fraseDoErro,
+  naOrigemDaPagina,
+  semCookieDaSessao,
+} from "./SwaggerDaApi";
 
 const SPEC = { openapi: "3.1.0", info: { title: "Minha Marca — API para integrações" }, paths: {} };
 
@@ -72,7 +78,11 @@ describe("SwaggerDaApi", () => {
 
     await waitFor(() => expect(container.querySelector('[data-montado="sim"]')).toBeTruthy());
     const opcoes = recebido.opcoes as Record<string, unknown> | undefined;
-    expect(opcoes?.spec).toEqual(SPEC);
+    // A especificação chega inteira, com o servidor trocado pela origem da página.
+    expect(opcoes?.spec).toEqual({
+      ...SPEC,
+      servers: [{ url: window.location.origin, description: "Esta instalação" }],
+    });
     expect(opcoes?.url).toBeUndefined();
     expect(opcoes?.requestInterceptor).toBe(semCookieDaSessao);
     expect(opcoes?.persistAuthorization).toBe(false);
@@ -88,6 +98,38 @@ describe("SwaggerDaApi", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     expect(recebido.opcoes).toBeUndefined();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("naOrigemDaPagina", () => {
+  it("o Testar chama o endereço em que a página está aberta, não o da variável de ambiente", () => {
+    const spec = { openapi: "3.1.0", servers: [{ url: "http://localhost:3000" }], paths: { "/api/v1/leads": {} } };
+
+    const saida = naOrigemDaPagina(spec, "https://crm.cliente.com.br/");
+
+    expect(saida.servers).toEqual([{ url: "https://crm.cliente.com.br", description: "Esta instalação" }]);
+    expect(saida.paths).toBe(spec.paths);
+    // A entrada fica intacta.
+    expect(spec.servers).toEqual([{ url: "http://localhost:3000" }]);
+  });
+
+  it("origem que não é http(s) (about:blank, 'null') não troca nada", () => {
+    const spec = { servers: [{ url: "https://crm.exemplo.com" }] };
+    expect(naOrigemDaPagina(spec, "null")).toBe(spec);
+  });
+});
+
+describe("fraseDoErro", () => {
+  it("sessão expirada manda entrar de novo", () => {
+    for (const motivo of ["http_401", "http_403", "resposta_nao_json"]) {
+      expect(fraseDoErro(motivo)).toContain("sessão expirou");
+    }
+  });
+
+  it("documentação fora da instalação NÃO manda recarregar: manda avisar quem opera", () => {
+    for (const motivo of ["http_500", "swagger_ui_indisponivel", ""]) {
+      expect(fraseDoErro(motivo)).toContain("não está disponível");
+    }
   });
 });
 

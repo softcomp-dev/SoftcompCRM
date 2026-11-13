@@ -57,12 +57,40 @@ export async function carregarEspecificacao(
   return (await res.json()) as Record<string, unknown>;
 }
 
+/**
+ * Exportada para teste: o "Testar" chama o endereço em que a página ESTÁ
+ * aberta. O servidor preenche `servers` com `NEXT_PUBLIC_APP_URL`, e quando a
+ * pessoa abre a instalação por outro endereço (www, IP, domínio antigo, ou a
+ * variável ainda no padrão `localhost`) a chamada sairia para outra origem e
+ * morreria em "Failed to fetch", sem pista do motivo.
+ */
+export function naOrigemDaPagina(
+  spec: Record<string, unknown>,
+  origem: string,
+): Record<string, unknown> {
+  if (!/^https?:\/\//.test(origem)) return spec;
+  return { ...spec, servers: [{ url: origem.replace(/\/+$/, ""), description: "Esta instalação" }] };
+}
+
+/**
+ * Exportada para teste: a frase do erro, pelo motivo. Sessão expirada se
+ * resolve entrando de novo; documentação fora da instalação não se resolve
+ * recarregando, e mandar a pessoa recarregar era mandá-la girar em falso.
+ */
+export function fraseDoErro(motivo: string): string {
+  if (motivo === "http_401" || motivo === "http_403" || motivo === "resposta_nao_json") {
+    return "Sua sessão expirou. Entre de novo para ver a documentação.";
+  }
+  return "A documentação da API não está disponível nesta instalação. Avise quem opera o sistema.";
+}
+
 type Fase = "carregando" | "pronto" | "erro";
 
 export function SwaggerDaApi({ url }: { url: string }) {
   const t = useT();
   const alvo = useRef<HTMLDivElement>(null);
   const [fase, setFase] = useState<Fase>("carregando");
+  const [motivo, setMotivo] = useState("");
 
   useEffect(() => {
     let vivo = true;
@@ -71,14 +99,18 @@ export function SwaggerDaApi({ url }: { url: string }) {
       .then((spec) => {
         if (!vivo || !no) return;
         return montarSwagger(no, {
-          spec,
+          spec: naOrigemDaPagina(spec, window.location.origin),
           docExpansion: "list",
           defaultModelsExpandDepth: 0,
           persistAuthorization: false,
           requestInterceptor: semCookieDaSessao,
         }).then(() => vivo && setFase("pronto"));
       })
-      .catch(() => vivo && setFase("erro"));
+      .catch((erro: unknown) => {
+        if (!vivo) return;
+        setMotivo(erro instanceof Error ? erro.message : "");
+        setFase("erro");
+      });
     return () => {
       vivo = false;
       if (no) no.innerHTML = "";
@@ -89,7 +121,7 @@ export function SwaggerDaApi({ url }: { url: string }) {
     <>
       {fase === "erro" && (
         <p role="alert" className="rounded-lg border p-4 text-sm text-muted-foreground">
-          {t("Não consegui carregar a documentação. Recarregue a página; se a sessão expirou, entre de novo.")}
+          {t(fraseDoErro(motivo))}
         </p>
       )}
       {fase === "carregando" && <p className="p-4 text-sm text-muted-foreground">{t("Carregando…")}</p>}

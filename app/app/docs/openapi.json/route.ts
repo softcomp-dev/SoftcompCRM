@@ -45,10 +45,20 @@ export async function GET(): Promise<Response> {
   }
 
   const marca = await marcaDaSaida(authz.org.orgId);
-  const spec = especificacaoParaExibir(yaml, {
-    nome: marca.nome,
-    origem: env.NEXT_PUBLIC_APP_URL,
-  });
+  let spec: ReturnType<typeof especificacaoParaExibir>;
+  try {
+    spec = especificacaoParaExibir(yaml, {
+      nome: marca.nome,
+      origem: env.NEXT_PUBLIC_APP_URL,
+    });
+  } catch (err) {
+    // YAML ilegível é o mesmo defeito do arquivo ausente: de quem publicou a
+    // imagem. Sem este catch a resposta saía 500 fora do envelope `{ error }`.
+    logger.error("docs: especificação OpenAPI ilegível", { requestId, error: (err as Error).message });
+    return fail("internal_error", "A documentação da API não está disponível nesta instalação.", 500, {
+      requestId,
+    });
+  }
 
   return NextResponse.json(spec, {
     headers: { "Cache-Control": "private, no-store", "X-Request-Id": requestId },
