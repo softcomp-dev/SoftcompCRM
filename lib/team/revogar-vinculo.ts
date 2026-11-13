@@ -20,6 +20,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { audit } from "@/lib/audit";
 import { invalidarUsuario } from "@/lib/auth/cache-curto";
+import {
+  administraAgora,
+  contarAdminsAtivos,
+  ehRecusaDeUltimoAdmin,
+  type VinculoDoAdmin,
+} from "@/lib/team/ultimo-admin";
 import type { Role } from "@/lib/auth/types";
 import { registrarTrocaDeComando } from "@/lib/inbox/atividade-de-comando";
 import { logger } from "@/lib/logger";
@@ -56,7 +62,7 @@ export async function revogarVinculo(
 
   const { data: target, error: fetchErr } = await supabase
     .from("user_organizations")
-    .select("id, user_id, role, revoked_at")
+    .select("id, user_id, role, revoked_at, accepted_at")
     .eq("organization_id", organizationId)
     .eq("user_id", targetUserId)
     .maybeSingle();
@@ -66,15 +72,11 @@ export async function revogarVinculo(
     return { ok: true, revokedAt: target.revoked_at as string, jaRevogado: true };
   }
 
-  if (target.role === "admin") {
-    const { count, error: countErr } = await supabase
-      .from("user_organizations")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("role", "admin")
-      .is("revoked_at", null);
+  // Só quem ADMINISTRA conta: revogar um convite de admin pendente é livre.
+  if (administraAgora(target as VinculoDoAdmin)) {
+    const { count, error: countErr } = await contarAdminsAtivos(supabase, organizationId);
     if (countErr) return { ok: false, motivo: "erro", detalhe: countErr.message };
-    if ((count ?? 0) <= 1) return { ok: false, motivo: "ultimo_admin" };
+    if (count <= 1) return { ok: false, motivo: "ultimo_admin" };
   }
 
   // Conversas abertas atribuídas a quem está saindo — o trigger do banco desatribui
@@ -96,6 +98,8 @@ export async function revogarVinculo(
     .from("user_organizations")
     .update({ revoked_at: nowIso, updated_at: nowIso })
     .eq("id", target.id);
+  // A corrida que a contagem acima não fecha: o gatilho do banco recusou.
+  if (ehRecusaDeUltimoAdmin(updErr)) return { ok: false, motivo: "ultimo_admin" };
   if (updErr) return { ok: false, motivo: "erro", detalhe: updErr.message };
 
   // #3696: acesso REVOGADO não pode sobreviver ao cache curto.

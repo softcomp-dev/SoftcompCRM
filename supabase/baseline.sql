@@ -78380,4 +78380,57 @@ create index if not exists idx_user_organizations_sdr
   on public.user_organizations (organization_id)
   where sdr_since is not null;
 
+
+-- ---- Guarda do último admin (migration 9253) ----
+-- Rebaixar ou revogar o último admin ATIVO e ACEITO é recusado no banco
+-- (PT409 'ultimo_admin'), com trava por organização: duas remoções
+-- simultâneas não deixam mais a empresa sem administrador. Convite pendente
+-- não conta como admin. Só UPDATE; cascades de DELETE seguem livres.
+create or replace function public.fn_guarda_ultimo_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_outros integer;
+begin
+  -- Só interessa quem ERA admin ativo e aceito e deixa de ser.
+  if old.role <> 'admin' or old.revoked_at is not null or old.accepted_at is null then
+    return new;
+  end if;
+  if new.role = 'admin' and new.revoked_at is null then
+    return new;
+  end if;
+
+  -- Trava por organização até o fim da transação: a segunda remoção espera a
+  -- primeira terminar e então conta já vendo o que ela gravou.
+  perform pg_advisory_xact_lock(hashtextextended('ultimo_admin:' || old.organization_id::text, 0));
+
+  select count(*) into v_outros
+    from public.user_organizations uo
+   where uo.organization_id = old.organization_id
+     and uo.id <> old.id
+     and uo.role = 'admin'
+     and uo.revoked_at is null
+     and uo.accepted_at is not null;
+
+  if v_outros = 0 then
+    raise exception 'ultimo_admin'
+      using errcode = 'PT409',
+            detail  = format('a organização %s ficaria sem administrador', old.organization_id),
+            hint    = 'Promova outra pessoa a administrador antes de rebaixar ou revogar esta.';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.fn_guarda_ultimo_admin() from public, anon, authenticated;
+
+drop trigger if exists trg_guarda_ultimo_admin on public.user_organizations;
+create trigger trg_guarda_ultimo_admin
+  before update of role, revoked_at on public.user_organizations
+  for each row
+  execute function public.fn_guarda_ultimo_admin();
+
 notify pgrst, 'reload schema';

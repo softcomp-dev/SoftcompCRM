@@ -20,6 +20,12 @@ import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { changeRoleSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
+import {
+  administraAgora,
+  contarAdminsAtivos,
+  ehRecusaDeUltimoAdmin,
+  type VinculoDoAdmin,
+} from "@/lib/team/ultimo-admin";
 
 export async function changeMemberRole(
   req: NextRequest,
@@ -50,7 +56,7 @@ export async function changeMemberRole(
 
   const { data: target, error: fetchErr } = await supabase
     .from("user_organizations")
-    .select("id, user_id, role, revoked_at")
+    .select("id, user_id, role, revoked_at, accepted_at")
     .eq("organization_id", activeOrg.orgId)
     .eq("user_id", targetUserId)
     .maybeSingle();
@@ -60,15 +66,10 @@ export async function changeMemberRole(
     return fail("state_conflict", t("Membro está revogado."), 409, { requestId });
   }
 
-  if (target.role === "admin" && input.role !== "admin") {
-    const { count, error: countErr } = await supabase
-      .from("user_organizations")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", activeOrg.orgId)
-      .eq("role", "admin")
-      .is("revoked_at", null);
+  if (administraAgora(target as VinculoDoAdmin) && input.role !== "admin") {
+    const { count, error: countErr } = await contarAdminsAtivos(supabase, activeOrg.orgId);
     if (countErr) return fail("internal_error", countErr.message, 500, { requestId });
-    if ((count ?? 0) <= 1) {
+    if (count <= 1) {
       return fail(
         "state_conflict",
         t("Não é possível rebaixar o último admin do tenant."),
@@ -88,6 +89,10 @@ export async function changeMemberRole(
     .from("user_organizations")
     .update({ role: input.role, updated_at: new Date().toISOString() })
     .eq("id", target.id);
+  // A corrida que a contagem acima não fecha: o gatilho do banco recusou.
+  if (ehRecusaDeUltimoAdmin(updErr)) {
+    return fail("state_conflict", t("Não é possível rebaixar o último admin do tenant."), 409, { requestId });
+  }
   if (updErr) return fail("internal_error", updErr.message, 500, { requestId });
 
   // #3696: papel novo vale a partir da PRÓXIMA requisição. Sem isto, uma

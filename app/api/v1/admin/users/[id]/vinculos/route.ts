@@ -40,6 +40,12 @@ import type { Role } from "@/lib/auth/types";
 import { traduzirLimiteDoPlano } from "@/lib/cobranca/limites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revogarVinculo } from "@/lib/team/revogar-vinculo";
+import {
+  administraAgora,
+  contarAdminsAtivos,
+  ehRecusaDeUltimoAdmin,
+  type VinculoDoAdmin,
+} from "@/lib/team/ultimo-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -59,14 +65,6 @@ async function vinculosDaConta(admin: Admin, userId: string) {
     .eq("user_id", userId);
 }
 
-async function adminsAtivos(admin: Admin, organizationId: string) {
-  return admin
-    .from("user_organizations")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .eq("role", "admin")
-    .is("revoked_at", null);
-}
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
@@ -255,7 +253,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const admin = createAdminClient();
   const { data: alvo, error } = await admin
     .from("user_organizations")
-    .select("id, role, revoked_at")
+    .select("id, role, revoked_at, accepted_at")
     .eq("user_id", userId)
     .eq("organization_id", organization_id)
     .maybeSingle();
@@ -265,9 +263,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   }
   if (alvo.role === role) return ok({ organization_id, role, unchanged: true }, { requestId });
 
-  const { count, error: countErr } = await adminsAtivos(admin, organization_id);
+  const { count, error: countErr } = await contarAdminsAtivos(admin, organization_id);
   if (countErr) return fail("internal_error", countErr.message, 500, { requestId });
-  if (rebaixariaUltimoAdmin(alvo.role as Role, role, count ?? 0)) {
+  // Convite de admin pendente não administra: trocar o papel dele é livre.
+  if (administraAgora(alvo as VinculoDoAdmin) && rebaixariaUltimoAdmin(alvo.role as Role, role, count)) {
     return fail(
       "state_conflict",
       "Não é possível rebaixar o último admin da empresa.",
@@ -281,6 +280,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
     .from("user_organizations")
     .update({ role, updated_at: new Date().toISOString() })
     .eq("id", alvo.id);
+  // A corrida que a contagem acima não fecha: o gatilho do banco recusou.
+  if (ehRecusaDeUltimoAdmin(updErr)) {
+    return fail("state_conflict", "Não é possível rebaixar o último admin da empresa.", 409, { requestId });
+  }
   if (updErr) return fail("internal_error", updErr.message, 500, { requestId });
   invalidarUsuario(userId);
 

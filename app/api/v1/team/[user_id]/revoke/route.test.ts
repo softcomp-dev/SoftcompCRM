@@ -80,7 +80,8 @@ function mockBanco(opts: MockBancoOpts) {
             return {
               eq: () => ({
                 eq: () => ({
-                  is: async () => ({ count: opts.adminCount ?? 2, error: null }),
+                  // Só admin ATIVO e ACEITO conta (lib/team/ultimo-admin.ts).
+                  is: () => ({ not: async () => ({ count: opts.adminCount ?? 2, error: null }) }),
                 }),
               }),
             };
