@@ -21,6 +21,7 @@ import { loadAuthUser, mfaEmDivida } from "@/lib/auth/server";
 import type { AuthUser, Role } from "@/lib/auth/types";
 import { MENSAGEM_DE_MFA } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { STATUS_OPERANTE } from "@/lib/organizacao/operante";
 import { createClient } from "@/lib/supabase/server";
 import { empresasDoEscopo, lerEmpresasDaUrl, type EmpresaDoEscopo } from "./escopo";
 
@@ -73,7 +74,7 @@ export async function abrirVisaoConsolidada(
     .eq("user_id", user.id)
     .is("revoked_at", null)
     .not("accepted_at", "is", null)
-    .eq("organizations.status", "active")
+    .eq("organizations.status", STATUS_OPERANTE)
     .order("accepted_at", { ascending: true })
     .order("organization_id", { ascending: true });
   if (error) {

@@ -29,6 +29,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { etapaDeDestino, type ColunaConsolidada } from "@/lib/consolidado/colunas";
 import type { EmpresaDoEscopo } from "@/lib/consolidado/escopo";
+import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { formatCents } from "@/lib/money";
 import { Buildings, CaretDown } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
@@ -116,10 +117,6 @@ function SeloDaEmpresa({ nome, cor }: { nome: string; cor: string }) {
       <span className="truncate">{nome}</span>
     </span>
   );
-}
-
-function nomeDoContato(c: { display_name?: string | null; name?: string | null; phone_number?: string | null } | null | undefined) {
-  return c?.display_name || c?.name || c?.phone_number || "—";
 }
 
 // ---------------------------------------------------------------------------
@@ -781,7 +778,7 @@ export function ConsolidadoClient({
               vazio={t("Nenhuma conversa encontrada.")}
               onAbrir={abrir}
               linha={(c) => ({
-                titulo: nomeDoContato(c.contacts),
+                titulo: rotuloDoContato(c.contacts, t),
                 detalhe: c.last_message_preview ?? "",
                 destino: `/app/inbox/${c.id}`,
                 quando: c.last_message_at,
@@ -797,7 +794,7 @@ export function ConsolidadoClient({
               vazio={t("Nenhum contato encontrado.")}
               onAbrir={abrir}
               linha={(c) => ({
-                titulo: nomeDoContato(c),
+                titulo: rotuloDoContato(c, t),
                 detalhe: [c.phone_number, c.email].filter(Boolean).join(" · "),
                 destino: `/app/contacts/${c.id}`,
                 quando: c.last_activity_at,
