@@ -84,7 +84,7 @@ Detalham schema SQL e payloads exatos. **Consulte antes de modelar qualquer cois
 | [`specs/17`](specs/17-spec-indice-de-atrito.md) | **Índice de Atrito** — medir o propósito (menor atrito p/ os dois lados), não a atividade |
 | [`specs/18`](specs/18-spec-voice-calls-wacalls.md) | Chamada de voz WhatsApp (WaCalls) — rascunho, sem sub-PRD dedicado |
 | [`specs/extensoes-declarativas-v1.md`](specs/extensoes-declarativas-v1.md) | **Extensões declarativas v1** — pacote JSON estrito, catálogo admitido pelo dono da instalação, ativação por organização, guia no hub CRM |
-| [`api/openapi.yaml`](api/openapi.yaml) | **API para integrações (OpenAPI 3.1)** — só as rotas que aceitam `Bearer dsk_`, com escopo e papel de cada uma, mais o webhook de captação e o servidor MCP. Dentro da instalação abre em `/docs` (Swagger com teste); fora dela, no Swagger Editor ou no Postman |
+| [`api/openapi.yaml`](api/openapi.yaml) | **API para integrações (OpenAPI 3.1)** — só as rotas que aceitam `Bearer dsk_`, com escopo e papel de cada uma, mais o webhook de captação e o servidor MCP. Dentro da instalação abre em `/docs` (Swagger com teste; prova em tela: `evidence/docs-swagger/operacao-abre-e-testar-chama-a-api.png`); fora dela, no Swagger Editor ou no Postman |
 | [`integracao/webhooks-de-saida.md`](integracao/webhooks-de-saida.md) | Webhook de saída do lado de quem recebe: cabeçalhos, assinatura com carimbo de tempo, id de entrega, exemplos em Node e Python |
 | [`integracao/mcp-oauth-por-contato.md`](integracao/mcp-oauth-por-contato.md) | Servidores MCP por agente com OAuth por contato: cadastro, link de autorização na conversa, escrita delegada, revogação e LGPD |
 | [`specs/RECONCILIATION-LOG.md`](specs/RECONCILIATION-LOG.md) | Log de reconciliação entre specs |
