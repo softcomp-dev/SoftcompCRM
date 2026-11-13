@@ -31,6 +31,7 @@ import {
   type EtapaDoFunil,
   type FunilDaEmpresa,
 } from "@/lib/consolidado/colunas";
+import { emParalelo } from "@/lib/consolidado/em-paralelo";
 import { abrirVisaoConsolidada } from "@/lib/consolidado/servidor";
 import { diasDeRecorte, recortaEncerradosAntigos } from "@/lib/kanban/recorte-de-encerrados";
 import { motivosDoFunil, opcoesDeMotivoDePerda } from "@/lib/leads/motivos-de-perda-do-funil";
@@ -83,11 +84,14 @@ export async function GET(req: NextRequest): Promise<Response> {
     .in("organization_id", orgIds)
     .eq("is_archived", false);
   if (funisErr) return fail("internal_error", funisErr.message, 500, { requestId });
-  const funisTodos = (funisBrutos ?? []) as Array<FunilDaEmpresa & { settings: Record<string, unknown> | null }>;
+  const funisTodos = (funisBrutos ?? []) as Array<
+    FunilDaEmpresa & { settings: Record<string, unknown> | null }
+  >;
 
   const oferecidos = nomesDeFunil(funisTodos);
   const pedido = params.get("funil") ?? "padrao";
-  const escolha = pedido === "padrao" || oferecidos.some((o) => o.chave === pedido) ? pedido : "padrao";
+  const escolha =
+    pedido === "padrao" || oferecidos.some((o) => o.chave === pedido) ? pedido : "padrao";
   const funis = escolherFunis(funisTodos, escolha) as typeof funisTodos;
   if (funis.length === 0) {
     return ok({ ...vazio, funis_oferecidos: oferecidos, funil: escolha }, { requestId });
@@ -106,35 +110,33 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   // Um funil por consulta, em paralelo: o teto vale POR funil, e uma empresa
   // grande não pode empurrar as outras para fora do quadro.
-  const porFunil = await Promise.all(
-    funis.map(async (f) => {
-      const [{ data, error }, pessoais] = await Promise.all([
-        supabase
-          .from("crm_leads")
-          .select(
-            "id, organization_id, pipeline_id, stage_id, contact_id, title, status, value_cents, currency, position_in_stage, updated_at, closed_at, last_activity_at",
-          )
-          .eq("organization_id", f.organization_id)
-          .eq("pipeline_id", f.id)
-          .neq("status", "archived")
-          .order("position_in_stage")
-          .order("id")
-          .limit(TETO_DE_NEGOCIOS_POR_FUNIL + 1),
-        idsDeContatosPessoais(supabase, f.organization_id),
-      ]);
-      if (error) throw new Error(error.message);
-      const linhas = (data ?? []) as LinhaDoNegocio[];
-      const truncado = linhas.length > TETO_DE_NEGOCIOS_POR_FUNIL;
-      const visiveis = linhas
-        .slice(0, TETO_DE_NEGOCIOS_POR_FUNIL)
-        .filter((l) => l.contact_id === null || !pessoais.includes(l.contact_id));
-      return {
-        funil: f,
-        truncado,
-        negocios: recortaEncerradosAntigos(visiveis, diasDeRecorte(f.settings), new Date()),
-      };
-    }),
-  ).catch((err: unknown) => err as Error);
+  const porFunil = await emParalelo(funis, async (f) => {
+    const [{ data, error }, pessoais] = await Promise.all([
+      supabase
+        .from("crm_leads")
+        .select(
+          "id, organization_id, pipeline_id, stage_id, contact_id, title, status, value_cents, currency, position_in_stage, updated_at, closed_at, last_activity_at",
+        )
+        .eq("organization_id", f.organization_id)
+        .eq("pipeline_id", f.id)
+        .neq("status", "archived")
+        .order("position_in_stage")
+        .order("id")
+        .limit(TETO_DE_NEGOCIOS_POR_FUNIL + 1),
+      idsDeContatosPessoais(supabase, f.organization_id),
+    ]);
+    if (error) throw new Error(error.message);
+    const linhas = (data ?? []) as LinhaDoNegocio[];
+    const truncado = linhas.length > TETO_DE_NEGOCIOS_POR_FUNIL;
+    const visiveis = linhas
+      .slice(0, TETO_DE_NEGOCIOS_POR_FUNIL)
+      .filter((l) => l.contact_id === null || !pessoais.includes(l.contact_id));
+    return {
+      funil: f,
+      truncado,
+      negocios: recortaEncerradosAntigos(visiveis, diasDeRecorte(f.settings), new Date()),
+    };
+  }).catch((err: unknown) => err as Error);
   if (porFunil instanceof Error) {
     return fail("internal_error", porFunil.message, 500, { requestId });
   }
@@ -155,7 +157,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           valor: o.valor,
           rotulo: o.doFunil
             ? o.valor
-            : (ROTULO_DO_MOTIVO_CANONICO as Record<string, string>)[o.valor] ?? o.valor,
+            : ((ROTULO_DO_MOTIVO_CANONICO as Record<string, string>)[o.valor] ?? o.valor),
           traduzir: !o.doFunil,
         })),
       })),

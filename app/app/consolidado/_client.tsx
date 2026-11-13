@@ -128,7 +128,7 @@ function nomeDoContato(c: { display_name?: string | null; name?: string | null; 
 
 function SeletorDeEmpresas({
   empresas,
-  selecionadas,
+  selecionadas: pedidas,
   onMudar,
   cores,
 }: {
@@ -139,6 +139,10 @@ function SeletorDeEmpresas({
   cores: Map<string, string>;
 }) {
   const t = useT();
+  // A URL pode trazer id que não é da pessoa (link de um colega, empresa de que
+  // ela saiu). O servidor ignora esses ids; o rótulo também, senão a tela diria
+  // "2 empresas" mostrando os dados de todas.
+  const selecionadas = pedidas.filter((id) => empresas.some((e) => e.organization_id === id));
   const todas = selecionadas.length === 0 || selecionadas.length === empresas.length;
   const marcada = (id: string) => todas || selecionadas.includes(id);
   const rotulo = todas
@@ -253,8 +257,22 @@ function FunilConsolidado({
     return m;
   }, [dados.negocios, etapaParaColuna, local]);
 
+  /**
+   * Devolve o card ao que o SERVIDOR diz. A posição local só vale enquanto o
+   * movimento está em curso: guardada depois do sucesso, ela prendia o card na
+   * coluna do arrasto mesmo quando outra pessoa (ou a IA) o movia em seguida —
+   * a lista recarregava e a tela seguia mostrando a etapa velha.
+   */
+  function soltarPosicaoLocal(id: string) {
+    setLocal((p) => {
+      if (!p.has(id)) return p;
+      const prox = new Map(p);
+      prox.delete(id);
+      return prox;
+    });
+  }
+
   async function enviar(negocio: Negocio, stageId: string, lostReason?: string) {
-    const anterior = local.get(negocio.id);
     setLocal((p) => new Map(p).set(negocio.id, stageId));
     setMovendo((p) => new Set(p).add(negocio.id));
     try {
@@ -263,16 +281,13 @@ function FunilConsolidado({
         stage_id: stageId,
         ...(lostReason ? { lost_reason: lostReason } : {}),
       });
+      // Espera a lista recarregar ANTES de soltar: sem isso o card piscaria de
+      // volta na coluna antiga entre o sucesso e a resposta nova.
       await queryClient.invalidateQueries({ queryKey: ["consolidado", "funil"] });
     } catch (err) {
-      setLocal((p) => {
-        const prox = new Map(p);
-        if (anterior) prox.set(negocio.id, anterior);
-        else prox.delete(negocio.id);
-        return prox;
-      });
       toast.error(err instanceof Error ? err.message : t("Não foi possível mover o negócio."));
     } finally {
+      soltarPosicaoLocal(negocio.id);
       setMovendo((p) => {
         const prox = new Set(p);
         prox.delete(negocio.id);

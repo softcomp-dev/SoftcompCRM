@@ -16,6 +16,7 @@ import type { NextRequest } from "next/server";
 import { listContactsHandler } from "@/app/api/v1/contacts/_handler";
 import { ApiError } from "@/lib/api/types";
 import { fail, ok } from "@/lib/api/wrappers";
+import { emParalelo } from "@/lib/consolidado/em-paralelo";
 import { juntarPorData } from "@/lib/consolidado/juntar";
 import { abrirVisaoConsolidada } from "@/lib/consolidado/servidor";
 
@@ -33,21 +34,19 @@ export async function GET(req: NextRequest): Promise<Response> {
   const search = params.get("search")?.slice(0, 120) || undefined;
 
   try {
-    const listas = await Promise.all(
-      escopo.map(async (e) => {
-        const r = await listContactsHandler(
-          supabase,
-          {
-            organization_id: e.organization_id,
-            actor: { type: "user", id: user.id },
-            requestId,
-            idioma: user.idioma,
-          },
-          { search, limit: POR_EMPRESA },
-        );
-        return { organization_id: e.organization_id, itens: r.contacts, tem_mais: r.has_more };
-      }),
-    );
+    const listas = await emParalelo(escopo, async (e) => {
+      const r = await listContactsHandler(
+        supabase,
+        {
+          organization_id: e.organization_id,
+          actor: { type: "user", id: user.id },
+          requestId,
+          idioma: user.idioma,
+        },
+        { search, limit: POR_EMPRESA },
+      );
+      return { organization_id: e.organization_id, itens: r.contacts, tem_mais: r.has_more };
+    });
     const { itens, truncado } = juntarPorData(
       listas,
       (c) => {

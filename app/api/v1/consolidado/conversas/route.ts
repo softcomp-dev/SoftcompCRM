@@ -16,6 +16,7 @@ import type { NextRequest } from "next/server";
 import { listConversationsHandler } from "@/app/api/v1/conversations/_handler";
 import { ApiError } from "@/lib/api/types";
 import { fail, ok } from "@/lib/api/wrappers";
+import { emParalelo } from "@/lib/consolidado/em-paralelo";
 import { juntarPorData } from "@/lib/consolidado/juntar";
 import { abrirVisaoConsolidada } from "@/lib/consolidado/servidor";
 import { listConversationsQuerySchema } from "@/lib/schemas";
@@ -45,21 +46,19 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   try {
-    const listas = await Promise.all(
-      escopo.map(async (e) => {
-        const r = await listConversationsHandler(
-          supabase,
-          {
-            organization_id: e.organization_id,
-            actor: { type: "user", id: user.id },
-            requestId,
-            idioma: user.idioma,
-          },
-          q.data,
-        );
-        return { organization_id: e.organization_id, itens: r.conversations, tem_mais: r.has_more };
-      }),
-    );
+    const listas = await emParalelo(escopo, async (e) => {
+      const r = await listConversationsHandler(
+        supabase,
+        {
+          organization_id: e.organization_id,
+          actor: { type: "user", id: user.id },
+          requestId,
+          idioma: user.idioma,
+        },
+        q.data,
+      );
+      return { organization_id: e.organization_id, itens: r.conversations, tem_mais: r.has_more };
+    });
     const { itens, truncado } = juntarPorData(
       listas,
       (c) => (c as { last_message_at?: string | null }).last_message_at,
