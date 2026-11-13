@@ -122,13 +122,27 @@ export async function carregarNegociosDoSdr(
 ): Promise<ResultadoDaLeitura> {
   const { organizationId, sdrId } = opts;
   try {
-    const { data: linhas, error } = await db
+    // Funil arquivado sai ANTES do teto: filtrado só depois, os negócios mais
+    // antigos de um funil arquivado ocupavam as 200 vagas e a tela dizia
+    // "nenhum lead" (ou "os 200 mais antigos") com negócio de verdade esperando.
+    const { data: funisArquivados, error: erroDosFunis } = await db
+      .from("crm_pipelines")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("is_archived", true);
+    if (erroDosFunis) return { ok: false, mensagem: erroDosFunis.message };
+    const idsArquivados = ((funisArquivados ?? []) as Array<{ id: string }>).map((f) => f.id);
+
+    let consulta = db
       .from("crm_leads")
       .select(COLUNAS_DO_NEGOCIO)
       .eq("organization_id", organizationId)
       .eq("status", "open")
       // `sdrId` é o id do usuário autenticado (um uuid), nunca texto do corpo.
-      .or(`owner_user_id.is.null,owner_user_id.eq.${sdrId}`)
+      .or(`owner_user_id.is.null,owner_user_id.eq.${sdrId}`);
+    // Ids lidos do banco (uuid), nunca texto de fora.
+    if (idsArquivados.length > 0) consulta = consulta.not("pipeline_id", "in", `(${idsArquivados.join(",")})`);
+    const { data: linhas, error } = await consulta
       .order("created_at", { ascending: true })
       .limit(LIMITE_DE_NEGOCIOS_DO_SDR + 1);
     if (error) return { ok: false, mensagem: error.message };
