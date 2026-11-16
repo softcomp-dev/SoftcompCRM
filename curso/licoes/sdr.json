@@ -1,0 +1,401 @@
+{
+  "id": "sdr",
+  "titulo": "Leads sem vendedor",
+  "tela": "/app/sdr",
+  "resumo": "A fila de quem faz a pré-venda (SDR): os negócios que estão com você ou ainda sem dono, e a passagem de cada um para o vendedor que vai fechar.",
+  "licoes": [
+    {
+      "id": "conhecendo-a-tela",
+      "titulo": "Conhecendo a tela Leads sem vendedor",
+      "objetivo": "Ler a fila de negócios do SDR, filtrar por situação e passar um negócio ao vendedor.",
+      "papel": "agent",
+      "busca": [
+        "sdr",
+        "leads sem vendedor",
+        "pré-venda",
+        "passar para vendedor",
+        "fila de leads",
+        "closer",
+        "qualificar"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "A fila do SDR",
+          "texto": "\"Leads sem vendedor\" é a tela de quem faz a pré-venda. Ela lista os negócios abertos que estão com você ou que ainda não têm dono, do mais antigo para o mais novo: quem chegou primeiro espera há mais tempo. Só aparece conteúdo para quem a administração marcou como SDR em Equipe › Membros, com a função ligada; as outras pessoas veem um aviso explicando isso.",
+          "dica": "Esta tela não fica no menu lateral. Ache pelo botão \"Ver tudo em CRM\" ou pela busca (Ctrl+K ou ⌘K).",
+          "rota": "/app/sdr",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "h1"
+              },
+              "rotulo": "A tela",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-lista"
+              },
+              "rotulo": "Os negócios esperando vendedor",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "O que cada linha diz",
+          "texto": "Cada linha é um negócio: o título, uma etiqueta e, embaixo, o cliente, o funil e a etapa, o valor e há quanto tempo ele chegou. A etiqueta mostra com quem o negócio está: \"Com você\" (já é seu), \"Na fila\" (ninguém pegou ainda) ou \"Com a IA\" (o agente de IA atende e ainda não passou a um humano). Clicar no título abre a ficha do negócio.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "sdr-negocio",
+                "n": 0
+              },
+              "rotulo": "Um negócio",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "Com você",
+                "exato": true,
+                "n": 0
+              },
+              "rotulo": "Com quem está",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Os filtros",
+          "texto": "Os botões do topo separam a fila pela situação do negócio, e o número ao lado de cada um conta quantos há. \"Todos\" mostra tudo; \"Comigo\" mostra os que já estão com você; \"Na fila\", os que ainda não têm dono; \"Com a IA\", os que o agente de IA está atendendo. Aqui o filtro \"Na fila\" está escolhido.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "sdr-filtro-fila"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "group",
+                "nome": "Filtrar por situação",
+                "exato": true
+              },
+              "rotulo": "Filtros por situação",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-filtro-fila"
+              },
+              "rotulo": "Filtro escolhido",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "testid": "sdr-filtro-todos"
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "Escolher o vendedor",
+          "texto": "Em cada linha há o campo \"Escolha o vendedor\". Ele lista só quem pode receber: gente da equipe com acesso ativo que não está de Somente leitura e não é SDR, porque passar de SDR para SDR é redistribuir pré-venda, e isso é com o gerente. Clique no campo da primeira linha para ver a lista.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "sdr-filtro-todos"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "sdr-escolher-vendedor",
+                "n": 0
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "listbox"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "listbox"
+              },
+              "rotulo": "Quem pode receber",
+              "tipo": "caixa"
+            }
+          ],
+          "clicar": {
+            "role": "option",
+            "nome": "Carlos Mendes",
+            "exato": true
+          }
+        },
+        {
+          "id": "p5",
+          "titulo": "Passar",
+          "texto": "Escolha o vendedor, aqui o Carlos Mendes, e o botão \"Passar\" acende. Ao clicar, o negócio, o cliente e as conversas abertas que estavam com você vão para o vendedor, e a tela confirma com um aviso. Depois de passar, a linha fica travada até a lista recarregar, para ninguém passar duas vezes.",
+          "dica": "Se o cliente já estava na carteira de outra pessoa, o aviso diz isso: só o gerente muda a carteira de um colega.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Carlos Mendes",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "sdr-escolher-vendedor",
+                "n": 0
+              },
+              "rotulo": "O vendedor escolhido",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-passar",
+                "n": 0
+              },
+              "rotulo": "Passar o negócio",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "testid": "sdr-passar",
+            "n": 0
+          }
+        },
+        {
+          "id": "p6",
+          "titulo": "O aviso de que passou",
+          "texto": "Pronto: o aviso \"Negócio passado para Carlos Mendes.\" confirma a passagem. O negócio agora é do Carlos, que o vê no funil dele. Quando a lista recarregar, a linha some da sua fila.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "sdr-passar",
+                "n": 0
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "Negócio passado para",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "texto": "Negócio passado para",
+                "n": 0
+              },
+              "rotulo": "Passou",
+              "tipo": "seta"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "passar-pelo-funil",
+      "titulo": "Passar um negócio pelo funil",
+      "objetivo": "Passar um negócio ao vendedor direto pelo menu do cartão, sem sair do funil.",
+      "papel": "agent",
+      "busca": [
+        "passar para vendedor",
+        "menu do cartão",
+        "sdr",
+        "funil",
+        "closer",
+        "reatribuir negócio"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O negócio no funil",
+          "texto": "Você também pode passar um negócio sem sair do funil. Abra o funil e ache o cartão do negócio que está com você ou sem dono. Passe o mouse no cartão: aparecem os três pontinhos no canto de cima.",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[data-testid^='abrir-']:has-text('Pacientes')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                }
+              },
+              "rotulo": "Menu do cartão",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Ações do negócio",
+            "exato": true,
+            "dentro": {
+              "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+            }
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "Passar para vendedor",
+          "texto": "No menu do cartão, o item \"Passar para vendedor\" só aparece para quem é SDR ativo, e só nos negócios que estão com você ou sem dono. Para um negócio de outro colega, o item não existe: tirar o negócio de alguém é com o gerente.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Passar para vendedor",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Passar para vendedor",
+                "exato": true
+              },
+              "rotulo": "Só para SDR",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Passar para vendedor",
+            "exato": true
+          }
+        },
+        {
+          "id": "p3",
+          "titulo": "Escolher quem recebe",
+          "texto": "Ao abrir o item aparece a lista de vendedores. Na frase de cima, lembre o que acompanha o negócio: o cliente e as conversas abertas com você vão junto. Clique no nome de quem vai fechar a venda, aqui o Carlos Mendes.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Passar para vendedor",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "O negócio, o cliente e as conversas abertas com você vão para o vendedor.",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "texto": "O negócio, o cliente e as conversas abertas com você vão para o vendedor.",
+                "exato": true
+              },
+              "rotulo": "O que vai junto",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Carlos Mendes",
+                "exato": true
+              },
+              "rotulo": "O vendedor",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Carlos Mendes",
+            "exato": true
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "Negócio passado",
+          "texto": "Um clique no nome e pronto: o aviso \"Negócio passado para Carlos Mendes.\" confirma, e o cartão passa a ser do Carlos. É a mesma passagem da tela \"Leads sem vendedor\": use a que ficar mais perto de você.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Carlos Mendes",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "Negócio passado para",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "texto": "Negócio passado para",
+                "n": 0
+              },
+              "rotulo": "Passou",
+              "tipo": "seta"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

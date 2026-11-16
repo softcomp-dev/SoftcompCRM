@@ -1043,6 +1043,168 @@
           ]
         }
       ]
+    },
+    {
+      "id": "funcao-sdr",
+      "titulo": "Ligar a função SDR",
+      "objetivo": "Ligar a função SDR da empresa, marcar uma pessoa como SDR e ler para onde vão os leads novos.",
+      "papel": "admin",
+      "busca": [
+        "sdr",
+        "pré-venda",
+        "prospecção",
+        "qualificar lead",
+        "leads novos",
+        "função sdr",
+        "closer",
+        "vendedor"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O cartão Função SDR",
+          "texto": "SDR é quem faz a pré-venda: conversa com o lead novo, vê se ele tem interesse e passa o negócio pronto para quem fecha a venda. Em Equipe › Membros, acima da lista de pessoas, fica o cartão \"Função SDR\". Ele diz se a função está ligada e, na linha de baixo, para onde vão os leads novos. Hoje está \"Desligada\": os leads novos vão para a equipe inteira, como sempre.",
+          "rota": "/app/team",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "section[aria-labelledby='sdr-card-titulo']"
+              },
+              "rotulo": "O cartão da função SDR",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-fluxo"
+              },
+              "rotulo": "Para onde vão os leads novos",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "switch",
+            "nome": "Função SDR nesta empresa",
+            "exato": true
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "Ligar a função",
+          "texto": "Clique na chavinha do cartão: ela passa para \"Ligada\" e a tela avisa \"Função SDR ligada.\". A tabela de membros ganha uma coluna nova, \"SDR\". Enquanto ninguém estiver marcado, o cartão diz que não há SDR ativo e os leads novos continuam indo para toda a equipe: ligar a função sozinho não muda nada para os clientes.",
+          "dica": "Só o Administrador liga e desliga a função. O Gerente vê o cartão, mas não mexe na chavinha.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "switch",
+                "nome": "Função SDR nesta empresa",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "columnheader",
+                "nome": "SDR",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "switch",
+                "nome": "Função SDR nesta empresa",
+                "exato": true
+              },
+              "rotulo": "Ligada",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "columnheader",
+                "nome": "SDR",
+                "exato": true
+              },
+              "rotulo": "Coluna nova",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-fluxo"
+              },
+              "rotulo": "Ainda ninguém é SDR",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Marcar uma pessoa como SDR",
+          "texto": "Na coluna \"SDR\", ligue a chavinha da linha de quem faz a pré-venda. Aqui marcamos a Ana. Pronto: a linha de baixo do cartão passa a dizer \"Leads novos: só para os SDRs ativos (1)\". Dali em diante, o lead novo vai só para quem é SDR; se todos estiverem ocupados ou fora do horário, ele espera por um SDR em vez de ir para os outros. Atendente, Gerente e Administrador podem ser SDR; quem tem o papel \"Somente leitura\" não.",
+          "dica": "Se a distribuição automática estiver em \"Manual\", nenhum lead novo é entregue sozinho, SDR ou não. O cartão avisa e leva você até Configurações › Atendimento.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "switch",
+                "nome": "^SDR: Ana",
+                "regex": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[data-testid='sdr-fluxo']:has-text('(1)')"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "switch",
+                "nome": "^SDR: Ana",
+                "regex": true
+              },
+              "rotulo": "Ana é SDR",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "testid": "sdr-fluxo"
+              },
+              "rotulo": "Para onde vão os leads novos",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "Desmarcar e desligar sem perder nada",
+          "texto": "Para tirar alguém da pré-venda, desligue a chavinha dele na coluna \"SDR\". Isso tira só a marca: os negócios abertos que estavam com a pessoa continuam com ela, e logo depois de desmarcar a tela avisa quantos são (\"N negócios abertos continuam com essa pessoa\"). Para entregá-los a outro, mude o campo \"Responsável\" no funil. Desligar a função inteira também não apaga ninguém: as marcas ficam guardadas e voltam quando você ligar de novo.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "switch",
+                "nome": "^SDR: Ana",
+                "regex": true
+              },
+              "rotulo": "Desmarcar tira só a marca",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "texto": "Desligar não desmarca ninguém: as marcas voltam quando a função for religada.",
+                "exato": true
+              },
+              "rotulo": "Desligar guarda as marcas",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
