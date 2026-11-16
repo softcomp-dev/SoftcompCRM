@@ -8,6 +8,15 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 ### Organização → API Tokens
 
 - **Teto de 50 tokens ativos** — Emissão para em 50 tokens por empresa; revogados e vencidos não contam. _(desde 1.50.0)_
+- **Link para a documentação da API** — A tela de tokens leva à Documentação da API (Swagger). _(desde 1.104.3)_
+
+### Organização → Documentação da API
+
+- **Swagger dentro do CRM** — As rotas que aceitam token `dsk_`, com a marca da instalação e o endereço dela; Authorize recebe o token e o teste usa só o token, sem a sessão. Onde: Organização → Dados e acesso → Documentação da API, ou `/docs`. _(desde 1.104.3)_
+
+### Organização → Trunk SIP
+
+- **Tronco aplicado pela tela** — Salvar o tronco basta: o servidor aplica em até 30 segundos, e a tela mostra se a operadora responde, se deu erro (e por quê) ou se ainda espera o servidor. Cada empresa pode ter o próprio tronco. _(desde 1.104.13)_
 
 ### Organização → Automações
 
@@ -55,6 +64,8 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Áreas por pessoa** — Admin escolhe interface por membro e atualiza sem fechar a tela. Onde: Organização → Equipe → interface. _(desde 1.17.0)_
 - **Quatro papéis na equipe** — Leitor, atendente, gerente e admin com poderes cobrados no servidor. Onde: Organização → Equipe → papel. _(desde 1.0.0)_
 - **Entrada e convite de membro** — Primeiro acesso monta a empresa; convite traz gente sem conta solta. Onde: Organização → Equipe → convites. _(desde 1.0.0)_
+- **Função SDR** — Cartão Função SDR liga o fluxo em que só os SDRs recebem leads novos, e a coluna SDR marca quem faz pré-venda. Não é papel novo: soma-se ao papel da pessoa (nunca Somente leitura). Onde: Organização → Equipe → Membros. _(desde 1.104.7)_
+- **Desmarcar SDR avisa** — Ao desmarcar, a tela diz quantos negócios abertos ficaram com a pessoa, para reatribuir pelo Responsável no funil. _(desde 1.104.10)_
 
 ### Organização → Extensões
 
@@ -70,6 +81,7 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Regras de comissão** — Lista define percentual por pessoa, serviço ou ambos, valendo a específica. Onde: Organização → Financeiro → Comissão. _(desde 1.41.0)_
 
 ### Organização → LGPD
+
 - **Arquivo de dados para o titular (Brasil)** — Quem pede acesso aos próprios dados recebe também o arquivo com todas as mensagens e sem as anotações da equipe (LGPD, art. 18, II). Na 1.79.0 o arquivo passa a ser montado em partes e usa cerca de um terço da memória de antes; o conteúdo é o mesmo, e se a leitura falhar no meio o arquivo avisa que pode estar incompleto. Onde: Organização → LGPD. _(desde 1.78.0)_
 
 - **Relatório cita o país** — Acesso cita a lei do país; sem revisão não cita nenhuma e conta feriado local. (alíneas do art. 15 para Portugal na 1.74.0). Onde: Organização → LGPD → relatório. _(desde 1.35.0)_
@@ -88,6 +100,7 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Aviso com aba fechada** — Navegador avisa na bandeja com o par VAPID, que o kit cria sozinho (install e atualização) e nunca troca; fora do kit, gere à mão. Onde: Organização → Notificações → push. _(desde 1.8.0)_
 
 ### Organização → Organização
+
 - **Alíneas do art. 15.º pela tela** — Para organização fora do Brasil, o cartão em Configurações › Empresa preenche as alíneas a), c) e d) que o relatório de acesso imprime. Onde: Organização → Organização. _(desde 1.78.0)_
 
 - **Portugal como país** — O seletor de país oferece Portugal, com NIF, telefone +351 e prazos do RGPD. _(desde 1.70.0)_
@@ -96,6 +109,7 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Lisboa nos fusos** — Lisboa entra nas listas de fuso; padrão continua São Paulo sem mudar ninguém. Onde: Organização → Organização → fuso. _(desde 1.41.0)_
 - **Zona de perigo** — Apaga dados da empresa digitando o nome, com auditoria e sem refazer config. Onde: Organização → Organização → perigo. _(desde 1.15.0)_
 - **Moeda da empresa** — Organização ganha campo Moeda que vale para produto novo e importado. (kwanza e Luanda na 1.35.0; euro na 1.42.0). Onde: Organização → Organização → moeda. _(desde 1.14.0)_
+- **Prazos da classificação de clientes** — Quantos dias valem Ativo (padrão 90) e Pré-inativo (padrão 180). Onde: Organização → Organização → Classificação de clientes. _(próxima versão)_
 
 ### Organização → Perfil
 

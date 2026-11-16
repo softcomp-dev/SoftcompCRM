@@ -49,6 +49,7 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Tema no Modo Plataforma** — A tarja ganha troca de claro, escuro e sistema com atalho de teclado. Onde: Administração → Modo Plataforma → tema. _(desde 1.54.0)_
 
 ### Administração → Sistema
+
 - **Cobrança pelo Asaas** — Opcional: em Conexão, escolha Asaas e cole a chave de API para cobrar com Pix e boleto todo mês (pagos a cada cobrança, não é débito automático); atraso, suspensão e reativação funcionam como na Stripe. Assinaturas existentes ficam no provedor em que nasceram. Onde: Administração → Cobrança → Conexão. _(desde 1.79.0)_
 - **Cobrança dos seus clientes** — Opcional e desligada: ligue em Recursos opcionais, conecte a Stripe em Administração › Cobrança e crie os planos. Empresa nova ganha teste grátis; pagamento atrasado gera aviso na Central, faixa no topo e e-mail, e suspensão depois da tolerância (5 a 30 dias, padrão 7, com aviso final 48 horas antes); paga, volta sozinha. O menu Billing da empresa passa a se chamar Plano e cobrança. Os limites por plano chegam travados: nenhuma empresa tem teto ainda. Onde: Administração → Cobrança. _(desde 1.78.0)_
 - **Módulos guardam informação própria** — Um módulo de nicho declara as fichas que guarda e o servidor cria as tabelas, isoladas por empresa; a informação aparece na ficha do contato. O catálogo oficial ainda não publica módulo desse tipo. _(desde 1.78.0)_
@@ -70,9 +71,17 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 
 - **Criar empresa entrega tudo** — Nova empresa já vem com admin, convite copiável e recibo idempotente. _(desde 1.17.0)_
 
+### Administração → Vínculos
+
+- **Contas com várias empresas** — O dono da instalação marca quais empresas cada conta acessa (uma, algumas ou todas) e com que papel; vale na hora, sem convite, e mostra Vinculada, Convite pendente ou Revogada. Onde: `/admin/vinculos`, ou Editar vínculos na ficha do usuário. _(desde 1.104.6)_
+
 ### Atualização → página de manutenção
 
 - **Aviso de atualização** — Durante a troca aparece Estamos atualizando e a tela volta sozinha. _(desde 1.39.0)_
+
+### Atualização → Buscar atualização
+
+- **Perguntar ao GitHub na hora** — Em Configurações → Atualização, o dono do servidor confere se saiu versão nova sem esperar a conferência de 5 minutos; o Atualizar agora aparece quando o servidor confirmar. _(desde 1.104.7)_
 
 ### Docs: runbook do painel
 

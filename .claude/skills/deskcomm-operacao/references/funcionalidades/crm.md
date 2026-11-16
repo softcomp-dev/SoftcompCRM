@@ -9,10 +9,13 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 
 - **Campos do negócio na campanha** — A mensagem aceita campos do negócio e do contato; sem dado, a pessoa sai da lista. _(desde 1.74.0)_
 - **Campanhas com ritmo** — Fale com um recorte no ritmo do número, com prévia, teste, pausa e prova de base. _(desde 1.43.0)_
+- **Público pela classificação do cliente** — A campanha pode falar só com Ativos, Pré-inativos, Inativos ou Sem compra. Onde: CRM → Campanhas → público. _(próxima versão)_
 
 ### CRM → Chamadas
 
 - **Telefonia SIP com IA** — Módulo liga voz por tronco SIP com IA, transcrição e tela de Chamadas. (credenciais do tronco em Organização → Trunk SIP) Onde: CRM → Chamadas → histórico. _(desde 1.41.0)_
+- **Ligação chega ao time** — Nos modos Time humano e IA, depois time humano, o número de voz encaminha a ligação ao Telefone do time, pelo mesmo tronco SIP; quem não atende vira o aviso Ligar de volta na Central. Onde: número de voz → modo e Telefone do time. _(desde 1.104.13)_
+- **Custo da voz no Uso de IA** — A ligação atendida pelo agente de voz entra no gasto e no teto de orçamento, pela tarifa de áudio. Onde: Análise → Uso de IA. _(desde 1.104.13)_
 
 ### CRM → Comandas
 
@@ -40,6 +43,8 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Dado proposto espera** — Telefone, e-mail e nome aguardam confirmação humana sem gravar. Onde: CRM → Contatos → proposta. _(desde 1.2.0)_
 - **Ficha 360 com timeline** — Contato, etiquetas e história unida numa ficha só. Onde: CRM → Contatos → ficha. _(desde 1.0.0)_
 - **Aceite guardado em ata** — Consentimento fica registrado com prova de quando e como. Onde: CRM → Contatos → aceite. _(desde 1.0.0)_
+- **Classificação do cliente** — Selo Ativo, Pré-inativo, Inativo ou Sem compra pela data do último negócio ganho, na lista e na ficha, com filtro Classificação (vale para a exportação); quem vira pré-inativo abre um aviso diário na Central. Prazos em Organização → Organização. _(próxima versão)_
+- **Histórico de atendimento** — Aba Atendimentos na ficha: chat por conversa e dia, ligações e o botão Registrar interação para o que aconteceu fora do CRM. "Falei com o cliente" conta como movimento do negócio. Onde: CRM → Contatos → ficha → Atendimentos. _(desde 1.104.12)_
 
 ### CRM → Empresas
 
@@ -79,10 +84,19 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Funis em português** — Menu tem Funis e Etapas do funil; onboarding sem código interno. _(desde 1.4.0)_
 - **Conversa vira lead** — Mensagem abre negócio sem transcrição manual de ninguém. Onde: CRM → Funis → entrada. _(desde 1.2.0)_
 - **Funil com ordem própria** — Quadro guarda a posição fracionada sem embaralhar no arrasto. Onde: CRM → Funis → quadro. _(desde 1.0.0)_
+- **Transferir para outra empresa** — Menu ⋯ do card recria o negócio em outra empresa da mesma pessoa (gerente na origem, atendente no destino); a origem encerra como transferida, sem contar como perda. Onde: CRM → Funis → card → ⋯. _(desde 1.104.11)_
+- **Passar para vendedor (SDR)** — Com a função SDR ligada, o SDR passa o negócio, a carteira e as conversas abertas ao vendedor escolhido. Onde: CRM → Funis → card → ⋯ (pré-requisito: Organização → Equipe → Função SDR). _(desde 1.104.9)_
+- **Ganho parcial** — Menu ⋯ do card → Marcar como ganho parcial: valor fechado menor que o previsto e motivo; conta como venda, e reabrir devolve o valor previsto. _(próxima versão)_
+- **Cor do desfecho** — Card fechado ganha faixa e fundo: verde ganho, vermelho perdido, âmbar ganho parcial. _(próxima versão)_
+- **Número da cotação ou do pedido** — A edição do negócio (no funil e no dossiê da conversa) tem o campo com a escolha Cotação ou Pedido; a mudança entra na linha do tempo. _(próxima versão)_
 
 ### CRM → Hub "Ver tudo em CRM"
 
 - **Hub Ver tudo em CRM** — Visão geral lista as cinco; menu fica com Funis, Contatos e Tarefas. _(desde 1.15.0)_
+
+### CRM → Leads sem vendedor
+
+- **Fila do SDR** — Os negócios abertos com o SDR ou sem dono, do mais antigo ao mais novo, com filtros Comigo, Na fila e Com a IA; em cada linha o SDR escolhe o vendedor e clica em Passar. Só aparece com a função SDR ligada. Onde: CRM → Hub "Ver tudo em CRM" → Leads sem vendedor. _(desde 1.104.10)_
 
 ### CRM → Planos de tarefa
 
@@ -110,3 +124,7 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 ### CRM → Tarefas
 
 - **Tarefas com prazo** — Tela guarda combinados com prazo, calendário e vínculo com negócio. _(desde 1.15.0)_
+
+### CRM → Visão consolidada
+
+- **Várias empresas numa tela** — Funil, Conversas e Contatos das empresas da pessoa juntos; etapas de mesmo nome viram uma coluna, cada etapa mostra até 100 negócios, e o card só vai para etapa do próprio funil. Onde: CRM → Hub "Ver tudo em CRM" → Visão consolidada, ou "Ver todas juntas" no seletor de empresa. _(desde 1.104.6)_

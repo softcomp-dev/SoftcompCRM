@@ -7,6 +7,8 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 
 | Funcionalidade | Desde | O que se sabe | Evidência |
 |---|---|---|---|
+| API REST por token `dsk_` para ERP e integrações | 1.104.3 | Funis e etapas, criar e mover card, ganho, perda, nota e tarefas, achar negócio pelo `external_id`, contato, responsáveis, anexos, empresas, propostas, regras de automação e etiquetas, por `Authorization: Bearer dsk_...`. A referência abre em Organização → Documentação da API (`/docs`). | docs/api/integracao-erp.md; docs/api/openapi.yaml |
+| Função SDR pela API | 1.104.7 | Interruptor, marca e permissões da função SDR, com a sessão de quem está logado: `/api/v1/settings/sdr`, `/api/v1/sdr/assignments`, `/api/v1/sdr/permissions`. | docs/features/sdr.md |
 | Pedido de plataforma sem conector vira origem genérica | 1.79.0 | Pedido de Tray, Loja Integrada ou WooCommerce entra com origem `external`, id `<plataforma>:<id>` e plataforma no `payload`. Os conectores nativos não mudam. Quem alargou a restrição à mão: pedidos antigos são convertidos sozinhos, mas troque a ponte para gravar `external` ANTES de atualizar — depois, gravar o nome da plataforma é recusado e o pedido novo se perde. | supabase/migrations/20261009175100_0623_pedido_sem_conector_nativo_vira_origem_generica.sql:tabela orders |
 | Teto de 36500 dias nos prazos | 1.79.0 | Os dois prazos do arquivo de webhooks com valor exagerado no `.env` não derrubam mais a poda: viram o teto, com aviso no log. | lib/retencao/politica.ts:RETENCAO_TETO_DIAS |
 | Prazo de guarda da IA | 1.77.0 | Sete tabelas da IA entram na limpeza diária com prazo configurável por variável no .env. | lib/env.ts:AI_TELEMETRY_RETENTION_DAYS |

@@ -25,6 +25,8 @@ Hub: "Ver tudo em CRM" → `/app/crm`
 | Funis | CRM → Funis `/app/kanban` | Seus funis de venda — clique em um para abrir o quadro de clientes. | todos |  |
 | Campanhas | CRM → Hub "Ver tudo em CRM" → Campanhas `/app/campaigns` | Fale com uma lista de contatos que você escolhe, no ritmo do número. | todos |  |
 | Contatos | CRM → Contatos `/app/contacts` | As pessoas do outro lado da conversa e seu histórico. | todos |  |
+| Visão consolidada | CRM → Hub "Ver tudo em CRM" → Visão consolidada `/app/consolidado` | Funil, conversas e contatos de todas as suas empresas juntos, com filtro por empresa. | todos | Também em "Ver todas juntas", no seletor de empresa do cabeçalho. Útil para quem participa de mais de uma empresa. |
+| Leads sem vendedor | CRM → Hub "Ver tudo em CRM" → Leads sem vendedor `/app/sdr` | Para quem é SDR: os negócios com você ou sem dono, para escolher o vendedor de cada um. | atendente ou acima | Só aparece com a função SDR ligada (Organização → Equipe → Função SDR). |
 | Empresas | CRM → Hub "Ver tudo em CRM" → Empresas `/app/companies` | Cadastro B2B — razão social, CNPJ e decisores. | todos | Só aparece se o módulo `crm_b2b` estiver ligado. |
 | Pessoas | CRM → Hub "Ver tudo em CRM" → Pessoas `/app/people` | Decisores e contatos ligados a empresas, com vários telefones. | todos | Só aparece se o módulo `crm_b2b` estiver ligado. |
 | Tarefas | CRM → Tarefas `/app/tasks` | O que ficou combinado, com prazo — e o que já venceu sem ninguém fazer. | todos |  |
@@ -153,6 +155,7 @@ Hub: "Configurações" → `/app/settings`
 |---|---|---|---|---|
 | LGPD | Organização → Hub "Configurações" → LGPD `/app/lgpd/requests` | Pedidos de exportação e exclusão de dados feitos por clientes. | administrador |  |
 | API Tokens | Organização → Hub "Configurações" → API Tokens `/app/settings/api-tokens` | Chaves para outro sistema conversar com o seu CRM. | administrador |  |
+| Documentação da API | Organização → Hub "Configurações" → Documentação da API `/app/docs` | As rotas para integrar outro sistema, com teste pelo navegador. | administrador | O menu mostra a quem cria token; a tela abre para qualquer pessoa logada, e o atalho `/docs` vale para todo papel. |
 | Trunk SIP | Organização → Hub "Configurações" → Trunk SIP `/app/settings/voip-trunk` | Credenciais do provedor SIP para chamadas de voz por IA. | administrador |  |
 | Dados externos | Organização → Hub "Configurações" → Dados externos `/app/integracao-dados` | Conecte um banco de dados de outro sistema para o agente consultar em tempo real. | todos | Só aparece se o módulo `banco_externo` estiver ligado. |
 | Ajuda | Organização → rodapé do menu → Ajuda `/app/ajuda` | O caminho para cada tarefa e uma linha dizendo quando procurar cada tela. | todos | Último item do rodapé, fora do scroll. O bloco "Para quem instala e mantém" só aparece para quem instalou o servidor (`is_platform_admin`). |
@@ -172,6 +175,7 @@ administra a organização (a empresa). Títulos medidos no próprio arquivo da 
 | `/admin/tenants/[id]/health` | Status de Saúde (do tenant) |
 | `/admin/users` | Usuários |
 | `/admin/users/[id]` | Detalhe do usuário |
+| `/admin/vinculos` | Vínculos (quais empresas cada conta acessa, e com que papel) |
 | `/admin/usage` | Uso & Custo |
 | `/admin/audit` | Audit Log |
 | `/admin/audit/[entryId]` | Detalhe da entrada de auditoria |
