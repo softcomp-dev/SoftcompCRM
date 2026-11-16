@@ -12258,6 +12258,8 @@ export type Database = {
           created_at: string;
           default_ai_agent_id: string | null;
           fallback_user_id: string | null;
+          forward_ring_seconds: number;
+          forward_to_phone: string | null;
           id: string;
           is_active: boolean;
           label: string | null;
@@ -12272,6 +12274,8 @@ export type Database = {
           created_at?: string;
           default_ai_agent_id?: string | null;
           fallback_user_id?: string | null;
+          forward_ring_seconds?: number;
+          forward_to_phone?: string | null;
           id?: string;
           is_active?: boolean;
           label?: string | null;
@@ -12285,6 +12289,8 @@ export type Database = {
           created_at?: string;
           default_ai_agent_id?: string | null;
           fallback_user_id?: string | null;
+          forward_ring_seconds?: number;
+          forward_to_phone?: string | null;
           id?: string;
           is_active?: boolean;
           label?: string | null;
@@ -16239,8 +16245,11 @@ export type Database = {
         Returns: {
           default_ai_agent_id: string;
           fallback_user_id: string;
+          forward_ring_seconds: number;
+          forward_to_phone: string;
           organization_id: string;
           routing_mode: string;
+          trunk_endpoint: string;
         }[];
       };
       fn_resolver_avisos_de_lembrete_expirados: {

@@ -73445,6 +73445,60 @@ do $reaplicar$ begin
 end $reaplicar$;
 
 
+-- ---- phone_numbers: encaminhar para o time (migration 9255) ----
+-- O número de voz ganha o telefone do time para os modos human e ai_then_human,
+-- e fn_resolve_inbound_number passa a devolvê-lo. O porquê está no cabeçalho da
+-- migration. Fica ANTES da varredura de anon: cria função.
+alter table public.phone_numbers
+  add column if not exists forward_to_phone text;
+alter table public.phone_numbers
+  add column if not exists forward_ring_seconds integer not null default 25;
+
+alter table public.phone_numbers
+  drop constraint if exists phone_numbers_forward_to_phone_check;
+alter table public.phone_numbers
+  add constraint phone_numbers_forward_to_phone_check
+  check (forward_to_phone is null or forward_to_phone ~ '^\+?[0-9]{8,15}$');
+
+alter table public.phone_numbers
+  drop constraint if exists phone_numbers_forward_ring_seconds_check;
+alter table public.phone_numbers
+  add constraint phone_numbers_forward_ring_seconds_check
+  check (forward_ring_seconds between 10 and 60);
+
+comment on column public.phone_numbers.forward_to_phone is
+  'Telefone do time (só dígitos, + opcional) para onde a ligação é encaminhada nos modos human e ai_then_human. Discado pelo mesmo tronco SIP.';
+comment on column public.phone_numbers.forward_ring_seconds is
+  'Quanto tempo o telefone do time toca antes de a ligação virar perdida (10 a 60 s).';
+
+drop function if exists public.fn_resolve_inbound_number(text);
+
+create function public.fn_resolve_inbound_number(p_number text)
+returns table (
+  organization_id uuid,
+  routing_mode text,
+  default_ai_agent_id uuid,
+  fallback_user_id uuid,
+  forward_to_phone text,
+  forward_ring_seconds integer,
+  trunk_endpoint text
+)
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select organization_id, routing_mode, default_ai_agent_id, fallback_user_id,
+         forward_to_phone, forward_ring_seconds, trunk_endpoint
+  from public.phone_numbers
+  where number = p_number and is_active
+  limit 1;
+$$;
+
+revoke execute on function public.fn_resolve_inbound_number(text) from public, anon, authenticated;
+grant execute on function public.fn_resolve_inbound_number(text) to service_role;
+
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
