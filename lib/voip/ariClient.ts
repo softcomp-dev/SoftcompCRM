@@ -18,6 +18,8 @@
 
 import WebSocket from "ws";
 
+import { logger } from "@/lib/logger";
+
 import { discagemPjsip } from "./discagem";
 
 const ARI_URL = process.env.ARI_URL!;
@@ -229,21 +231,66 @@ export interface AriEvent {
 
 export type AriEventHandler = (event: AriEvent) => void | Promise<void>;
 
-export function connectAriEvents(onEvent: AriEventHandler): WebSocket {
-  const wsUrl = `${process.env.ARI_WS_URL}?app=${ARI_APP}&api_key=${ARI_USERNAME}:${ARI_PASSWORD}&subscribeAll=true`;
-  const ws = new WebSocket(wsUrl);
+/** Espera da reconexão: 1 s, dobrando até 30 s; volta a 1 s quando conecta. */
+export function esperaDaReconexao(tentativa: number): number {
+  return Math.min(30_000, 1_000 * 2 ** Math.max(0, tentativa));
+}
 
-  ws.on("message", (raw) => {
-    try {
-      const event = JSON.parse(raw.toString());
-      void onEvent(event);
-    } catch (err) {
-      console.error("[ari] evento inválido:", err);
-    }
-  });
+/**
+ * Assina os eventos da Stasis app e SE RECONECTA quando a conexão cai.
+ *
+ * A conexão cai sempre que o Asterisk reinicia — inclusive na atualização, que
+ * o recria (`recriar_a_telefonia`, update.sh). Antes, o fechamento só era
+ * logado ("reconectar via supervisor do worker"), e não havia supervisor: o
+ * processo seguia vivo, o healthcheck (porta do AudioSocket) seguia verde, e a
+ * app deixava de existir no Asterisk — toda ligação recebida caía em
+ * "Stasis app voice-agent doesn't exist" até alguém reiniciar o worker à mão.
+ * Reconectar re-registra a app (ela existe enquanto houver um WebSocket dela).
+ */
+export function connectAriEvents(onEvent: AriEventHandler): { parar: () => void } {
+  let tentativa = 0;
+  let parado = false;
+  let atual: WebSocket | null = null;
+  let timer: NodeJS.Timeout | null = null;
 
-  ws.on("close", () => console.warn("[ari] websocket fechado — reconectar via supervisor do worker"));
-  ws.on("error", (err) => console.error("[ari] erro de websocket:", err));
+  const conectar = () => {
+    const wsUrl = `${process.env.ARI_WS_URL}?app=${ARI_APP}&api_key=${ARI_USERNAME}:${ARI_PASSWORD}&subscribeAll=true`;
+    const ws = new WebSocket(wsUrl);
+    atual = ws;
 
-  return ws;
+    ws.on("open", () => {
+      if (tentativa > 0) logger.info("[ari] reconectado ao Asterisk", { tentativas: tentativa });
+      tentativa = 0;
+    });
+
+    ws.on("message", (raw) => {
+      try {
+        const event = JSON.parse(raw.toString());
+        void onEvent(event);
+      } catch (err) {
+        logger.error("[ari] evento inválido", { err: err instanceof Error ? err.message : String(err) });
+      }
+    });
+
+    // `error` vem sempre seguido de `close` no `ws`: quem reagenda é só o close.
+    ws.on("error", (err) => logger.warn("[ari] erro de websocket", { err: err.message }));
+
+    ws.on("close", () => {
+      if (parado) return;
+      const espera = esperaDaReconexao(tentativa);
+      tentativa += 1;
+      logger.warn("[ari] conexão com o Asterisk caiu — reconectando", { em_ms: espera, tentativa });
+      // SABOTAGEM: remover este agendamento = o caso "reconecta" de ari-reconecta.test.ts fica vermelho.
+      timer = setTimeout(conectar, espera);
+    });
+  };
+
+  conectar();
+  return {
+    parar: () => {
+      parado = true;
+      if (timer) clearTimeout(timer);
+      atual?.close();
+    },
+  };
 }
