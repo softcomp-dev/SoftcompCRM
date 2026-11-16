@@ -981,7 +981,7 @@
               "acao": "click",
               "alvo": {
                 "role": "button",
-                "nome": "Ações do lead",
+                "nome": "Ações do negócio",
                 "dentro": {
                   "role": "group",
                   "nome": "Bruno Lacerda$",

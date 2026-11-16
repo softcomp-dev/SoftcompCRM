@@ -2189,7 +2189,7 @@
         {
           "id": "p1",
           "titulo": "O que a ficha mostra",
-          "texto": "No alto da ficha ficam o nome, o telefone e as etiquetas do cliente. Logo abaixo há atalhos: \"Marcar compromisso\" abre a Agenda já com este cliente escolhido, \"Tags do contato\" abre o editor de etiquetas, \"Novo Lead\" abre um negócio novo para ele no funil e \"Ver contato\" leva à ficha completa do cliente. A mensagem com borda vermelha na conversa é só um envio que falhou neste exemplo; ela não tem a ver com a ficha.",
+          "texto": "No alto da ficha ficam o nome, o telefone e as etiquetas do cliente. Logo abaixo há atalhos: \"Marcar compromisso\" abre a Agenda já com este cliente escolhido, \"Tags do contato\" abre o editor de etiquetas, \"Novo negócio\" abre um negócio novo para ele no funil e \"Ver contato\" leva à ficha completa do cliente. A mensagem com borda vermelha na conversa é só um envio que falhou neste exemplo; ela não tem a ver com a ficha.",
           "rota": "/app/inbox?filter=all&id=be100000-0000-4000-8000-000000000005",
           "antes": [],
           "destaques": [
@@ -2212,7 +2212,7 @@
             {
               "alvo": {
                 "role": "button",
-                "nome": "Novo Lead"
+                "nome": "Novo negócio"
               },
               "rotulo": "Negócio novo no funil",
               "tipo": "caixa"

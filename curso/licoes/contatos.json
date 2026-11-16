@@ -54,7 +54,7 @@
     {
      "id": "p2",
      "titulo": "O que cada coluna mostra",
-     "texto": "Cada linha mostra o nome, o e-mail, o telefone e as etiquetas do cliente (aqui chamadas de \"Tags\"). \"Última atividade\" diz quando houve o último movimento com ele, como uma mensagem: hoje e ontem aparecem com a hora, os dias mais antigos com a data. A coluna \"Status\" usa selos: \"Ativo\" é o cliente normal e \"Bloqueado\" é quem pediu para não receber mais mensagens.",
+     "texto": "Cada linha mostra o nome, o e-mail, o telefone e as etiquetas do cliente (aqui chamadas de \"Tags\"). \"Última atividade\" diz quando houve o último movimento com ele, como uma mensagem: hoje e ontem aparecem com a hora, os dias mais antigos com a data. A coluna \"Status\" usa selos. Um deles é a classificação do cliente pela última compra: \"Ativo\", \"Pré-inativo\", \"Inativo\" ou \"Sem compra\" (a lição \"Classificação do cliente\" explica cada um). \"Bloqueado\" é quem pediu para não receber mais mensagens.",
      "dica": "Outros selos que podem aparecer: \"Anonimizado\" (dados apagados a pedido do cliente, pela LGPD), \"Cliente\" (quando a empresa usa a regra de clientes pela agenda) e \"Pessoal\" (contato da vida pessoal, que só aparece com o filtro \"Pessoais\" ligado).",
      "destaques": [
       {
@@ -73,13 +73,12 @@
       },
       {
        "alvo": {
-        "texto": "Ativo",
-        "exato": true,
+        "testid": "classificacao-ativo",
         "dentro": {
          "css": "tr:has(a[href='/app/contacts/be200000-0000-4000-8000-000000000001'])"
         }
        },
-       "rotulo": "Cliente normal",
+       "rotulo": "Comprou há pouco",
        "tipo": "caixa"
       },
       {
