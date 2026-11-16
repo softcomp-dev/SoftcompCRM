@@ -46,6 +46,17 @@ const REALTIME_MODEL_FALLBACK = process.env.OPENAI_REALTIME_MODEL?.trim() || "gp
 // Quanto esperar antes de responder (ver ./espera-da-vez.ts). Padrão "low".
 const ESPERA_DA_VEZ = esperaDaVez(process.env.VOICE_VAD_EAGERNESS);
 
+/**
+ * Onde abrir a sessão de voz. Em produção, sempre a OpenAI — a variável
+ * `OPENAI_REALTIME_URL` existe para o teste de ligação do CI
+ * (`.github/workflows/telefonia.yml`) apontar para uma sessão FALSA e provar a
+ * ligação inteira sem gastar minuto pago nem depender de chave. Vazia conta
+ * como ausente, como `OPENAI_REALTIME_MODEL` acima.
+ */
+export function enderecoDaSessaoDeVoz(): string {
+  return process.env.OPENAI_REALTIME_URL?.trim() || "wss://api.openai.com/v1/realtime";
+}
+
 const FRAME_TYPE = { HANGUP: 0x00, UUID: 0x01, DTMF: 0x03, AUDIO: 0x10 } as const;
 
 /**
@@ -226,7 +237,7 @@ export class AudioSocketCallBridge {
   ) {
     this.realtimeModel = ctx.voiceModel ?? REALTIME_MODEL_FALLBACK;
     const apiKey = ctx.apiKey || process.env.OPENAI_API_KEY!;
-    const realtimeUrl = `wss://api.openai.com/v1/realtime?model=${this.realtimeModel}`;
+    const realtimeUrl = `${enderecoDaSessaoDeVoz()}?model=${this.realtimeModel}`;
     this.realtimeWs = new WebSocket(realtimeUrl, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });

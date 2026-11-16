@@ -1,0 +1,86 @@
+name: telefonia
+
+# TESTE DE LIGAÇÃO: uma ligação SIP de verdade atravessando o produto — o
+# Asterisk da imagem pinada no compose, o extensions.conf e o sorcery.conf do
+# repositório, o worker de voz do repositório e um Supabase local com o
+# baseline. A "operadora" é o sipp; a OpenAI é uma sessão de voz falsa
+# (docker/teste-de-ligacao/sessao-de-voz-falsa.mjs), então nenhum minuto é pago
+# e nenhuma chave é necessária. O roteiro e o que ele prova estão no cabeçalho
+# de docker/teste-de-ligacao/rodar.sh.
+#
+# INFORMATIVO: não é status check obrigatório. Roda só quando o PR alcança a
+# telefonia, e sob demanda.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "asterisk/**"
+      - "workers/voice-agent/**"
+      - "lib/voip/**"
+      - "lib/voice/**"
+      - "lib/ai/agents.ts"
+      - "lib/ai/tarifa-de-voz.ts"
+      - "docker/teste-de-ligacao/**"
+      - "docker-compose.prod.yml"
+      - "supabase/baseline.sql"
+      - ".github/workflows/telefonia.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ligacao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 5
+
+      - name: Instalar o sipp (a operadora do teste)
+        run: sudo apt-get update -q && sudo apt-get install -y -q sip-tester postgresql-client
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.117.0
+
+      - name: Subir Supabase local (sem a cadeia de migrations)
+        run: |
+          set -euo pipefail
+          mv supabase/migrations /tmp/migrations-off
+          mkdir -p supabase/migrations
+          for tentativa in 1 2 3; do
+            supabase start -x studio,postgres-meta,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor && exit 0
+            supabase stop --no-backup || true
+            sleep $((tentativa * 20))
+          done
+          exit 1
+
+      - name: Aplicar o baseline.sql (o mesmo que o install.sh do kit aplica)
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q <<'SQL'
+          create schema if not exists extensions;
+          create extension if not exists "uuid-ossp" with schema extensions;
+          create extension if not exists pgcrypto with schema extensions;
+          create extension if not exists vector with schema public;
+          create extension if not exists citext with schema public;
+          create extension if not exists pg_trgm with schema public;
+          SQL
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/baseline.sql
+
+      - name: Exportar credenciais do stack local
+        run: |
+          supabase status -o env > /tmp/sb.env
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(grep '^API_URL=' /tmp/sb.env | cut -d'"' -f2)"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' /tmp/sb.env | cut -d'"' -f2)"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(grep '^SERVICE_ROLE_KEY=' /tmp/sb.env | cut -d'"' -f2)"
+            echo "SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+          } >> "$GITHUB_ENV"
+
+      - name: Ligar
+        run: bash docker/teste-de-ligacao/rodar.sh

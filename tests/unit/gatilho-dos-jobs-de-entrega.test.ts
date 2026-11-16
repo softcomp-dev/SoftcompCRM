@@ -279,6 +279,14 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
       "faz o servidor parar de receber versão nova, sem erro em lugar nenhum. A condição de " +
       "repositório existe para o workflow nunca cortar versão no produto original.",
   },
+  "telefonia.yml::ligacao": {
+    condicao: null,
+    efeito:
+      "Este job faz uma ligação SIP de verdade atravessar o produto (Asterisk, worker de voz e banco, com " +
+      "uma sessão de voz falsa). É INFORMATIVO — não é check obrigatório. Se não rodar, a telefonia volta a " +
+      "ser provada só por teste com ARI e banco simulados, e um defeito de dialplan ou de porta só aparece " +
+      "na VPS de quem liga.",
+  },
   "relogio.yml::tick": {
     condicao: "vars.RELOGIO_LIGADO == '1' || github.event_name == 'workflow_dispatch'",
     efeito:
