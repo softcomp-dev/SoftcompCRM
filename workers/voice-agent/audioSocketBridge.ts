@@ -59,6 +59,22 @@ const FRAME_TYPE = { HANGUP: 0x00, UUID: 0x01, DTMF: 0x03, AUDIO: 0x10 } as cons
 const ENCERRAR_CHAMADA_TOOL_NAME = "encerrar_chamada";
 const CONSULTAR_CONHECIMENTO_TOOL_NAME = "consultar_conhecimento";
 
+/**
+ * Modo "IA, depois time humano" (`phone_numbers.routing_mode = ai_then_human`):
+ * a IA passa a ligação para o telefone do time quando a pessoa pede ou o
+ * assunto exige. Só é oferecida quando o número tem telefone do time — sem
+ * ele não há para onde passar, e prometer a transferência seria mentir.
+ */
+const PASSAR_AO_TIME_TOOL_NAME = "passar_para_o_time";
+
+const INSTRUCAO_PASSAR_AO_TIME = `
+
+Quando o cliente pedir para falar com uma pessoa, ou o assunto exigir alguém
+do time (negociação, reclamação, algo que você não consegue resolver), diga
+numa frase curta que vai transferir a ligação e, na mesma resposta, chame a
+function "${PASSAR_AO_TIME_TOOL_NAME}". Nesse caso não chame
+"${ENCERRAR_CHAMADA_TOOL_NAME}".`;
+
 const INSTRUCAO_ENCERRAR_CHAMADA = `
 
 Quando a conversa chegar a uma conclusão natural (o cliente se despediu, o
@@ -125,6 +141,13 @@ export interface AudioSocketCallContext {
   searchKnowledge: (pergunta: string) => Promise<{
     trechos: Array<{ content: string; source_name?: string | null }>;
   }>;
+  /**
+   * Presente só no modo "IA, depois time humano" com telefone do time. Roda
+   * ANTES de o socket fechar: é ela que marca o canal para o dialplan levá-lo
+   * de volta à Stasis (`TRANSFERIR_PARA_TIME`, ver asterisk/extensions.conf)
+   * em vez de desligar.
+   */
+  onPassarAoTime?: () => Promise<void>;
 }
 
 /** Monta um frame AudioSocket (tipo + tamanho BE + payload). */
@@ -146,6 +169,13 @@ export class AudioSocketCallBridge {
   /** setado quando o modelo chama a function de encerrar — a fila de
    *  áudio pendente ainda drena normalmente antes do hangup de fato. */
   private endCallRequested = false;
+  /** setado quando o modelo chama a function de passar ao time. */
+  private passarAoTimeRequested = false;
+
+  /** A IA pediu para passar a ligação ao time (o fim da sessão não é o fim da ligação). */
+  pediuOTime(): boolean {
+    return this.passarAoTimeRequested;
+  }
   /** call_id -> nome da function, preenchido em response.output_item.added
    *  (onde o nome chega) e consumido em response.function_call_arguments.done
    *  (onde os argumentos chegam completos, mas sem o nome de novo). */
@@ -270,6 +300,27 @@ export class AudioSocketCallBridge {
     if (this.closed) return;
     this.closed = true;
     logger.info("[audiosocket] encerrando", { call_id: this.ctx.callId, motivo: reason });
+    // Passar ao time: marca o canal ANTES de fechar o socket — fechado o
+    // AudioSocket, o dialplan segue na hora, e a variável precisa já estar lá.
+    // Falha ao marcar segue o fim normal (o canal desliga): é o mesmo desfecho
+    // de antes desta função existir, nunca uma ligação pendurada.
+    if (this.passarAoTimeRequested && this.ctx.onPassarAoTime) {
+      const passar = this.ctx.onPassarAoTime;
+      void (async () => {
+        try {
+          await passar();
+        } catch (err) {
+          this.passarAoTimeRequested = false;
+          logger.error("[audiosocket] falha ao marcar o canal para passar ao time", {
+            call_id: this.ctx.callId,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        }
+        this.ctx.onCallEnded();
+        this.close();
+      })();
+      return;
+    }
     this.ctx.onCallEnded();
     this.close();
   }
@@ -292,6 +343,7 @@ export class AudioSocketCallBridge {
             instructions:
               this.ctx.agentInstructions +
               INSTRUCAO_ENCERRAR_CHAMADA +
+              (this.ctx.onPassarAoTime ? INSTRUCAO_PASSAR_AO_TIME : "") +
               (this.ctx.falaPrimeiro ? INSTRUCAO_FALA_PRIMEIRO : ""),
             audio: {
               input: {
@@ -328,6 +380,17 @@ export class AudioSocketCallBridge {
                   "Encerra a ligação. Use depois de dizer a despedida final ao cliente, quando a conversa chegou a uma conclusão natural.",
                 parameters: { type: "object", properties: {}, required: [] },
               },
+              ...(this.ctx.onPassarAoTime
+                ? [
+                    {
+                      type: "function" as const,
+                      name: PASSAR_AO_TIME_TOOL_NAME,
+                      description:
+                        "Transfere a ligação para o telefone do time. Use quando o cliente pedir uma pessoa ou o assunto exigir alguém do time, depois de avisar que vai transferir.",
+                      parameters: { type: "object", properties: {}, required: [] },
+                    },
+                  ]
+                : []),
               ...(knowledgeSourceIds.length > 0
                 ? [
                     {
@@ -442,6 +505,16 @@ export class AudioSocketCallBridge {
           );
           if (pediuEncerrar) {
             logger.info("[realtime] agente pediu pra encerrar a chamada", { call_id: this.ctx.callId });
+            this.endCallRequested = true;
+          }
+          // SABOTAGEM: remover este bloco = o caso "passa ao time" de fio-passar-ao-time fica vermelho.
+          const pediuOTime =
+            !!this.ctx.onPassarAoTime &&
+            output.some((item) => item.type === "function_call" && item.name === PASSAR_AO_TIME_TOOL_NAME);
+          if (pediuOTime) {
+            logger.info("[realtime] agente pediu pra passar a ligação ao time", { call_id: this.ctx.callId });
+            this.passarAoTimeRequested = true;
+            // Drena o "vou transferir" e só então fecha — mesmo caminho do encerrar.
             this.endCallRequested = true;
           }
           break;

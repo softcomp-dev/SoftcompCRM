@@ -274,12 +274,43 @@ export async function handleStasisStart(event: AriEvent) {
     return;
   }
 
+  // MODO "IA, DEPOIS TIME HUMANO": a IA atende, e guarda-se para onde passar.
+  // Sem telefone do time a ligação segue só com a IA — a ferramenta de passar
+  // nem é oferecida ao modelo (prometer transferência sem destino seria mentir).
+  if (routing.routing_mode === "ai_then_human" && routing.forward_to_phone) {
+    passagensPossiveis.set(callRow.id, {
+      canalNativo: channel.id,
+      destino: routing.forward_to_phone,
+      tronco: await troncoDaOrganizacao(routing.organization_id, routing.trunk_endpoint),
+      toqueSegundos: routing.forward_ring_seconds ?? 25,
+      numeroDeQuemLigou: callerNumber,
+      atendidaPelaIaEm: null,
+    });
+  }
+
   // audioSocketUuid é o asterisk_channel_id gravado acima — vai como UUID do
   // AudioSocket (mesmo padrão da saída), pra handleAudioSocketConnection
   // achar a linha certa assim que a conexão TCP chegar.
   await setChannelVariable(channel.id, "AUDIOSOCKET_UUID", audioSocketUuid);
   await continueDialplan(channel.id, "from-trunk-audiosocket", "s", 1);
 }
+
+/**
+ * Ligações em modo "IA, depois time humano" que a IA pode passar adiante.
+ * Chave: id da linha em `voice_calls`. Em memória de propósito: reiniciado o
+ * worker, a sessão de voz morre junto e não há o que passar.
+ */
+interface PassagemPossivel {
+  canalNativo: string;
+  destino: string;
+  tronco: string;
+  toqueSegundos: number;
+  numeroDeQuemLigou: string;
+  /** Preenchido quando a IA pede a passagem: o answered_at da IA. */
+  atendidaPelaIaEm: string | null;
+  ligacao?: Omit<LigacaoEncerrada, "answered_at">;
+}
+const passagensPossiveis = new Map<string, PassagemPossivel>();
 
 type RoteamentoInbound = {
   organization_id: string;
@@ -405,25 +436,41 @@ async function finalizeAudioSocketCall(uuid: string) {
   // calcula na mão a partir do answered_at que a gente mesmo gravou.
   const durationMs = endedAt.getTime() - new Date(call.answeredAt).getTime();
 
-  await supabaseAdmin
-    .from("voice_calls")
-    .update({
-      status: "ended",
-      end_reason: "user_ended",
-      ended_at: endedAt.toISOString(),
-      duration_ms: durationMs,
-      transcript: call.transcript,
-    })
-    .eq("id", call.callRowId);
+  const passagem = passagensPossiveis.get(call.callRowId);
+  // SABOTAGEM: trocar a condição por `false` = o caso "passa ao time" de fio-passar-ao-time
+  // fica vermelho (a linha encerra e o time nunca é chamado).
+  if (passagem && call.bridge.pediuOTime()) {
+    // A IA passou ao time: a sessão de IA acabou, a LIGAÇÃO não. A linha fica
+    // `connected` e o canal volta à Stasis pelo dialplan (args "transferir").
+    passagem.atendidaPelaIaEm = call.answeredAt;
+    passagem.ligacao = call.ligacao;
+    await supabaseAdmin
+      .from("voice_calls")
+      .update({ handled_by: "ai_then_human", transcript: call.transcript })
+      .eq("id", call.callRowId)
+      .eq("organization_id", call.organizationId);
+  } else {
+    passagensPossiveis.delete(call.callRowId);
+    await supabaseAdmin
+      .from("voice_calls")
+      .update({
+        status: "ended",
+        end_reason: "user_ended",
+        ended_at: endedAt.toISOString(),
+        duration_ms: durationMs,
+        transcript: call.transcript,
+      })
+      .eq("id", call.callRowId);
 
-  // Aviso, `voice_call.ended` e linha do tempo — o mesmo rastro da ligação do
-  // WhatsApp. Nunca lança.
-  await registrarFimDaLigacaoSip({
-    organizationId: call.organizationId,
-    ligacao: { ...call.ligacao, answered_at: call.answeredAt },
-    endReason: "user_ended",
-    agentId: call.agentId,
-  });
+    // Aviso, `voice_call.ended` e linha do tempo — o mesmo rastro da ligação do
+    // WhatsApp. Nunca lança.
+    await registrarFimDaLigacaoSip({
+      organizationId: call.organizationId,
+      ligacao: { ...call.ligacao, answered_at: call.answeredAt },
+      endReason: "user_ended",
+      agentId: call.agentId,
+    });
+  }
 
   // ─── O uso da sessão vai para `llm_calls` ───────────────────────────────
   //
@@ -562,6 +609,15 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     onCallEnded: () => finalizeAudioSocketCall(uuid),
     // Recebida: quem atende fala primeiro. Feita por nós: quem atende diz "alô".
     falaPrimeiro: callRow.direction === "inbound",
+    ...(passagensPossiveis.has(callRow.id)
+      ? {
+          onPassarAoTime: async () => {
+            const p = passagensPossiveis.get(callRow.id);
+            if (!p) throw new Error("passagem esquecida");
+            await setChannelVariable(p.canalNativo, "TRANSFERIR_PARA_TIME", "1");
+          },
+        }
+      : {}),
     knowledgeSourceIdsPromise,
     searchKnowledge: async (pergunta: string) => {
       const knowledgeSourceIds = await knowledgeSourceIdsPromise;
@@ -691,6 +747,47 @@ export async function handleChannelDestroyed(event: AriEvent) {
 }
 
 /**
+ * O canal de uma ligação em modo "IA, depois time humano" voltou à Stasis
+ * porque a IA pediu a passagem (dialplan `[from-trunk-audiosocket]`, prioridade
+ * `time`). Sem passagem registrada (worker reiniciado), desliga — o mesmo
+ * desfecho de antes do dialplan saber passar.
+ */
+async function passarAoTime(canalNativo: string) {
+  const entrada = [...passagensPossiveis.entries()].find(([, p]) => p.canalNativo === canalNativo);
+  if (!entrada || !entrada[1].ligacao || !entrada[1].atendidaPelaIaEm) {
+    logger.warn("[voice-agent] canal voltou para passar ao time sem passagem registrada — desligando", {
+      canal: canalNativo,
+    });
+    await hangupChannel(canalNativo, "normal");
+    return;
+  }
+  const [callId, p] = entrada;
+  passagensPossiveis.delete(callId);
+  const { data: linha } = await supabaseAdmin
+    .from("voice_calls")
+    .select("organization_id")
+    .eq("id", callId)
+    .maybeSingle();
+  const organizationId = (linha as { organization_id?: string } | null)?.organization_id;
+  if (!organizationId) {
+    await hangupChannel(canalNativo, "normal");
+    return;
+  }
+  await encaminharAoTime({
+    canalDeQuemLigou: canalNativo,
+    callId,
+    organizationId,
+    destino: p.destino,
+    tronco: p.tronco,
+    toqueSegundos: p.toqueSegundos,
+    numeroDeQuemLigou: p.numeroDeQuemLigou,
+    ligacao: p.ligacao!,
+    handledBy: "ai_then_human",
+    atendidaPelaIaEm: p.atendidaPelaIaEm,
+  });
+}
+
+/**
  * Quem cuida de cada evento ARI. Exportada para o teste do fio: a perna do
  * time entra na app com `args = ["time", …]` e não pode cair no caminho da
  * ligação recebida; o canal que cai pode ser de um encaminhamento.
@@ -699,6 +796,10 @@ export async function despacharEventoAri(event: AriEvent) {
   if (event.type === "StasisStart") {
     if (event.args?.[0] === "time") {
       if (event.channel?.id) await quandoOTimeAtende(event.channel.id);
+      return;
+    }
+    if (event.args?.[0] === "transferir") {
+      if (event.channel?.id) await passarAoTime(event.channel.id);
       return;
     }
     await handleStasisStart(event);
