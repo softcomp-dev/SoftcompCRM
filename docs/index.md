@@ -57,6 +57,7 @@ de menor precedência e registre.
 | [`features/feature-a-leadsubmitted-ctwa.md`](features/feature-a-leadsubmitted-ctwa.md) | Feature A portada: LeadSubmitted por clique CTWA recebido, evidência do fork e validações pendentes do upstream |
 | [`features/sdr.md`](features/sdr.md) | **Função SDR** — interruptor por organização, marca SDR por pessoa em Equipe, os dois fluxos de distribuição de leads novos, "Passar para vendedor" e a tela Leads sem vendedor |
 | [`features/multiempresa.md`](features/multiempresa.md) | **Multiempresa** — Vínculos no painel do dono (quais empresas cada conta acessa), Visão consolidada (funil, conversas e contatos de várias empresas) e "Transferir para outra empresa" no card |
+| [`features/desfecho-e-documento-do-negocio.md`](features/desfecho-e-documento-do-negocio.md) | **Desfecho e documento do negócio** — ganho parcial (valor fechado menor que o previsto, conta como venda), cor do card pelo desfecho e número da cotação ou do pedido |
 | [`features/classificacao-de-clientes.md`](features/classificacao-de-clientes.md) | **Classificação de clientes** (ativo, pré-inativo, inativo, sem compra) pela última venda ganha — selo, filtro, prazos da organização, público de campanha e aviso diário na Central |
 | [`presentation/pitch-deck.md`](presentation/pitch-deck.md) | Pitch |
 
