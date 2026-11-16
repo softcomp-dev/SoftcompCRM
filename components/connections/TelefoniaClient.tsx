@@ -62,6 +62,18 @@ const ROUTING_LABELS: Record<RoutingMode, string> = {
 };
 
 /**
+ * O que cada modo faz, dito na tela. "Time humano" encaminha a ligação para um
+ * telefone do time pelo tronco SIP; o telefone no navegador ainda não existe
+ * (docs/specs/36-spec-telefonia-sip-atendimento-humano.md).
+ */
+const ROUTING_HINTS: Record<RoutingMode, string> = {
+  ai: "O agente de voz atende todas as ligações.",
+  human: "A ligação é encaminhada para o telefone do time. Se ninguém atender, vira aviso na Central.",
+  ai_then_human:
+    "O agente de voz atende e passa para o telefone do time quando a pessoa pede ou o assunto exige.",
+};
+
+/**
  * Cadastro de números de voz (DID) da organização — a contraparte de
  * ConnectionsClient (QR) e CanalOficialClient (Meta), mesmo padrão: uma lista
  * do que já existe + um diálogo pra adicionar. O troncal SIP (host/usuário/
@@ -83,7 +95,9 @@ export function TelefoniaClient() {
     label: "",
     routing_mode: "ai" as RoutingMode,
     default_ai_agent_id: SEM_AGENTE,
+    forward_to_phone: "",
   });
+  const precisaDeDestino = form.routing_mode !== "ai";
 
   async function handleCreate() {
     const number = form.number.trim();
@@ -93,10 +107,11 @@ export function TelefoniaClient() {
       label: form.label.trim() === "" ? null : form.label.trim(),
       routing_mode: form.routing_mode,
       default_ai_agent_id: form.default_ai_agent_id === SEM_AGENTE ? null : form.default_ai_agent_id,
+      forward_to_phone: form.forward_to_phone.trim() === "" ? null : form.forward_to_phone.trim(),
       is_active: true,
     });
     setDialogOpen(false);
-    setForm({ number: "", label: "", routing_mode: "ai", default_ai_agent_id: SEM_AGENTE });
+    setForm({ number: "", label: "", routing_mode: "ai", default_ai_agent_id: SEM_AGENTE, forward_to_phone: "" });
   }
 
   return (
@@ -177,7 +192,22 @@ export function TelefoniaClient() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">{t(ROUTING_HINTS[form.routing_mode])}</p>
             </div>
+            {precisaDeDestino && (
+              <div className="space-y-1">
+                <Label htmlFor="telefone-do-time">{t("Telefone do time")}</Label>
+                <Input
+                  id="telefone-do-time"
+                  placeholder={telefoneExemplo}
+                  value={form.forward_to_phone}
+                  onChange={(e) => setForm((f) => ({ ...f, forward_to_phone: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("Celular ou fixo de quem atende. A ligação é discada pelo mesmo tronco SIP.")}
+                </p>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>{t("Agente de voz")}</Label>
               <Select
@@ -208,7 +238,14 @@ export function TelefoniaClient() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               {t("Cancelar")}
             </Button>
-            <Button onClick={handleCreate} disabled={createMut.isPending || form.number.trim() === ""}>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                createMut.isPending ||
+                form.number.trim() === "" ||
+                (precisaDeDestino && form.forward_to_phone.trim() === "")
+              }
+            >
               {createMut.isPending ? t("Salvando…") : t("Cadastrar")}
             </Button>
           </DialogFooter>
@@ -229,10 +266,37 @@ function PhoneNumberCard({
     label?: string | null;
     routing_mode?: RoutingMode;
     default_ai_agent_id?: string | null;
+    forward_to_phone?: string | null;
     is_active?: boolean;
   }) => void;
 }) {
   const t = useT();
+  // Modo escolhido que ainda espera o telefone do time: o PATCH só sai quando
+  // os dois estão prontos (a rota recusa modo humano sem destino).
+  const [modoPendente, setModoPendente] = useState<RoutingMode | null>(null);
+  const [destino, setDestino] = useState(row.forward_to_phone ?? "");
+  const modoNaTela = modoPendente ?? row.routing_mode;
+  const pedeDestino = modoNaTela !== "ai";
+
+  function escolherModo(v: RoutingMode) {
+    if (v !== "ai" && !(row.forward_to_phone ?? "").trim()) {
+      setModoPendente(v);
+      return;
+    }
+    setModoPendente(null);
+    onUpdate({ routing_mode: v });
+  }
+
+  function salvarDestino() {
+    const valor = destino.trim();
+    if (modoPendente) {
+      if (valor === "") return;
+      onUpdate({ routing_mode: modoPendente, forward_to_phone: valor });
+      setModoPendente(null);
+      return;
+    }
+    if (valor !== (row.forward_to_phone ?? "") && valor !== "") onUpdate({ forward_to_phone: valor });
+  }
 
   return (
     <Card className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
@@ -248,10 +312,7 @@ function PhoneNumberCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={row.routing_mode}
-          onValueChange={(v) => onUpdate({ routing_mode: v as RoutingMode })}
-        >
+        <Select value={modoNaTela} onValueChange={(v) => escolherModo(v as RoutingMode)}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -280,6 +341,24 @@ function PhoneNumberCard({
             ))}
           </SelectContent>
         </Select>
+
+        {pedeDestino && (
+          <div className="flex items-center gap-2">
+            <Input
+              aria-label={t("Telefone do time")}
+              placeholder={t("Telefone do time")}
+              className="w-44"
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              onBlur={modoPendente ? undefined : salvarDestino}
+            />
+            {modoPendente && (
+              <Button size="sm" onClick={salvarDestino} disabled={destino.trim() === ""}>
+                {t("Salvar")}
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <Switch

@@ -26,10 +26,10 @@ export const dynamic = "force-dynamic";
 // invalidateQueries de qualquer forma, então o `agent` populado chega no
 // próximo GET, não precisa vir na resposta da mutação.
 const COLUMNS =
-  "id, number, label, routing_mode, default_ai_agent_id, is_active, created_at, " +
+  "id, number, label, routing_mode, default_ai_agent_id, forward_to_phone, forward_ring_seconds, is_active, created_at, " +
   "agent:ai_agents(id, name)";
 const MUTATION_COLUMNS =
-  "id, number, label, routing_mode, default_ai_agent_id, is_active, created_at";
+  "id, number, label, routing_mode, default_ai_agent_id, forward_to_phone, forward_ring_seconds, is_active, created_at";
 
 export async function GET(): Promise<Response> {
   const requestId = randomUUID();
@@ -90,6 +90,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       trunk_endpoint: trunkEndpoint,
       routing_mode: input.routing_mode,
       default_ai_agent_id: input.default_ai_agent_id ?? null,
+      forward_to_phone: input.forward_to_phone ?? null,
+      ...(input.forward_ring_seconds !== undefined ? { forward_ring_seconds: input.forward_ring_seconds } : {}),
       is_active: input.is_active,
     })
     .select(MUTATION_COLUMNS)

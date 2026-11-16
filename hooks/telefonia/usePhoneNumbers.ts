@@ -10,6 +10,9 @@ export interface PhoneNumberRow {
   label: string | null;
   routing_mode: RoutingMode;
   default_ai_agent_id: string | null;
+  /** Telefone do time para os modos `human` e `ai_then_human` (migration 9255). */
+  forward_to_phone: string | null;
+  forward_ring_seconds: number;
   is_active: boolean;
   created_at: string;
   agent: { id: string; name: string } | null;
@@ -34,6 +37,7 @@ export interface CreatePhoneNumberInput {
   label?: string | null;
   routing_mode: RoutingMode;
   default_ai_agent_id?: string | null;
+  forward_to_phone?: string | null;
   is_active: boolean;
 }
 
@@ -52,6 +56,7 @@ export interface UpdatePhoneNumberInput {
   label?: string | null;
   routing_mode?: RoutingMode;
   default_ai_agent_id?: string | null;
+  forward_to_phone?: string | null;
   is_active?: boolean;
 }
 

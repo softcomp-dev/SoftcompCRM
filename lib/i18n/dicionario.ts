@@ -14893,6 +14893,11 @@ export const DICIONARIO: Traducoes = {
   },
   "Novo número": { es: "Nuevo número" },
   "Nenhum número cadastrado ainda.": { es: "Aún no hay números registrados." },
+  "O agente de voz atende todas as ligações.": { es: "El agente de voz atiende todas las llamadas." },
+  "A ligação é encaminhada para o telefone do time. Se ninguém atender, vira aviso na Central.": { es: "La llamada se desvía al teléfono del equipo. Si nadie contesta, se convierte en un aviso en la Central." },
+  "O agente de voz atende e passa para o telefone do time quando a pessoa pede ou o assunto exige.": { es: "El agente de voz atiende y transfiere al teléfono del equipo cuando la persona lo pide o el asunto lo requiere." },
+  "Telefone do time": { es: "Teléfono del equipo" },
+  "Celular ou fixo de quem atende. A ligação é discada pelo mesmo tronco SIP.": { es: "Celular o fijo de quien atiende. La llamada se marca por el mismo troncal SIP." },
   "Cadastre o número (DID) que vai receber ligações. O troncal de voz já está configurado pela plataforma.": {
     es: "Registra el número (DID) que recibirá las llamadas. La plataforma ya configuró el troncal de voz.",
   },

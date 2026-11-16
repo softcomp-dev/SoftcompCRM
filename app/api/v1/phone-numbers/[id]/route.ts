@@ -14,7 +14,12 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { ApiError } from "@/lib/api/types";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
-import { updatePhoneNumberSchema } from "@/lib/schemas/phone-numbers";
+import {
+  MENSAGEM_SEM_DESTINO_HUMANO,
+  faltaDestinoHumano,
+  updatePhoneNumberSchema,
+  type RoutingMode,
+} from "@/lib/schemas/phone-numbers";
 import { validateRequest } from "@/lib/schemas/_validate";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,7 +28,7 @@ export const dynamic = "force-dynamic";
 // Ver nota em ../route.ts: o embed de agent não infere bem tipo em
 // update().select() -- a resposta do PATCH devolve só colunas próprias.
 const MUTATION_COLUMNS =
-  "id, number, label, routing_mode, default_ai_agent_id, is_active, created_at";
+  "id, number, label, routing_mode, default_ai_agent_id, forward_to_phone, forward_ring_seconds, is_active, created_at";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -60,6 +65,29 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   }
 
   const supabase = await createClient();
+
+  // Modo e telefone podem chegar em PATCHes separados: a regra vale para o
+  // estado que fica, não só para o que veio no corpo.
+  if (input.routing_mode !== undefined || input.forward_to_phone !== undefined) {
+    const { data: atual, error: leituraErr } = await supabase
+      .from("phone_numbers")
+      .select("routing_mode, forward_to_phone")
+      .eq("id", id)
+      .eq("organization_id", activeOrg.orgId)
+      .maybeSingle();
+    if (leituraErr) return fail("internal_error", leituraErr.message, 500, { requestId });
+    if (!atual) return fail("not_found", "Número não encontrado.", 404, { requestId });
+    const modo = (input.routing_mode ?? atual.routing_mode) as RoutingMode;
+    const destino = input.forward_to_phone !== undefined ? input.forward_to_phone : atual.forward_to_phone;
+    // SABOTAGEM: remover este bloco = o caso "PATCH sem destino" de route.test.ts fica vermelho.
+    if (faltaDestinoHumano(modo, destino)) {
+      return fail("validation_failed", MENSAGEM_SEM_DESTINO_HUMANO, 422, {
+        requestId,
+        details: { fieldErrors: { forward_to_phone: [MENSAGEM_SEM_DESTINO_HUMANO] } },
+      });
+    }
+  }
+
   const { data: row, error } = await supabase
     .from("phone_numbers")
     .update(input)
