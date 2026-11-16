@@ -8,6 +8,7 @@ import { rotuloDaRecorrencia } from "@/lib/leads/valor-recorrente";
 import type { Lead } from "@/lib/types/leads";
 import type { Stage } from "@/lib/kanban/types";
 import { resolveCardState, stageAgeLabel, type CardInput } from "@/lib/kanban/card-state";
+import { CORES_DO_DESFECHO, desfechoDoCard, rotuloDoDesfecho } from "@/lib/kanban/desfecho-do-card";
 import { KanbanCardActions } from "./KanbanCardActions";
 import { NextActionSlot } from "./NextActionSlot";
 import { ReactivationSlot } from "./ReactivationSlot";
@@ -161,6 +162,10 @@ export function KanbanCard({
     onOpen?.(card.id);
   };
   const handleClick = (e: MouseEvent<HTMLDivElement>) => decidirClique(e);
+  // Negócio fechado tem a cor do DESFECHO (ganho, perdido, parcial), que
+  // substitui a borda de estado — ver lib/kanban/desfecho-do-card.ts.
+  const desfecho = desfechoDoCard(lead);
+  const corDoDesfecho = desfecho ? CORES_DO_DESFECHO[desfecho] : null;
 
   return (
     <Draggable draggableId={card.id} index={index} isDragDisabled={somenteLeitura}>
@@ -174,7 +179,12 @@ export function KanbanCard({
           // teclado do dnd (tabIndex e handlers continuam vindo do spread) sem
           // aninhar dois controles — nada de aria-hidden nem de suprimir regra.
           role="group"
-          aria-label={`${t("Negócio")}: ${card.title}`}
+          aria-label={
+            desfecho
+              ? `${t("Negócio")}: ${card.title} (${rotuloDoDesfecho(desfecho, t)})`
+              : `${t("Negócio")}: ${card.title}`
+          }
+          data-desfecho={desfecho ?? undefined}
           onClick={handleClick}
           // Tags saem do card (Lei A): ficam a um hover, sem ocupar altura.
           title={card.tags.length > 0 ? `Tags: ${card.tags.join(", ")}` : undefined}
@@ -204,14 +214,27 @@ export function KanbanCard({
               className="card-pulse pointer-events-none absolute inset-0"
             />
           )}
-          {/* Borda de estado — 2px, a única cor do card. */}
+          {/* Fundo leve do desfecho, por cima do bg-surface: o card segue opaco. */}
+          {corDoDesfecho && (
+            <span
+              aria-hidden
+              data-fundo-do-desfecho
+              className={cn("pointer-events-none absolute inset-0", corDoDesfecho.fundo)}
+            />
+          )}
+          {/* Borda de estado — 2px, a única cor do card. Fechado, é a do desfecho. */}
           <span
             aria-hidden
+            data-faixa-de-estado
             className={cn(
               "absolute inset-y-0 left-0 w-0.5",
-              state.border === "accent" && "bg-accent",
-              state.border === "warning" && "bg-warning",
-              state.border === "neutral" && "bg-transparent",
+              corDoDesfecho
+                ? corDoDesfecho.faixa
+                : [
+                    state.border === "accent" && "bg-accent",
+                    state.border === "warning" && "bg-warning",
+                    state.border === "neutral" && "bg-transparent",
+                  ],
             )}
           />
 

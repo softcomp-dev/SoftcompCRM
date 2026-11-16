@@ -32,6 +32,7 @@ import { useAssignableAgents } from "@/hooks/kanban/useAssignableAgents";
 import { usePermission } from "@/hooks/auth/AuthProvider";
 import { usePassarAoVendedor, useVendedoresDoSdr } from "@/hooks/sdr/useSdr";
 import { LoseLeadDialog } from "./LoseLeadDialog";
+import { PartialWinDialog } from "./PartialWinDialog";
 import { MoveToOtherPipelineDialog } from "./MoveToOtherPipelineDialog";
 import { TransferToOrganizationDialog } from "./TransferToOrganizationDialog";
 import { usePodeTransferirEntreEmpresas } from "@/hooks/kanban/usePodeTransferirEntreEmpresas";
@@ -52,6 +53,7 @@ interface KanbanCardActionsProps {
 export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: KanbanCardActionsProps) {
   const t = useT();
   const [loseOpen, setLoseOpen] = useState(false);
+  const [partialOpen, setPartialOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   // Só para quem tem acesso a mais de uma empresa — gerente+ nesta e
@@ -228,6 +230,17 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
           >
             {t("Marcar como ganho")}
           </DropdownMenuItem>
+          {/* Ganho parcial (migration 9259): do negócio aberto ou do já ganho —
+              o total que, conferido, fechou com menos. Perdido não vira parcial. */}
+          {lead.status !== "lost" && (
+            <DropdownMenuItem
+              onSelect={() => {
+                setPartialOpen(true);
+              }}
+            >
+              {lead.is_partial_win ? t("Corrigir ganho parcial") : t("Marcar como ganho parcial")}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onSelect={() => {
               setLoseOpen(true);
@@ -343,6 +356,15 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Montado só aberto: o formulário nasce vazio a cada abertura. */}
+      {partialOpen && (
+        <PartialWinDialog
+          open={partialOpen}
+          onOpenChange={setPartialOpen}
+          pipelineId={pipelineId}
+          lead={lead}
+        />
+      )}
       <LoseLeadDialog
         open={loseOpen}
         onOpenChange={setLoseOpen}

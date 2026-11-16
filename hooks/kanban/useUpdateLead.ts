@@ -63,6 +63,38 @@ export function useWinLead(pipelineId: string) {
   });
 }
 
+interface WinPartialArgs {
+  leadId: string;
+  /** O valor efetivamente fechado, em centavos — menor que o previsto. */
+  valueCents: number;
+  reason: string;
+}
+
+/**
+ * GANHO PARCIAL (migration 9259): a MESMA rota do ganho, com `partial`. Num
+ * negócio aberto fecha como ganho parcial; num já ganho, só marca o parcial.
+ */
+export function useWinPartialLead(pipelineId: string) {
+  const qc = useQueryClient();
+  const queryKey = ["board", pipelineId] as const;
+  return useMutation({
+    mutationFn: async ({ leadId, valueCents, reason }: WinPartialArgs) => {
+      marcarEcoLocal(leadId);
+      return apiClient.post<{ data: Lead }>(`/api/v1/leads/${leadId}/win`, {
+        partial: { value_cents: valueCents, reason },
+      });
+    },
+    onSuccess: (res, { leadId }) => {
+      gravaLeadNoQuadro(qc, queryKey, leadId, res?.data);
+    },
+    onError: showApiError,
+    onSettled: (_data, _err, { leadId }) => {
+      liberarEcoLocal(leadId);
+      qc.invalidateQueries({ queryKey });
+    },
+  });
+}
+
 export function useLoseLead(pipelineId: string) {
   const qc = useQueryClient();
   const queryKey = ["board", pipelineId] as const;

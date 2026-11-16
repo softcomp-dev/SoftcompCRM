@@ -44,6 +44,14 @@ export interface Lead {
   description: string | null;
   status: LeadStatus;
   lost_reason: string | null;
+  /**
+   * GANHO PARCIAL (migration 9259): marca sobre o ganho — `status` continua
+   * `won` e conta como venda. `value_cents` é o valor fechado; o previsto fica
+   * em `partial_original_value_cents`.
+   */
+  is_partial_win?: boolean;
+  partial_reason?: string | null;
+  partial_original_value_cents?: number | null;
   position_in_stage: number;
   /**
    * O VALOR ÚNICO do contrato — setup, implantação, matrícula (fatia 1 da

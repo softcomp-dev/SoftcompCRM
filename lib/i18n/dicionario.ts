@@ -8983,6 +8983,15 @@ export const DICIONARIO: Traducoes = {
     es: "En una venta parcial el valor cerrado debe ser menor que el previsto.",
   },
   "O negócio não está mais ganho.": { es: "El negocio ya no está ganado." },
+  "Ganho parcial": { es: "Venta parcial" },
+  "Marcar como ganho parcial": { es: "Marcar como venta parcial" },
+  "Corrigir ganho parcial": { es: "Corregir venta parcial" },
+  "O negócio conta como venda, com o valor que foi efetivamente fechado.": {
+    es: "El negocio cuenta como venta, con el valor que se cerró efectivamente.",
+  },
+  "Valor fechado": { es: "Valor cerrado" },
+  Previsto: { es: "Previsto" },
+  "Ex.: o cliente levou só parte do pedido": { es: "Ej.: el cliente se llevó solo parte del pedido" },
   "Informe o valor fechado e o motivo do ganho parcial.": {
     es: "Indica el valor cerrado y el motivo de la venta parcial.",
   },
