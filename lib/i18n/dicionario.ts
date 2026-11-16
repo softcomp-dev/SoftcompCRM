@@ -11154,6 +11154,12 @@ export const DICIONARIO: Traducoes = {
   "sem prazo": { es: "sin plazo" },
   "Informe se o número é de cotação ou de pedido.": { es: "Indique si el número es de cotización o de pedido." },
   "O número da cotação ou do pedido tem no máximo 60 caracteres.": { es: "El número de la cotización o del pedido tiene como máximo 60 caracteres." },
+  "Número da cotação ou do pedido": { es: "Número de la cotización o del pedido" },
+  "Cotação ou pedido": { es: "Cotización o pedido" },
+  "Cotação": { es: "Cotización" },
+  "Pedido": { es: "Pedido" },
+  "Ex.: PV-000123": { es: "Ej.: PV-000123" },
+  "Ex.: COT-000123": { es: "Ej.: COT-000123" },
   "Duração inválida": { es: "Duración inválida" },
   "Informe a mensalidade para usar a duração": {
     es: "Informa la mensualidad para usar la duración",

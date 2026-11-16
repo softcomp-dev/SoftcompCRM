@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { useActiveOrg } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
@@ -23,6 +23,12 @@ import { MOEDA_PADRAO, parseReaisToCents, simboloDaMoeda } from "@/lib/money";
 import { ContactTagsEditor } from "@/components/inbox/ContactTagsEditor";
 import { lerRecorrenciaDoFormulario } from "@/lib/leads/valor-recorrente";
 import { EcoDoValor } from "./EcoDoValor";
+import { CampoDocumentoDeVenda } from "./CampoDocumentoDeVenda";
+import {
+  TIPO_DE_DOCUMENTO_PADRAO,
+  documentoParaGravar,
+  type TipoDeDocumentoDeVenda,
+} from "@/lib/leads/documento-de-venda";
 
 /**
  * As etiquetas do negócio SAÍRAM deste formulário (#2979): quem as edita é o
@@ -39,6 +45,9 @@ interface FormShape {
   valorRecorrenteReais: string;
   recorrenciaMeses: string;
   expected_close_date: string;
+  /** Cotação OU pedido (migration 9260): o tipo e o número, em texto. */
+  documentoTipo: TipoDeDocumentoDeVenda;
+  documentoNumero: string;
 }
 
 interface Props {
@@ -74,8 +83,11 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
       valorRecorrenteReais: centsToReais(lead.recurring_value_cents),
       recorrenciaMeses: mesesComoTexto(lead.recurring_months),
       expected_close_date: lead.expected_close_date ?? "",
+      documentoTipo: lead.sales_document_kind ?? TIPO_DE_DOCUMENTO_PADRAO,
+      documentoNumero: lead.sales_document_number ?? "",
     },
   });
+  const documentoTipo = useWatch({ control: form.control, name: "documentoTipo" });
 
   useEffect(() => {
     if (open) {
@@ -86,6 +98,8 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
         valorRecorrenteReais: centsToReais(lead.recurring_value_cents),
         recorrenciaMeses: mesesComoTexto(lead.recurring_months),
         expected_close_date: lead.expected_close_date ?? "",
+        documentoTipo: lead.sales_document_kind ?? TIPO_DE_DOCUMENTO_PADRAO,
+        documentoNumero: lead.sales_document_number ?? "",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,11 +144,28 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
       return;
     }
 
+    // O DOCUMENTO DE VENDA (migration 9260) vai sempre, como o recorrente:
+    // apagar o número é "não tem mais documento", e o tipo sai junto.
+    const documento = documentoParaGravar({
+      sales_document_kind: values.documentoTipo,
+      sales_document_number: values.documentoNumero,
+    });
+    if (!documento.ok) {
+      form.setError("documentoNumero", {
+        message:
+          documento.motivo === "numero_longo_demais"
+            ? t("O número da cotação ou do pedido tem no máximo 60 caracteres.")
+            : t("Informe se o número é de cotação ou de pedido."),
+      });
+      return;
+    }
+
     const patch: Record<string, unknown> = {
       title: values.title.trim(),
       description: values.description.trim() ? values.description.trim() : null,
       value_cents: valueCents,
       ...leitura.trio,
+      ...documento.par,
       expected_close_date: values.expected_close_date || null,
     };
 
@@ -248,6 +279,17 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
               )}
             </div>
           </div>
+
+          {/* O número da COTAÇÃO ou do PEDIDO (migration 9260): um ou outro, nunca
+              os dois — por isso o tipo é uma escolha exclusiva ao lado do número. */}
+          <CampoDocumentoDeVenda
+            idBase="editar-negocio-documento"
+            tipo={documentoTipo}
+            onTipoChange={(tipo) => form.setValue("documentoTipo", tipo, { shouldDirty: true })}
+            numero={form.register("documentoNumero")}
+            erro={form.formState.errors.documentoNumero?.message}
+            disabled={edit.isPending}
+          />
 
           <div className="space-y-2">
             {/* A etiqueta do NEGÓCIO (#2979): o MESMO editor do Inbox, gravando
