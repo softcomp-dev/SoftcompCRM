@@ -65,6 +65,9 @@ import { ehOperante } from "@/lib/organizacao/operante";
 import { registrarChamadaDeIa } from "@/lib/ai/usage/registrar-chamada";
 import { logger } from "@/lib/logger";
 import { linhaDaLigacao } from "./uso-da-sessao";
+import { registrarFimDaLigacaoSip } from "./fim-sip";
+import type { LigacaoEncerrada } from "@/lib/voice/fim-da-chamada";
+import { END_REASON_ORG_PARADA, END_REASON_SEM_AGENTE } from "@/lib/voip/motivo-da-ligacao";
 
 const supabaseAdmin = createAdminClient();
 
@@ -287,6 +290,37 @@ interface ActiveAudioSocketCall {
   contactId: string | null;
   answeredAt: string;
   transcript: { speaker: string; text: string; ts: string }[];
+  /** O que o fim da ligação precisa para o aviso e a linha do tempo. */
+  ligacao: Omit<LigacaoEncerrada, "answered_at">;
+}
+
+/** Colunas que o rastro do fim (`./fim-sip.ts`) lê da linha encerrada. */
+const COLUNAS_DO_FIM = "id, organization_id, contact_id, answered_at, peer_phone, owner_user_id, direction";
+
+type LinhaDoFim = LigacaoEncerrada & { organization_id: string };
+
+/**
+ * A ligação que chegou ao AudioSocket mas não vai ser atendida pela IA
+ * (organização parada, nenhum agente de voz): encerra a linha com o motivo e
+ * deixa o rastro. Sem isto ela ficava "tocando" até o canal sumir e virava
+ * um `timeout` que dizia "ninguém atendeu" quando o defeito era configuração.
+ * Só encerra linha que ainda toca — a recusada pela tela já está `ended`.
+ */
+async function encerrarSemAtender(callId: string, endReason: string) {
+  const { data, error } = await supabaseAdmin
+    .from("voice_calls")
+    .update({ status: "ended", end_reason: endReason, ended_at: new Date().toISOString() })
+    .eq("id", callId)
+    .in("status", ["starting", "ringing"])
+    .select(COLUNAS_DO_FIM)
+    .maybeSingle();
+  if (error) {
+    logger.error("[audiosocket] falha ao encerrar ligação não atendida", { call_id: callId, err: error.message });
+    return;
+  }
+  const linha = data as LinhaDoFim | null;
+  if (!linha) return;
+  await registrarFimDaLigacaoSip({ organizationId: linha.organization_id, ligacao: linha, endReason });
 }
 const activeAudioSocketCalls = new Map<string, ActiveAudioSocketCall>(); // key = uuid (== voice_calls.asterisk_channel_id)
 
@@ -321,6 +355,15 @@ async function finalizeAudioSocketCall(uuid: string) {
       transcript: call.transcript,
     })
     .eq("id", call.callRowId);
+
+  // Aviso, `voice_call.ended` e linha do tempo — o mesmo rastro da ligação do
+  // WhatsApp. Nunca lança.
+  await registrarFimDaLigacaoSip({
+    organizationId: call.organizationId,
+    ligacao: { ...call.ligacao, answered_at: call.answeredAt },
+    endReason: "user_ended",
+    agentId: call.agentId,
+  });
 
   // ─── O uso da sessão vai para `llm_calls` ───────────────────────────────
   //
@@ -392,6 +435,7 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     .maybeSingle();
   if (orgErr || !ehOperante(org?.status)) {
     logger.warn("[audiosocket] voz_org_suspensa — encerrando", { organization_id: callRow.organization_id });
+    await encerrarSemAtender(callRow.id, END_REASON_ORG_PARADA);
     socket.end();
     return;
   }
@@ -399,6 +443,8 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
   const agent = await getActiveVoiceAgent(callRow.organization_id);
   if (!agent) {
     logger.error("[audiosocket] nenhum agente de voz ativo", { organization_id: callRow.organization_id });
+    // SABOTAGEM: remover esta linha = o caso "sem agente" de fio-fim-da-ligacao fica vermelho.
+    await encerrarSemAtender(callRow.id, END_REASON_SEM_AGENTE);
     socket.end();
     return;
   }
@@ -475,6 +521,13 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     contactId: (callRow.contact_id as string | null | undefined) ?? null,
     answeredAt,
     transcript: [],
+    ligacao: {
+      id: callRow.id,
+      contact_id: (callRow.contact_id as string | null | undefined) ?? null,
+      peer_phone: callRow.peer_phone as string,
+      owner_user_id: (callRow.owner_user_id as string | null | undefined) ?? null,
+      direction: callRow.direction as "inbound" | "outbound",
+    },
   });
 
   // Se algum byte de áudio já chegou GRUDADO no mesmo pacote TCP do frame de
@@ -554,18 +607,22 @@ export async function handleChannelDestroyed(event: AriEvent) {
     .update({ status: "ended", end_reason: "timeout", ended_at: new Date().toISOString() })
     .in("asterisk_channel_id", idsDaLinhaDoCanal(channelId))
     .eq("status", "ringing")
-    .select("id")
+    .select(COLUNAS_DO_FIM)
     .maybeSingle();
 
   if (error) {
     logger.error("[voice-agent] falha ao marcar timeout pro canal", { channel_id: channelId, err: error.message });
     return;
   }
-  if (data) {
+  const linha = data as LinhaDoFim | null;
+  if (linha) {
     logger.info("[voice-agent] chamada marcada sem resposta", {
-      call_id: data.id,
+      call_id: linha.id,
       causa: event.cause_txt ?? null,
     });
+    // A recebida que tocou e ninguém atendeu vira "Ligar de volta" na Central.
+    // SABOTAGEM: remover esta chamada = o caso "timeout" de fio-fim-da-ligacao fica vermelho.
+    await registrarFimDaLigacaoSip({ organizationId: linha.organization_id, ligacao: linha, endReason: "timeout" });
   }
 }
 
