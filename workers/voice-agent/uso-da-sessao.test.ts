@@ -21,6 +21,9 @@ describe("uso da sessão de voz", () => {
       entradaAudio: 400,
       entradaTexto: 100,
       entradaCache: 80,
+      // Sem detalhe por tipo, o cache se divide na proporção da entrada (50:200).
+      entradaCacheTexto: 16,
+      entradaCacheAudio: 64,
       saidaAudio: 120,
       saidaTexto: 40,
     });
@@ -38,7 +41,7 @@ describe("uso da sessão de voz", () => {
     expect(uso.respostas).toBe(1);
   });
 
-  it("a linha da ligação leva tokens medidos, duração e custo NULO (preço desconhecido, não zero)", () => {
+  it("a linha da ligação leva tokens medidos, duração e o custo pela tarifa da voz", () => {
     const uso = somarUsoDaResposta(usoVazio(), USO_DE_UMA_RESPOSTA);
     expect(
       linhaDaLigacao({
@@ -59,10 +62,50 @@ describe("uso da sessão de voz", () => {
       model: "gpt-realtime",
       input_tokens: 250,
       output_tokens: 80,
-      cost_cents: null,
+      // (42×400 + 8×40 + 168×3200 + 32×40 + 20×1600 + 60×6400) / 1e6 centavos
+      cost_cents: 0.972,
       latency_ms: 42_000,
       erro: null,
     });
+  });
+
+  it("o detalhe do cache por tipo, quando vem, vence a divisão proporcional", () => {
+    const uso = somarUsoDaResposta(usoVazio(), {
+      ...USO_DE_UMA_RESPOSTA,
+      input_token_details: {
+        ...USO_DE_UMA_RESPOSTA.input_token_details,
+        cached_tokens_details: { text_tokens: 40, audio_tokens: 0 },
+      },
+    });
+    expect(uso.entradaCacheTexto).toBe(40);
+    expect(uso.entradaCacheAudio).toBe(0);
+  });
+
+  it("modelo sem tarifa conhecida segue NULO (gasto incompleto), nunca zero", () => {
+    const uso = somarUsoDaResposta(usoVazio(), USO_DE_UMA_RESPOSTA);
+    const linha = linhaDaLigacao({
+      organizationId: "org1",
+      agentId: "ag1",
+      contactId: null,
+      modelo: "gpt-4o-realtime-preview",
+      uso,
+      duracaoMs: 1_000,
+      erro: null,
+    });
+    expect(linha.cost_cents).toBeNull();
+  });
+
+  it("sessão sem nenhuma resposta medida não tem custo medido: nulo", () => {
+    const linha = linhaDaLigacao({
+      organizationId: "org1",
+      agentId: null,
+      contactId: null,
+      modelo: "gpt-realtime",
+      uso: usoVazio(),
+      duracaoMs: 5_000,
+      erro: null,
+    });
+    expect(linha.cost_cents).toBeNull();
   });
 
   it("handshake recusado vira linha de erro", () => {
