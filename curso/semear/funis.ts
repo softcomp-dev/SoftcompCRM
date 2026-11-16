@@ -11,9 +11,19 @@
  *
  * Não grava em tabela que a base não limpa (tarefas, funis, etapas): o que
  * ficasse lá apareceria nas fotos de outros módulos.
+ *
+ * Também leva a Helena a uma segunda empresa (Bem Viver Moema, onde ela é gerente), só
+ * para o menu do card oferecer "Transferir para outra empresa": a base apaga a empresa
+ * extra antes de cada lição, e quem a recria é `semearEmpresasIrmas` (consolidado.ts).
+ * Com mais de uma empresa o cabeçalho passa a mostrar o seletor de empresa em todas as
+ * lições do módulo, e o menu do card ganha o item novo.
+ *
+ * Dois negócios existem para as lições de desfecho e de documento: o da Luana, ganho
+ * parcial (âmbar), e o da Juliana, que traz uma cotação anotada para virar pedido.
  */
 import { type Contexto, contatoId, exigir, semErro } from "../semear-demonstracao";
 import { textoDaDemonstracao as demo } from "../espanhol-demonstracao";
+import { semearEmpresasIrmas } from "./consolidado";
 
 const negocioId = (n: number) => `f1000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const contatoNovoId = (n: number) => `f2000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -33,6 +43,7 @@ const CONTATOS_NOVOS = [
   { n: 1, name: "Sérgio Tavares", phone_number: "+5511987650031", email: "sergio.tavares@email.com" },
   { n: 2, name: "Patrícia Lemos", phone_number: "+5511987650032" },
   { n: 3, name: "Ricardo Nunes", phone_number: "+5511987650033" },
+  { n: 4, name: "Luana Pires", phone_number: "+5511987650034" },
 ];
 
 type Dono = "helena" | "ana" | "carlos" | "bia" | null;
@@ -48,6 +59,10 @@ type Negocio = {
   descricao?: string;
   fechamento?: string;
   motivoDaPerda?: string;
+  /** Ganho parcial: o que se previa (em reais) e o motivo; o valor do negócio é o que fechou. */
+  parcial?: { previstoReais: number; motivo: string };
+  /** Cotação ou pedido que o negócio já traz anotado. */
+  documento?: { tipo: "quote" | "order"; numero: string };
 };
 
 export async function semear(c: Contexto) {
@@ -106,6 +121,9 @@ export async function semear(c: Contexto) {
     "contatos novos",
   );
 
+  // segunda empresa da Helena (gerente lá): é o que faz o menu do card oferecer a transferência
+  await semearEmpresasIrmas(c);
+
   const NEGOCIOS: Negocio[] = [
     {
       n: 1, titulo: "Avaliação de fisioterapia — Roberto Almeida", etapa: "Primeiro contato", contato: contatoId(2),
@@ -128,6 +146,7 @@ export async function semear(c: Contexto) {
     {
       n: 5, titulo: "Clareamento dental — Juliana Castro", etapa: "Consulta agendada", contato: contatoId(3),
       reais: 1200, dono: "carlos", horasNaEtapa: 8, tags: ["odontologia"], fechamento: dia(10),
+      documento: { tipo: "quote", numero: "COT-001204" },
     },
     {
       n: 6, titulo: "Pacote de 10 sessões de fisioterapia — Lucas Martins", etapa: "Em tratamento", contato: contatoId(6),
@@ -144,6 +163,11 @@ export async function semear(c: Contexto) {
     {
       n: 9, titulo: "Implante dentário — Ricardo Nunes", etapa: "", contato: contatoNovoId(3),
       reais: 4500, dono: "carlos", horasNaEtapa: 5 * 24, tags: ["odontologia"], motivoDaPerda: "price",
+    },
+    {
+      n: 10, titulo: "Plano de nutrição trimestral — Luana Pires", etapa: "Em tratamento", contato: contatoNovoId(4),
+      reais: 960, dono: null, horasNaEtapa: 2 * 24,
+      parcial: { previstoReais: 2880, motivo: "A cliente fechou só o primeiro mês e decide os outros depois." },
     },
   ];
 
@@ -166,6 +190,14 @@ export async function semear(c: Contexto) {
       assigned_at: x.dono ? entrou : null,
       tags: x.tags ?? [],
       expected_close_date: x.fechamento ?? null,
+      ...(x.parcial
+        ? {
+            is_partial_win: true,
+            partial_reason: x.parcial.motivo,
+            partial_original_value_cents: x.parcial.previstoReais * 100,
+          }
+        : {}),
+      ...(x.documento ? { sales_document_kind: x.documento.tipo, sales_document_number: x.documento.numero } : {}),
       // depois dos dois negócios da base (posição 1000), na ordem da lista
       position_in_stage: 2000 + i * 1000,
       // a última atividade é a entrada na etapa: é por ela que o Radar decide quem esfriou

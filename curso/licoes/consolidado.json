@@ -1,0 +1,632 @@
+{
+  "id": "consolidado",
+  "titulo": "Visão consolidada",
+  "tela": "/app/consolidado",
+  "resumo": "Funil, conversas e contatos de todas as suas empresas numa tela só, para quem atende mais de uma unidade, com filtro por empresa e o nome da empresa em cada item.",
+  "licoes": [
+    {
+      "id": "conhecendo-a-visao-consolidada",
+      "titulo": "Conhecendo a Visão consolidada",
+      "objetivo": "Chegar à Visão consolidada e ler o funil das suas empresas juntas: as colunas, o nome da empresa em cada cartão e o fim do quadro.",
+      "papel": "admin",
+      "busca": [
+        "visão consolidada",
+        "ver todas juntas",
+        "várias empresas",
+        "filiais",
+        "unidades",
+        "funil de todas as empresas",
+        "seletor de empresa",
+        "matriz"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Ver todas juntas",
+          "texto": "Quem participa de mais de uma empresa ganha, no alto da tela, o seletor de empresa. Abra-o: além de trocar de empresa, o fim da lista traz \"Ver todas juntas\", que abre a Visão consolidada. Pelo CRM, ela também está em \"Ver tudo em CRM\" › \"Visão consolidada\". Quem tem uma empresa só não vê o seletor.",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "tenant-switcher"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "tenant-switcher-consolidado"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "tenant-switcher"
+              },
+              "rotulo": "Seletor de empresa",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "tenant-switcher-consolidado"
+              },
+              "rotulo": "Todas as empresas juntas",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "testid": "tenant-switcher-consolidado"
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "A tela por inteiro",
+          "texto": "A Visão consolidada junta o funil, as conversas e os contatos das empresas em que você é membro. As três abas do alto trocam entre eles. \"Empresas na visão\" escolhe quais empresas entram, e \"Funil\" escolhe qual funil você quer ver. Você só enxerga empresas a que tem acesso: esta tela nunca mostra uma empresa de que você não faz parte.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "tablist",
+                "nome": "Visão consolidada",
+                "exato": true
+              },
+              "rotulo": "Funil, Conversas e Contatos",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              },
+              "rotulo": "Quais empresas entram",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Funil",
+                "exato": true
+              },
+              "rotulo": "Qual funil",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Etapa de mesmo nome, mesma coluna",
+          "texto": "Cada empresa tem o seu funil. A tela junta as etapas que têm o mesmo nome numa coluna só: \"Primeiro contato\" aparece uma vez, com os cartões de todas as empresas. Maiúscula, acento e espaço repetido não contam: \"Proposta enviada\" e \"proposta  ENVIADA\" são a mesma coluna. No topo da coluna aparecem quantos cartões ela tem e a soma dos valores.",
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='funil-consolidado'] section[aria-label='Primeiro contato'] header"
+              },
+              "rotulo": "Uma coluna para todas as empresas",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "Etapa que só uma empresa tem",
+          "texto": "Quando uma etapa existe só em algumas empresas, ela ganha a sua própria coluna e avisa em quantos funis existe, por exemplo \"Existe em 1 de 3 funis\". Aqui, \"Lista de espera\" é só da unidade Moema. O cartão dessa coluna só pode ir para etapas que o funil dele tem.",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[data-testid='funil-consolidado'] section[aria-label='Lista de espera']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='funil-consolidado'] section[aria-label='Lista de espera']"
+              },
+              "rotulo": "Só a Moema tem esta etapa",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p5",
+          "titulo": "Cada cartão diz de qual empresa é",
+          "texto": "No alto de cada cartão fica o nome da empresa, com uma bolinha de cor que se repete em todos os cartões dela. A cor ajuda a bater o olho, mas o nome está sempre escrito ao lado. Clique no título para abrir o negócio: se ele for de outra empresa, o sistema troca para aquela empresa antes de abrir.",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[data-testid='card-consolidado'][data-empresa='a5100000-0000-4000-8000-000000000001']",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='card-consolidado'][data-empresa='a5100000-0000-4000-8000-000000000001']",
+                "n": 0
+              },
+              "rotulo": "Cartão da unidade Moema",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p6",
+          "titulo": "Ganho e perda ficam no fim",
+          "texto": "As etapas de ganho e de perda se juntam pela função, não pelo nome: \"Ganho\", \"Fechado\" e \"Pago\" valem a mesma coisa, e cada funil tem uma de cada. Elas ficam sempre no fim do quadro, o ganho antes da perda. Cada coluna mostra o nome mais usado entre as empresas.",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "section[data-coluna='__perdido']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "section[data-coluna='__ganho']"
+              },
+              "rotulo": "Ganho",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "section[data-coluna='__perdido']"
+              },
+              "rotulo": "Perda",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "escolher-as-empresas",
+      "titulo": "Escolher quais empresas aparecem",
+      "objetivo": "Estreitar a visão para uma ou algumas empresas e voltar a ver todas.",
+      "papel": "admin",
+      "busca": [
+        "empresas na visão",
+        "filtrar por empresa",
+        "escolher empresas",
+        "só uma empresa",
+        "todas as empresas"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Empresas na visão",
+          "texto": "Clique no botão com o nome das empresas. A lista mostra todas as suas empresas, cada uma com a sua bolinha de cor. Com todas marcadas, o botão diz \"Todas as empresas\" e o número delas.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              },
+              "rotulo": "Quais empresas entram",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "Empresas na visão",
+                "exato": true
+              },
+              "rotulo": "A lista de empresas",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Desmarcar uma empresa",
+          "texto": "Desmarque uma empresa e a tela refaz o funil sem ela: os cartões dessa empresa saem, e a lista fecha. O botão passa a dizer quantas empresas estão na visão. Se você deixar só uma marcada, o botão mostra o nome dela.",
+          "dica": "A escolha mora no endereço da página, então você pode mandar o link para um colega ou recarregar sem perder o filtro. Desmarcar a última empresa não deixa a tela vazia: ela volta para todas.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "checkbox",
+                "nome": "Bem Viver Campinas",
+                "exato": true
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              },
+              "rotulo": "Duas empresas na visão",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "O botão \"Todas\"",
+          "texto": "Para voltar a ver todas, abra a lista de novo. O botão \"Todas\", no alto da lista, marca todas as empresas de uma vez. Use-o quando terminar de olhar uma unidade só.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "button",
+                "nome": "Todas",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Todas",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Marcar todas",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              },
+              "rotulo": "Empresas na visão",
+              "tipo": "caixa"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Todas",
+            "exato": true,
+            "dentro": {
+              "role": "dialog"
+            }
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "Todas de novo",
+          "texto": "Pronto: o botão volta a dizer \"Todas as empresas\", e os cartões da unidade que estava de fora voltaram para o quadro.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Todas",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "seletor-de-empresas"
+              },
+              "rotulo": "Todas as empresas",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conversas-e-contatos",
+      "titulo": "Conversas e contatos de todas as empresas",
+      "objetivo": "Ver as conversas e os contatos das empresas juntos, buscar por nome ou telefone e saber o que acontece ao abrir um item de outra empresa.",
+      "papel": "admin",
+      "busca": [
+        "conversas de todas as empresas",
+        "contatos de todas as empresas",
+        "buscar contato",
+        "abrir conversa de outra empresa",
+        "lista consolidada"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "A aba Conversas",
+          "texto": "A aba \"Conversas\" junta as conversas de todas as empresas numa lista só, a mais recente primeiro. Cada linha mostra a empresa, quem é o contato e a última mensagem. A lista é só para olhar e achar: para responder, clique na linha, e o sistema abre a conversa na empresa dela, trocando a empresa ativa antes.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "tab",
+                "nome": "Conversas",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "ul.divide-y > li:first-child > button"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "tab",
+                "nome": "Conversas",
+                "exato": true
+              },
+              "rotulo": "Conversas",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "ul.divide-y > li:first-child > button"
+              },
+              "rotulo": "Empresa, contato e última mensagem",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Buscar por nome ou telefone",
+          "texto": "Digite parte do nome ou do telefone e clique em \"Buscar\". A busca vale para todas as empresas que estão na visão. A lista mostra só o que combina, e uma frase avisa quando há mais conversas do que as mostradas.",
+          "antes": [
+            {
+              "acao": "fill",
+              "alvo": {
+                "placeholder": "Buscar por nome ou telefone"
+              },
+              "valor": "Daniela"
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Buscar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 1500
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "placeholder": "Buscar por nome ou telefone"
+              },
+              "rotulo": "Nome ou telefone",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "ul.divide-y > li:first-child > button"
+              },
+              "rotulo": "O que combina",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "A aba Contatos",
+          "texto": "\"Contatos\" funciona do mesmo jeito: as pessoas de todas as empresas numa lista, com telefone e e-mail. O mesmo cliente cadastrado em duas empresas aparece uma vez em cada. Clicar numa linha abre a ficha do contato na empresa dele.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "tab",
+                "nome": "Contatos",
+                "exato": true
+              }
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "placeholder": "Buscar por nome ou telefone"
+              },
+              "valor": ""
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Buscar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 1500
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "tab",
+                "nome": "Contatos",
+                "exato": true
+              },
+              "rotulo": "Contatos",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "ul.divide-y > li:first-child > button"
+              },
+              "rotulo": "Nome, telefone e e-mail",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mover-um-negocio",
+      "titulo": "Mover um negócio pela Visão consolidada",
+      "objetivo": "Mudar um negócio de etapa direto na Visão consolidada, sem abrir a empresa dele.",
+      "papel": "admin",
+      "busca": [
+        "mover negócio",
+        "arrastar cartão",
+        "mudar de etapa",
+        "visão consolidada mover",
+        "mover para"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Arrastar ou usar o \"Mover…\"",
+          "texto": "Você pode arrastar o cartão para outra coluna, como no funil de uma empresa só. Em cada cartão há também o seletor \"Mover…\", que serve no celular e no teclado, onde não dá para arrastar. O cartão só vai para etapas que o funil dele tem, e só em empresas em que você é pelo menos agente.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='card-consolidado']:has-text('Daniela Frota') [role=combobox]"
+              },
+              "rotulo": "Mover sem arrastar",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "css": "[data-testid='card-consolidado']:has-text('Daniela Frota') [role=combobox]"
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "Escolha a etapa",
+          "texto": "A lista traz as outras colunas em que esse cartão pode entrar. Clique na etapa de destino, aqui \"Consulta agendada\".",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "[data-testid='card-consolidado']:has-text('Daniela Frota') [role=combobox]"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "option",
+                "nome": "Consulta agendada",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "option",
+                "nome": "Consulta agendada",
+                "exato": true
+              },
+              "rotulo": "A etapa de destino",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "option",
+            "nome": "Consulta agendada",
+            "exato": true
+          }
+        },
+        {
+          "id": "p3",
+          "titulo": "O cartão mudou de coluna",
+          "texto": "O cartão foi para \"Consulta agendada\", e a mudança vale na empresa dele, com o registro de sempre. Se a etapa pede dados, como o motivo de um ganho ou campos obrigatórios, a tela abre a mesma janela do funil e pede só o que falta. Se a empresa do cartão não tem essa etapa, a tela avisa qual empresa e qual etapa.",
+          "dica": "Mover para a coluna de perda pede o motivo da perda, como no funil de uma empresa só.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Consulta agendada",
+                "exato": true
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='funil-consolidado'] section[aria-label='Consulta agendada'] [data-testid='card-consolidado']:has-text('Daniela Frota')"
+              },
+              "rotulo": "Agora em Consulta agendada",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

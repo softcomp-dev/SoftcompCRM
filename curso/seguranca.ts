@@ -1,6 +1,6 @@
 /** Empresas com ids próprios das sementes do curso; nunca inferir propriedade pela data. */
 export const ORGANIZACOES_DE_EXEMPLO = new Set(
-  Object.entries({ a7000000: 5, a7d00000: 3, a9100000: 2, a1c00000: 1, ab100000: 2, a9e00000: 1, ad000000: 3, a8000000: 3, c0b40000: 5 })
+  Object.entries({ a7000000: 5, a7d00000: 3, a9100000: 2, a1c00000: 1, ab100000: 2, a9e00000: 1, ad000000: 3, a8000000: 3, c0b40000: 5, a5100000: 2, a5200000: 4 })
     .flatMap(([prefixo, total]) => Array.from({ length: total }, (_, i) => `${prefixo}-0000-4000-8000-${String(i + 1).padStart(12, "0")}`)),
 );
 

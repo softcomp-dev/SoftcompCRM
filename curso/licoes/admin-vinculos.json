@@ -1,0 +1,475 @@
+{
+  "id": "admin-vinculos",
+  "titulo": "Vínculos (Admin)",
+  "tela": "/admin/vinculos",
+  "resumo": "Onde o dono do servidor escolhe quais empresas cada conta acessa, uma, algumas ou todas, e com que papel em cada uma, sem mandar e-mail de convite.",
+  "licoes": [
+    {
+      "id": "dar-acesso-a-varias-empresas",
+      "titulo": "Dar acesso a várias empresas",
+      "objetivo": "Escolher uma conta, ler o estado de cada empresa (Vinculada, Convite pendente, Revogada) e liberar o acesso a mais empresas com o papel certo.",
+      "papel": "admin",
+      "busca": [
+        "vínculos",
+        "dar acesso a empresa",
+        "vincular conta",
+        "conta em várias empresas",
+        "convite pendente",
+        "acesso revogado",
+        "papel por empresa",
+        "filiais"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Quais empresas cada conta acessa",
+          "texto": "No Admin, \"Vínculos\" é o lugar onde o dono do servidor decide a quais empresas cada conta tem acesso: uma, algumas ou todas. Serve para quem trabalha em mais de uma unidade, como um consultor ou a equipe de uma rede. O vínculo vale na hora, sem e-mail de convite, porque a conta já existe. Só o dono do servidor vê esta tela.",
+          "rota": "/admin/vinculos",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "link",
+                "nome": "Vínculos",
+                "exato": true,
+                "dentro": {
+                  "role": "navigation"
+                }
+              },
+              "rotulo": "Vínculos no menu do Admin",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "texto": "1. Escolha a conta",
+                "exato": true
+              },
+              "rotulo": "Primeiro, a conta",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Procurar a conta",
+          "texto": "Digite pelo menos duas letras do e-mail ou do nome. A lista mostra até 20 contas do servidor, mesmo as que ainda não estão em nenhuma empresa. Clique na conta que você quer ajustar.",
+          "antes": [
+            {
+              "acao": "fill",
+              "alvo": {
+                "placeholder": "Buscar conta por e-mail ou nome"
+              },
+              "valor": "beatriz"
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "button:has-text('Beatriz Moreira')"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "placeholder": "Buscar conta por e-mail ou nome"
+              },
+              "rotulo": "E-mail ou nome",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "button:has-text('Beatriz Moreira')"
+              },
+              "rotulo": "A conta encontrada",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "css": "button:has-text('Beatriz Moreira')"
+          }
+        },
+        {
+          "id": "p3",
+          "titulo": "O estado de cada empresa",
+          "texto": "Ao escolher a conta, a tela lista todas as empresas do servidor, cada uma com uma caixinha. \"Vinculada\" é uma empresa em que a conta já tem acesso. \"Convite pendente\" é uma empresa em que existe um convite que a pessoa ainda não aceitou: enquanto ela não aceita, não tem acesso. \"Revogada\" é uma empresa em que o acesso foi retirado. \"Suspensa\" avisa que a própria empresa está suspensa.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "button:has-text('Beatriz Moreira')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "2. Marque as empresas que esta conta acessa",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "texto": "Vinculada",
+                "exato": true
+              },
+              "rotulo": "Já tem acesso",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "Convite pendente",
+                "exato": true
+              },
+              "rotulo": "Ainda não aceitou",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "Revogada",
+                "exato": true
+              },
+              "rotulo": "Perdeu o acesso",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "Suspensa",
+                "exato": true
+              },
+              "rotulo": "Empresa suspensa",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "Marcar as empresas e o papel",
+          "texto": "Escolha primeiro o papel em \"Papel nas empresas marcadas agora\" e depois marque as empresas: cada uma que você marcar entra com o papel que estava escolhido naquele momento. Aqui, \"Gerente\" para a FisioVida (que tinha só um convite) e para a NutriBem (que tinha sido revogada). Na NutriBem o papel antigo não volta sozinho: vale o que você escolheu agora.",
+          "dica": "\"Marcar todas\" e \"Desmarcar todas\" valem para as empresas que a lista mostra. Com um filtro digitado em \"Filtrar empresas\", elas viram \"Marcar as filtradas\" e \"Desmarcar as filtradas\".",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Papel nas empresas marcadas agora",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Gerente",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "checkbox",
+                "nome": "FisioVida Reabilitação",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "checkbox",
+                "nome": "NutriBem Consultório",
+                "exato": true
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 600
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Papel nas empresas marcadas agora",
+                "exato": true
+              },
+              "rotulo": "O papel de quem entra agora",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "checkbox",
+                "nome": "FisioVida Reabilitação",
+                "exato": true
+              },
+              "rotulo": "Marcada",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              },
+              "rotulo": "Quantas mudanças vão",
+              "tipo": "caixa"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Salvar"
+          }
+        },
+        {
+          "id": "p5",
+          "titulo": "Salvar",
+          "texto": "O botão do fim diz quantas alterações vão ser feitas. Clique nele: as duas empresas passam a \"Vinculada\", com o papel escolhido, e um aviso confirma que os vínculos foram salvos. A conta vê as empresas novas no seletor de empresa do cabeçalho na próxima vez que entrar ou recarregar.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "checkbox",
+                "nome": "FisioVida Reabilitação",
+                "exato": true
+              },
+              "rotulo": "Agora vinculada",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "texto": "^\\d+ de \\d+ empresa",
+                "regex": true
+              },
+              "rotulo": "Quantas empresas estão marcadas",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mudar-papel-ou-tirar-acesso",
+      "titulo": "Mudar o papel ou tirar o acesso",
+      "objetivo": "Trocar o papel de uma conta numa empresa, tirar o acesso e desistir das mudanças antes de salvar.",
+      "papel": "admin",
+      "busca": [
+        "mudar papel",
+        "trocar papel",
+        "tirar acesso",
+        "remover vínculo",
+        "revogar acesso",
+        "descartar alterações",
+        "último administrador"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O papel de cada empresa",
+          "texto": "Cada empresa marcada tem o seu seletor de papel: Leitor (só olha), Agente, Gerente ou Admin. O papel vale só naquela empresa, então a mesma conta pode ser Agente numa unidade e Gerente em outra. O seletor fica desligado enquanto a empresa não está marcada.",
+          "rota": "/admin/vinculos",
+          "antes": [
+            {
+              "acao": "fill",
+              "alvo": {
+                "placeholder": "Buscar conta por e-mail ou nome"
+              },
+              "valor": "beatriz"
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "button:has-text('Beatriz Moreira')"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "button:has-text('Beatriz Moreira')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "2. Marque as empresas que esta conta acessa",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Papel em Odonto Sorriso Leve",
+                "exato": true
+              },
+              "rotulo": "Papel nesta empresa",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Trocar o papel",
+          "texto": "Abra o seletor da empresa e escolha outro papel, aqui \"Gerente\". Nada é gravado ainda: o botão do fim passa a dizer \"Salvar 1 alteração\", e \"Descartar\" fica disponível.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Papel em Odonto Sorriso Leve",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Gerente",
+                "exato": true
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 600
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Papel em Odonto Sorriso Leve",
+                "exato": true
+              },
+              "rotulo": "Novo papel",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              },
+              "rotulo": "Salvar a mudança",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Descartar",
+                "exato": true
+              },
+              "rotulo": "Desistir",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Tirar o acesso",
+          "texto": "Desmarcar a caixinha de uma empresa em que a conta está \"Vinculada\" tira o acesso dela, quando você salvar. O efeito é o mesmo de remover a pessoa na Equipe da empresa: as conversas abertas dela voltam para a fila. O último administrador de uma empresa não pode ser retirado: o sistema recusa e diz qual empresa ficaria sem administrador.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "checkbox",
+                "nome": "Odonto Sorriso Leve",
+                "exato": true
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 600
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "checkbox",
+                "nome": "Odonto Sorriso Leve",
+                "exato": true
+              },
+              "rotulo": "Desmarcada: o acesso sai",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              },
+              "rotulo": "Salvar",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "Descartar",
+          "texto": "\"Descartar\" volta tudo ao que está gravado, sem mandar nada ao servidor. Aqui a Odonto Sorriso Leve voltou a ficar marcada e o botão de salvar ficou desligado, porque não há mais nada a gravar. Só o clique em \"Salvar\" muda alguma coisa de verdade.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Descartar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 600
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "checkbox",
+                "nome": "Odonto Sorriso Leve",
+                "exato": true
+              },
+              "rotulo": "Marcada de novo",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar"
+              },
+              "rotulo": "Desligado: nada a salvar",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

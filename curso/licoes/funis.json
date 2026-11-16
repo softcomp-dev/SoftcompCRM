@@ -1855,6 +1855,817 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ganho-parcial-e-cor-do-cartao",
+      "titulo": "Ganho parcial e a cor do cartão",
+      "objetivo": "Ler a cor que o cartão ganha quando o negócio fecha e marcar um negócio como ganho parcial, quando o cliente fechou com menos do que se previa.",
+      "papel": "admin",
+      "busca": [
+        "ganho parcial",
+        "venda parcial",
+        "fechou com menos",
+        "cor do cartão",
+        "cartão verde",
+        "cartão vermelho",
+        "cartão âmbar",
+        "valor fechado",
+        "valor previsto",
+        "negócio ganho"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "A cor de um negócio ganho",
+          "texto": "Quando um negócio fecha, o cartão ganha uma cor: uma faixa fina na lateral e um fundo suave. Verde é um negócio ganho. Âmbar, um tom entre o amarelo e o laranja, é um ganho parcial: o cliente fechou, mas com menos do que se previa. Cartões de negócios que ainda estão abertos não têm essa cor.",
+          "dica": "A cor não é o único aviso: o nome do cartão também diz o resultado para quem usa leitor de tela.",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[data-testid^='abrir-']:has-text('Pacientes')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[data-desfecho='parcial']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-desfecho='ganho']",
+                "n": 0
+              },
+              "rotulo": "Ganho: verde",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "[data-desfecho='parcial']"
+              },
+              "rotulo": "Ganho parcial: âmbar",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Perdido fica em vermelho",
+          "texto": "O negócio perdido ganha o vermelho. Ganho, ganho parcial e perdido ficam cada um na sua cor, e você enxerga o resultado do funil de relance, sem abrir cartão por cartão. O ganho parcial é um ganho: ele conta como venda nas conversões e nas metas.",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[data-desfecho='perdido']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-desfecho='perdido']"
+              },
+              "rotulo": "Perdido: vermelho",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Marcar como ganho parcial",
+          "texto": "Passe o mouse no cartão de um negócio que ainda não fechou, aqui o da Juliana, e abra o menu dos três pontinhos. Clique em \"Marcar como ganho parcial\". O item aparece também no negócio que já estava ganho com o valor cheio: ali ele serve para corrigir o valor. No negócio perdido ele não aparece.",
+          "antes": [
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[role=group][aria-label*='Juliana Castro']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menu"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Marcar como ganho parcial",
+                "exato": true
+              },
+              "rotulo": "Fechou com menos",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Marcar como ganho parcial",
+            "exato": true
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "O valor fechado e o motivo",
+          "texto": "A janela mostra o valor que se previa, em \"Previsto\", e pede dois dados. Em \"Valor fechado\", escreva quanto o cliente realmente fechou: tem de ser menor que o previsto, senão a janela avisa. Em \"Motivo\", escreva em uma frase por que fechou menos. Os dois são obrigatórios. Depois clique em \"Confirmar\".",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Marcar como ganho parcial",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "css": "#partial-win-value"
+              },
+              "valor": "900,00"
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "css": "#partial-win-reason"
+              },
+              "valor": "O cliente levou só o clareamento e deixou a limpeza para depois."
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#partial-win-value"
+              },
+              "rotulo": "Quanto fechou",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "^Previsto",
+                "regex": true
+              },
+              "rotulo": "O que se previa",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "#partial-win-reason"
+              },
+              "rotulo": "Por que foi menos",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Confirmar",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Confirmar",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Confirmar",
+            "exato": true,
+            "dentro": {
+              "role": "dialog"
+            }
+          }
+        },
+        {
+          "id": "p5",
+          "titulo": "O cartão fica âmbar",
+          "texto": "O cartão da Juliana foi para a etapa de ganho, \"Em tratamento\", e ficou âmbar. O valor que aparece nele é o que fechou, e é esse valor que entra na receita. O valor previsto fica guardado. Se o negócio voltar para uma etapa aberta, o ganho parcial some e o valor previsto volta. Depois, no mesmo menu, o item vira \"Corrigir ganho parcial\".",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Confirmar",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 1500
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              },
+              "rotulo": "Ganho parcial",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "numero-da-cotacao-ou-do-pedido",
+      "titulo": "Número da cotação ou do pedido",
+      "objetivo": "Anotar no negócio o número da cotação ou do pedido do seu sistema de gestão e trocá-lo quando a cotação vira pedido.",
+      "papel": "admin",
+      "busca": [
+        "número da cotação",
+        "número do pedido",
+        "cotação",
+        "pedido",
+        "documento de venda",
+        "sistema de gestão",
+        "erp",
+        "editar negócio"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Editar o negócio",
+          "texto": "Quem vende por cotação e fecha por pedido no sistema de gestão pode anotar o número do documento no próprio negócio, em vez de deixá-lo perdido na descrição. Passe o mouse no cartão, aqui o da Juliana, abra o menu dos três pontinhos e clique em \"Editar\".",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[data-testid^='abrir-']:has-text('Pacientes')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[role=group][aria-label*='Juliana Castro']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menu"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Editar",
+                "exato": true
+              },
+              "rotulo": "Abre a edição",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Editar",
+            "exato": true
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "O campo do número",
+          "texto": "Na janela \"Editar negócio\", role até \"Número da cotação ou do pedido\". Ao lado do número fica a escolha entre \"Cotação\" e \"Pedido\": o negócio é uma coisa ou outra, nunca as duas. O negócio da Juliana já tem uma cotação anotada, a COT-001204.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Editar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "radiogroup",
+                "nome": "Cotação ou pedido",
+                "exato": true
+              },
+              "rotulo": "Cotação ou pedido",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              },
+              "rotulo": "O número",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Quando a cotação vira pedido",
+          "texto": "O cliente aceitou e o seu sistema gerou o pedido. Troque a escolha para \"Pedido\", escreva o número do pedido no campo e clique em \"Salvar\". O número da cotação sai e o do pedido entra no lugar, porque o negócio guarda um documento só.",
+          "dica": "Para tirar o documento do negócio, apague o número: a escolha de cotação ou pedido sai junto.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "radio",
+                "nome": "Pedido",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              },
+              "valor": "PV-004521"
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "radio",
+                "nome": "Pedido",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Agora é pedido",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              },
+              "rotulo": "Número do pedido",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Salvar",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Salvar",
+            "exato": true,
+            "dentro": {
+              "role": "dialog"
+            }
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "Conferindo o que foi salvo",
+          "texto": "Abrir a edição de novo mostra o que ficou gravado: \"Pedido\" e o número PV-004521. A mudança também entra na linha do tempo do negócio, com o valor de antes e o de depois, para você saber quem trocou e quando.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 1500
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[role=group][aria-label*='Juliana Castro']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menu"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Editar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "radio",
+                "nome": "Pedido",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Pedido",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "#editar-negocio-documento-numero"
+              },
+              "rotulo": "Número gravado",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transferir-para-outra-empresa",
+      "titulo": "Transferir um negócio para outra empresa",
+      "objetivo": "Passar um negócio para outra empresa a que você também pertence, escolhendo o funil e a etapa de entrada, e saber o que vai junto e o que fica.",
+      "papel": "admin",
+      "busca": [
+        "transferir negócio",
+        "outra empresa",
+        "filial",
+        "unidade",
+        "mudar de empresa",
+        "levar para outra empresa",
+        "várias empresas"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O item no menu do cartão",
+          "texto": "Quem atende mais de uma empresa, como a matriz e as unidades de uma rede, pode passar um negócio de uma para outra. Abra o menu dos três pontinhos do cartão e clique em \"Transferir para outra empresa\". O item só aparece para gerentes e administradores da empresa do negócio, e só para quem também atende, como agente ou acima, em outra empresa. Aqui, a Helena administra a Clínica e é gerente da unidade Moema.",
+          "dica": "Só negócios em andamento podem ser transferidos. Um negócio ganho ou perdido precisa ser reaberto antes.",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[data-testid^='abrir-']:has-text('Pacientes')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[role=group][aria-label*='Juliana Castro']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menu"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Transferir para outra empresa",
+                "exato": true
+              },
+              "rotulo": "Levar para outra empresa",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Transferir para outra empresa",
+            "exato": true
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "A janela de transferência",
+          "texto": "A janela avisa o que acontece: o negócio é recriado na empresa escolhida, com o mesmo cliente, e este aqui encerra como transferido. As conversas, as tarefas e os anexos ficam nesta empresa, porque o número de WhatsApp é dela. O botão \"Transferir\" só funciona depois de você escolher a empresa e o funil.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Transferir para outra empresa",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              },
+              "rotulo": "Para qual empresa",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Ainda desligado",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Empresa, funil e etapa",
+          "texto": "Escolha a empresa de destino, depois o funil dela. Em \"Etapa de entrada\" você pode escolher onde o negócio começa; sem escolha, ele entra na primeira etapa aberta do funil. A lista de empresas mostra só aquelas em que você é pelo menos agente.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Bem Viver Moema",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Funil de destino",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Pacientes",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Etapa de entrada",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Funil de destino",
+                "exato": true
+              },
+              "rotulo": "O funil",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Etapa de entrada",
+                "exato": true
+              },
+              "rotulo": "Onde ele começa",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Transferir",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Transferir",
+            "exato": true,
+            "dentro": {
+              "role": "dialog"
+            }
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "O negócio de origem fica encerrado",
+          "texto": "Pronto: o negócio foi para a outra empresa. Aqui, o cartão da Juliana foi para a etapa de perda e ficou vermelho: é o jeito de encerrar o negócio que saiu. Isso não conta como perda nas métricas, porque o negócio continua vivo na outra empresa.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[role=group][aria-label*='Juliana Castro']"
+              },
+              "rotulo": "Encerrado aqui",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p5",
+          "titulo": "Onde ele foi parar",
+          "texto": "Na Visão consolidada você vê o negócio já na outra empresa, no cartão com o nome dela. Ele chegou com o mesmo título e valor, e o cliente foi achado pelo telefone ou pelo e-mail na empresa de destino, ou cadastrado lá se ainda não existia. Se mandou para a empresa errada, transfira de volta pelo mesmo menu.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='card-consolidado'][data-empresa='a5100000-0000-4000-8000-000000000001']:has-text('Clareamento dental')"
+              },
+              "rotulo": "O negócio na unidade Moema",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
