@@ -17,6 +17,25 @@ Pronto. Pode deixar rodando — leva alguns minutos. No fim, você vê **`✓ At
 concluída — app no ar e saudável`**. Se ele disser que você **já está na versão mais
 recente**, é porque não havia nada novo pra baixar; está tudo certo.
 
+## Pela tela, sem SSH
+
+Quem administra o servidor também atualiza pelo próprio CRM, em **Configurações ›
+Atualização** (`/app/settings/atualizacao`):
+
+- **Buscar atualização** pergunta ao GitHub, na hora, qual é a última versão publicada
+  e diz se já saiu uma nova, se você já está na mais recente ou por que não deu para
+  saber. Sem o botão, a conferência automática continua rodando sozinha a cada 5 minutos.
+- **Atualizar agora** aparece quando o servidor confirma que há versão nova (em até 5
+  minutos depois da busca). O botão Buscar só traz a notícia: quem confirma a versão
+  instalada e quem atualiza é o agente do servidor, com o mesmo backup do comando acima.
+- **Voltar para a versão anterior** aparece quando uma atualização não deu certo. O
+  sistema sai do ar por cerca de 2 minutos e volta para a versão de onde a tentativa
+  saiu.
+
+O botão **Buscar atualização** só aparece depois da primeira atualização feita com a
+versão que o trouxe, porque é a partir dela que o servidor informa de onde vêm as
+versões. Nada precisa ser configurado.
+
 ## O que o comando faz (por baixo)
 
 1. Confere se há mesmo uma versão nova.
