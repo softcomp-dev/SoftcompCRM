@@ -72,8 +72,14 @@ export async function semear(c: Contexto) {
   // ---------- contatos e negócios ----------
   semErro(
     await db.from("contacts").insert(
-      NEGOCIOS.map(([n, , nome]) => ({
+      NEGOCIOS.map(([n, , nome, , dono, minutos]) => ({
         id: contatoId(n), organization_id: org, name: nome, phone_number: `+55119876509${String(n).padStart(2, "0")}`,
+        // O cliente que o rodízio entregou à Ana está na carteira dela: é o que deixa o
+        // "Passar" levar a carteira junto. Sem isto a passagem dá certo, mas a tela soma o
+        // aviso "o cliente continua na carteira de outra pessoa", que não é o caso comum.
+        ...(dono === "ana"
+          ? { carteira_user_id: pessoa.ana, carteira_origem: "atribuicao_automatica", carteira_definida_em: ha(minutos) }
+          : {}),
       })),
     ),
     "contatos do SDR",

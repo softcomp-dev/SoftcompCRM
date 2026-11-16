@@ -183,7 +183,7 @@
         {
           "id": "p6",
           "titulo": "O aviso de que passou",
-          "texto": "Pronto: o aviso \"Negócio passado para Carlos Mendes.\" confirma a passagem. O negócio agora é do Carlos, que o vê no funil dele. Quando a lista recarregar, a linha some da sua fila.",
+          "texto": "Pronto: o negócio passou para o Carlos, que passa a vê-lo no funil dele, e a linha sai da sua fila. O contador \"Comigo\" diminui, e um aviso no canto da tela confirma a passagem.",
           "antes": [
             {
               "acao": "click",
@@ -193,21 +193,17 @@
               }
             },
             {
-              "acao": "aguardar",
-              "alvo": {
-                "texto": "Negócio passado para",
-                "n": 0
-              }
+              "acao": "esperar",
+              "ms": 2000
             }
           ],
           "destaques": [
             {
               "alvo": {
-                "texto": "Negócio passado para",
-                "n": 0
+                "testid": "sdr-filtro-comigo"
               },
-              "rotulo": "Passou",
-              "tipo": "seta"
+              "rotulo": "Um a menos com você",
+              "tipo": "caixa"
             }
           ]
         }
@@ -242,13 +238,13 @@
             {
               "acao": "aguardar",
               "alvo": {
-                "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                "css": "[role=group][aria-label*='Marina Costa']"
               }
             },
             {
               "acao": "hover",
               "alvo": {
-                "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                "css": "[role=group][aria-label*='Marina Costa']"
               }
             }
           ],
@@ -259,7 +255,7 @@
                 "nome": "Ações do negócio",
                 "exato": true,
                 "dentro": {
-                  "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                  "css": "[role=group][aria-label*='Marina Costa']"
                 }
               },
               "rotulo": "Menu do cartão",
@@ -271,7 +267,7 @@
             "nome": "Ações do negócio",
             "exato": true,
             "dentro": {
-              "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+              "css": "[role=group][aria-label*='Marina Costa']"
             }
           }
         },
@@ -287,7 +283,7 @@
                 "nome": "Ações do negócio",
                 "exato": true,
                 "dentro": {
-                  "css": "[aria-label$='Fisioterapia pós-cirurgia — Marina Costa']"
+                  "css": "[role=group][aria-label*='Marina Costa']"
                 }
               }
             },
@@ -323,7 +319,7 @@
           "texto": "Ao abrir o item aparece a lista de vendedores. Na frase de cima, lembre o que acompanha o negócio: o cliente e as conversas abertas com você vão junto. Clique no nome de quem vai fechar a venda, aqui o Carlos Mendes.",
           "antes": [
             {
-              "acao": "click",
+              "acao": "hover",
               "alvo": {
                 "role": "menuitem",
                 "nome": "Passar para vendedor",
@@ -332,6 +328,13 @@
             },
             {
               "acao": "aguardar",
+              "alvo": {
+                "texto": "O negócio, o cliente e as conversas abertas com você vão para o vendedor.",
+                "exato": true
+              }
+            },
+            {
+              "acao": "hover",
               "alvo": {
                 "texto": "O negócio, o cliente e as conversas abertas com você vão para o vendedor.",
                 "exato": true
@@ -366,7 +369,7 @@
         {
           "id": "p4",
           "titulo": "Negócio passado",
-          "texto": "Um clique no nome e pronto: o aviso \"Negócio passado para Carlos Mendes.\" confirma, e o cartão passa a ser do Carlos. É a mesma passagem da tela \"Leads sem vendedor\": use a que ficar mais perto de você.",
+          "texto": "Um clique no nome e pronto: o negócio passa a ser do Carlos e sai do seu quadro, porque agora está com ele. A etapa mostra um cartão a menos, e um aviso no canto da tela confirma a passagem. É a mesma passagem da tela \"Leads sem vendedor\": use a que ficar mais perto de você.",
           "antes": [
             {
               "acao": "click",
@@ -377,21 +380,18 @@
               }
             },
             {
-              "acao": "aguardar",
-              "alvo": {
-                "texto": "Negócio passado para",
-                "n": 0
-              }
+              "acao": "esperar",
+              "ms": 2000
             }
           ],
           "destaques": [
             {
               "alvo": {
-                "texto": "Negócio passado para",
-                "n": 0
+                "texto": "Primeiro contato",
+                "exato": true
               },
-              "rotulo": "Passou",
-              "tipo": "seta"
+              "rotulo": "Um cartão a menos",
+              "tipo": "caixa"
             }
           ]
         }
