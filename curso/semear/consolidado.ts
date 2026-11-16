@@ -12,10 +12,10 @@
  * Cada empresa leva contatos e conversas fictícios, para as abas Conversas e
  * Contatos terem o que juntar. O nome da empresa aparece em todo item.
  *
- * `semearEmpresasIrmas` também é usada por `funis.ts` (só as empresas e o funil,
- * sem dados): a lição "Transferir para outra empresa" precisa de uma empresa em
- * que a pessoa seja pelo menos agente. A base apaga as empresas extras antes de
- * cada lição; esta função só precisa recriá-las pelos ids fixos.
+ * A lição "Transferir para outra empresa" também mora neste módulo: ela parte do
+ * funil da Clínica (o negócio da Bruna Siqueira) e precisa de uma empresa em que
+ * a pessoa seja pelo menos agente, que é a Moema. A base apaga as empresas extras
+ * antes de cada lição; `semearEmpresasIrmas` só precisa recriá-las pelos ids fixos.
  *
  * ⚠️ `created_at` das empresas fica DEPOIS do da Clínica Bem Viver (ver o aviso de
  * `admin-tenants.ts`) e o `accepted_at` do vínculo da Helena também: a empresa

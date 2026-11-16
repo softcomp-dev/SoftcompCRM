@@ -12,18 +12,15 @@
  * Não grava em tabela que a base não limpa (tarefas, funis, etapas): o que
  * ficasse lá apareceria nas fotos de outros módulos.
  *
- * Também leva a Helena a uma segunda empresa (Bem Viver Moema, onde ela é gerente), só
- * para o menu do card oferecer "Transferir para outra empresa": a base apaga a empresa
- * extra antes de cada lição, e quem a recria é `semearEmpresasIrmas` (consolidado.ts).
- * Com mais de uma empresa o cabeçalho passa a mostrar o seletor de empresa em todas as
- * lições do módulo, e o menu do card ganha o item novo.
+ * A transferência para outra empresa é ensinada no módulo Visão consolidada, cuja
+ * semente cria as empresas irmãs: aqui a Helena tem uma empresa só, e as fotos do
+ * funil não mostram o seletor de empresa.
  *
  * Dois negócios existem para as lições de desfecho e de documento: o da Luana, ganho
  * parcial (âmbar), e o da Juliana, que traz uma cotação anotada para virar pedido.
  */
 import { type Contexto, contatoId, exigir, semErro } from "../semear-demonstracao";
 import { textoDaDemonstracao as demo } from "../espanhol-demonstracao";
-import { semearEmpresasIrmas } from "./consolidado";
 
 const negocioId = (n: number) => `f1000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const contatoNovoId = (n: number) => `f2000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -120,9 +117,6 @@ export async function semear(c: Contexto) {
     await db.from("contacts").insert(CONTATOS_NOVOS.map(({ n, ...x }) => ({ id: contatoNovoId(n), organization_id: org, ...x }))),
     "contatos novos",
   );
-
-  // segunda empresa da Helena (gerente lá): é o que faz o menu do card oferecer a transferência
-  await semearEmpresasIrmas(c);
 
   const NEGOCIOS: Negocio[] = [
     {

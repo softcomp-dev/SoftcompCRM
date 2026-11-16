@@ -627,6 +627,283 @@
           ]
         }
       ]
+    },
+    {
+      "id": "transferir-para-outra-empresa",
+      "titulo": "Transferir um negócio para outra empresa",
+      "objetivo": "Passar um negócio para outra empresa a que você também pertence, escolhendo o funil e a etapa de entrada, e saber o que vai junto e o que fica.",
+      "papel": "admin",
+      "busca": [
+        "transferir negócio",
+        "outra empresa",
+        "filial",
+        "unidade",
+        "mudar de empresa",
+        "levar para outra empresa",
+        "várias empresas"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O item no menu do cartão",
+          "texto": "Quem atende mais de uma empresa, como a matriz e as unidades de uma rede, pode passar um negócio de uma para outra. Abra o menu dos três pontinhos do cartão e clique em \"Transferir para outra empresa\". O item só aparece para gerentes e administradores da empresa do negócio, e só para quem também atende, como agente ou acima, em outra empresa. Aqui, a Helena administra a Clínica e é gerente da unidade Moema.",
+          "dica": "Só negócios em andamento podem ser transferidos. Um negócio ganho ou perdido precisa ser reaberto antes.",
+          "rota": "/app/kanban",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[data-testid^='abrir-']:has-text('Pacientes')"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Bruna Siqueira']"
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "css": "[role=group][aria-label*='Bruna Siqueira']"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ações do negócio",
+                "exato": true,
+                "dentro": {
+                  "css": "[role=group][aria-label*='Bruna Siqueira']"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menu"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Transferir para outra empresa",
+                "exato": true
+              },
+              "rotulo": "Levar para outra empresa",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "menuitem",
+            "nome": "Transferir para outra empresa",
+            "exato": true
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "A janela de transferência",
+          "texto": "A janela avisa o que acontece: o negócio é recriado na empresa escolhida, com o mesmo cliente, e este aqui encerra como transferido. As conversas, as tarefas e os anexos ficam nesta empresa, porque o número de WhatsApp é dela. O botão \"Transferir\" só funciona depois de você escolher a empresa e o funil.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Transferir para outra empresa",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              },
+              "rotulo": "Para qual empresa",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Ainda desligado",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Empresa, funil e etapa",
+          "texto": "Escolha a empresa de destino, depois o funil dela. Em \"Etapa de entrada\" você pode escolher onde o negócio começa; sem escolha, ele entra na primeira etapa aberta do funil. A lista de empresas mostra só aquelas em que você é pelo menos agente.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Empresa de destino",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Bem Viver Moema",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Funil de destino",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Pacientes",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "combobox",
+                "nome": "Etapa de entrada",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Funil de destino",
+                "exato": true
+              },
+              "rotulo": "O funil",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "combobox",
+                "nome": "Etapa de entrada",
+                "exato": true
+              },
+              "rotulo": "Onde ele começa",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Transferir",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Transferir",
+            "exato": true,
+            "dentro": {
+              "role": "dialog"
+            }
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "O negócio de origem fica encerrado",
+          "texto": "Pronto: o negócio foi para a outra empresa. Aqui, o cartão da Bruna foi para a etapa de perda e ficou vermelho: é o jeito de encerrar o negócio que saiu. Isso não conta como perda nas métricas, porque o negócio continua vivo na outra empresa.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Transferir",
+                "exato": true,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "esperar",
+              "ms": 2000
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "[role=group][aria-label*='Bruna Siqueira']"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[role=group][aria-label*='Bruna Siqueira']"
+              },
+              "rotulo": "Encerrado aqui",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p5",
+          "titulo": "Onde ele foi parar",
+          "texto": "Na Visão consolidada você vê o negócio já na outra empresa, no cartão com o nome dela. Ele chegou com o mesmo título e valor, e o cliente foi achado pelo telefone ou pelo e-mail na empresa de destino, ou cadastrado lá se ainda não existia. Se mandou para a empresa errada, transfira de volta pelo mesmo menu.",
+          "rota": "/app/consolidado",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "card-consolidado",
+                "n": 0
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[data-testid='card-consolidado'][data-empresa='a5100000-0000-4000-8000-000000000001']:has-text('Bruna Siqueira')"
+              },
+              "rotulo": "O negócio na unidade Moema",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
