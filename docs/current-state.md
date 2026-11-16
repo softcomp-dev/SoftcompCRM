@@ -144,6 +144,31 @@ Vêm do `HANDOFF-harness-evolution.md`, anotados como "não são desta feature":
 **transbordo de layout a 390px em qualquer tela** e **não existe caminho de criação de
 funil** (só de etapas). O primeiro é bug de primeira impressão em mobile.
 
+### Pendente: papel humano de Assistente (registrado em 2026-11-16, não iniciado)
+
+Precisamos de um papel de **Assistente** para pessoas da equipe. Hoje uma pessoa só pode ser
+`viewer`, `agent`, `manager` ou `admin` (`PAPEIS_HUMANOS` em `lib/auth/types.ts`). O
+`ai_operator` ("Assistente com autonomia de operação") **não serve para isso**: ele é o papel
+do agente de IA publicado, existe só no token efêmero e nunca vai para `user_organizations`.
+
+**Está parado de propósito:** falta a definição, que vai chegar de outra equipe, do que o
+Atendente pode e não pode fazer. É essa definição que diz onde o Assistente fica na escada e o
+que ele faz. Não comece antes de ela chegar.
+
+O que precisa mudar quando for implementar:
+- o CHECK de `user_organizations.role`, por migration versionada e também no apêndice do
+  `baseline.sql`;
+- as funções de papel do banco (`fn_role_at_least` / `fn_user_role_in_org`) e as policies que
+  comparam papel;
+- `Role`, `ROLE_RANK`, `PAPEIS_HUMANOS` e `ROTULO_DO_PAPEL` em `lib/auth/types.ts`. Se o
+  Assistente ficar entre Atendente e Gerente, a escada tem de ser renumerada, porque o nível 3
+  hoje é do `ai_operator`;
+- os seletores de papel em Equipe e nos convites, e o dicionário i18n;
+- os testes de isolamento e de RBAC, que hoje só cobrem os quatro papéis humanos.
+
+Antes de criar o papel, confira se o Atendente com o modo de visualização ajustado
+(`VISIBILITY_MODES`) junto com as áreas visíveis por pessoa já resolve o caso.
+
 ---
 
 ## 4. O que está quebrado ou frágil — CONFIRMADO
