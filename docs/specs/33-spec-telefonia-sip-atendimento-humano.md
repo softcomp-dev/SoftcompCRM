@@ -66,8 +66,10 @@ O atendimento humano tem dois jeitos de existir, e os dois cabem no produto:
 Nada da fase B existe no código. O que ela pede, para quem for fazer:
 
 1. **Ramal por atendente.** Um endpoint PJSIP por usuário, criado pela ARI
-   (configuração dinâmica, `sorcery` com astdb) — o mesmo mecanismo que a
-   aplicação automática do tronco pela tela precisa, então vale fazer junto.
+   (configuração dinâmica, `sorcery` com astdb). O mecanismo já existe: é o
+   mesmo que aplica o tronco salvo na tela (`asterisk/sorcery.conf`,
+   `workers/voice-agent/aplicar-tronco.ts`) — o ramal é mais um objeto na
+   mesma rodada.
 2. **Transporte WebRTC no Asterisk.** `transport-wss`, `webrtc=yes` no
    endpoint do ramal, certificado (o do domínio, via Caddy) e DTLS-SRTP.
 3. **Borda.** O Caddy encaminha `wss://<domínio>/sip` para o Asterisk (porta
@@ -85,12 +87,34 @@ Até lá, `mode: "human"` na ligação feita responde 422
 `voice_human_mode_unavailable`, e a tela de Telefonia diz que o modo humano
 encaminha para o telefone do time.
 
-## 3. O que não foi medido
+## 3. Peças vizinhas que entraram junto
 
-- Nenhuma ligação real passou por este caminho: o ambiente onde a fase A foi
-  escrita não tinha Asterisk, tronco nem Docker. Os testes (`fio-encaminhar-ao-time`,
-  `fio-passar-ao-time`, `ponte-passa-ao-time`) dirigem o worker real contra um
-  ARI gravador e uma tabela em memória. A prova numa VPS — ligar para o número,
-  ouvir o time tocar, falar pela ponte, e a passagem da IA — fica por fazer.
+- **Tronco aplicado pela tela.** Salvar em Configurações › Trunk SIP basta: o
+  worker de voz aplica o tronco pela ARI em até 30 s e grava o estado em
+  `voip_trunk_status` (migration 9256), que a tela mostra. A ligação recebida
+  diz o endpoint por onde chegou, e o tronco de DID único resolve por
+  organização.
+- **Custo da voz.** A ligação atendida pela IA entra em `llm_calls` com custo,
+  pela tarifa de áudio de `lib/ai/tarifa-de-voz.ts`.
+- **Reconexão.** O worker refaz a conexão de eventos com o Asterisk quando ela
+  cai (`connectAriEvents`).
+- **Teste de ligação no CI.** `.github/workflows/telefonia.yml` faz uma ligação
+  SIP de verdade (sipp → Asterisk → worker → sessão de voz falsa) e mede o
+  desfecho no banco. Cobre o atendimento pela IA e o "sem agente"; o
+  encaminhamento ao time ainda não está nele (precisaria de um segundo sipp
+  fazendo o papel do telefone do time).
+
+## 4. O que não foi medido
+
+- Nenhuma ligação com operadora real passou por este caminho: o ambiente onde a
+  fase A foi escrita não tinha Asterisk, tronco nem Docker. Os testes
+  (`fio-encaminhar-ao-time`, `fio-passar-ao-time`, `ponte-passa-ao-time`)
+  dirigem o worker real contra um ARI gravador e uma tabela em memória. A prova
+  numa VPS — ligar para o número, ouvir o time tocar, falar pela ponte, e a
+  passagem da IA — fica por fazer.
+- A aplicação do tronco pela ARI (configuração dinâmica + astdb) não rodou num
+  Asterisk: em particular, se o registro na operadora começa sozinho quando o
+  objeto `registration` é criado pela ARI. Se não começar, o estado na tela fica
+  `offline` e o caminho é `pjsip send register <id>` no Asterisk.
 - Se o provedor do tronco aceita o `callerId` de quem ligou na perna do time
   (alguns só aceitam o número próprio): sem isso o time vê o número da empresa.
