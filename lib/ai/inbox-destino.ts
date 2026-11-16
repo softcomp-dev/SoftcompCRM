@@ -207,6 +207,9 @@ export const POLITICAS_DE_AVISO = {
   // `message_send_stuck` cala o aviso de automação aberto na mesma janela. A porta
   // passa pela MESMA conferência dos outros kinds: RLS de `conversations` no
   // client da request, papel `agent` da entrada `conversation`.
+  // (migration 9257) O cliente virou pré-inativo: a ação é falar com ele antes
+  // de virar inativo. Leva à ficha do contato, onde estão os negócios e a conversa.
+  client_pre_inactive: { refs: ["contact"], orientacao: "Faça contato com o cliente antes que ele vire inativo: confira na ficha a última compra e ofereça uma recompra." },
   other: { refs: ["agenda_reminder_sender", "lead", "conversation", "channel_session", "appointment", "ai_agent", "ai_provider_credential", "agent_case"], orientacao: "Confira a situação descrita neste aviso com a pessoa responsável." },
 } satisfies Record<InboxKind, Politica>;
 

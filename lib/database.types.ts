@@ -6100,6 +6100,7 @@ export type Database = {
           is_personal: boolean;
           kind: string;
           last_activity_at: string | null;
+          last_won_at: string | null;
           locale: string | null;
           merged_at: string | null;
           name: string | null;
@@ -6108,6 +6109,7 @@ export type Database = {
           person_id: string | null;
           phone_lookup_at: string | null;
           phone_number: string | null;
+          pre_inativo_avisado_para: string | null;
           phone_type: string | null;
           phone_whatsapp: string | null;
           social_identity: string | null;
@@ -6162,6 +6164,7 @@ export type Database = {
           is_personal?: boolean;
           kind?: string;
           last_activity_at?: string | null;
+          last_won_at?: string | null;
           locale?: string | null;
           merged_at?: string | null;
           name?: string | null;
@@ -6170,6 +6173,7 @@ export type Database = {
           person_id?: string | null;
           phone_lookup_at?: string | null;
           phone_number?: string | null;
+          pre_inativo_avisado_para?: string | null;
           phone_type?: string | null;
           phone_whatsapp?: string | null;
           social_identity?: string | null;
@@ -6223,6 +6227,7 @@ export type Database = {
           is_personal?: boolean;
           kind?: string;
           last_activity_at?: string | null;
+          last_won_at?: string | null;
           locale?: string | null;
           merged_at?: string | null;
           name?: string | null;
@@ -6231,6 +6236,7 @@ export type Database = {
           person_id?: string | null;
           phone_lookup_at?: string | null;
           phone_number?: string | null;
+          pre_inativo_avisado_para?: string | null;
           phone_type?: string | null;
           phone_whatsapp?: string | null;
           social_identity?: string | null;
@@ -11886,6 +11892,8 @@ export type Database = {
           lembrete_caso_intervalo_horas: number;
           lembrete_caso_ligado: boolean;
           lembrete_caso_teto: number;
+          classificacao_ativo_dias: number;
+          classificacao_pre_inativo_dias: number;
           locale: string;
           mcp_externo_chave_encrypted: string | null;
           mcp_externo_chave_iv: string | null;
@@ -11923,6 +11931,8 @@ export type Database = {
           lembrete_caso_intervalo_horas?: number;
           lembrete_caso_ligado?: boolean;
           lembrete_caso_teto?: number;
+          classificacao_ativo_dias?: number;
+          classificacao_pre_inativo_dias?: number;
           locale?: string;
           mcp_externo_chave_encrypted?: string | null;
           mcp_externo_chave_iv?: string | null;
@@ -11959,6 +11969,8 @@ export type Database = {
           lembrete_caso_intervalo_horas?: number;
           lembrete_caso_ligado?: boolean;
           lembrete_caso_teto?: number;
+          classificacao_ativo_dias?: number;
+          classificacao_pre_inativo_dias?: number;
           locale?: string;
           mcp_externo_chave_encrypted?: string | null;
           mcp_externo_chave_iv?: string | null;

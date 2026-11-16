@@ -129,6 +129,8 @@ export const KIND_LABEL = {
   // "parou de responder" é o que faz quem lê a Central agir — e a ação é uma
   // só, reconectar em Credenciais.
   assinatura_desconectada: "A conta do ChatGPT desconectou — a IA parou de responder",
+  // Diz o que fazer com o cliente: ele ainda não é inativo, e é agora que se age.
+  client_pre_inactive: "Um cliente está esfriando — virou pré-inativo",
   other: "Aviso do assistente",
 } as const satisfies Record<InboxKind, string>;
 

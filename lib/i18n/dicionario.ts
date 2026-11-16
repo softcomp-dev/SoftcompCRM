@@ -12927,6 +12927,11 @@ export const DICIONARIO: Traducoes = {
   // O botão diz o que FAZER ("Reconectar"), não "revisar": nada há para inspecionar,
   // a conta precisa ser conectada de novo. O espanhol repete a ação, não o rótulo.
   "Reconectar a assinatura": { es: "Reconectar la suscripción" },
+  // ─── lib/ai/agent-inbox-copy.ts + inbox-destino.ts, `client_pre_inactive` (migration 9257) ───
+  "Um cliente está esfriando — virou pré-inativo": { es: "Un cliente se está enfriando — pasó a preinactivo" },
+  "Faça contato com o cliente antes que ele vire inativo: confira na ficha a última compra e ofereça uma recompra.": {
+    es: "Contacta al cliente antes de que pase a inactivo: revisa en la ficha la última compra y ofrece una recompra.",
+  },
   // O título do item na Central (`KIND_LABEL`): o `agent-inbox-copy.test.ts` exige
   // o par `es` para TODO kind do vocabulário, e é o que o cliente vê na lista.
   "A conta do ChatGPT desconectou — a IA parou de responder": {

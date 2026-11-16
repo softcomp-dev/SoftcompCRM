@@ -10463,6 +10463,10 @@ alter table public.agent_inbox_items
     -- razões de sempre (#159, bloco único por constraint) e o item nasce SEM
     -- referência: o destino é a tela de Credenciais, para quem administra.
     'assinatura_desconectada',
+    -- (migration 9257) O cliente passou do prazo de ativo e virou pré-inativo:
+    -- o aviso nasce com `ref_kind='contact'`, um por venda (a marca é
+    -- `contacts.pre_inativo_avisado_para`). Entra NESTA lista (#159).
+    'client_pre_inactive',
     'other'
   ));
 
@@ -73532,6 +73536,136 @@ revoke all on public.voip_trunk_status from anon, authenticated, service_role;
 grant select on public.voip_trunk_status to authenticated;
 grant select, insert, update, delete on public.voip_trunk_status to service_role;
 
+
+-- ---- Classificação do cliente por recência de compra (migration 9257) ----
+-- O porquê está no cabeçalho da migration. O kind client_pre_inactive entra
+-- no BLOCO ÚNICO de agent_inbox_items_kind_check, lá em cima (#159). Fica ANTES da varredura de anon: cria função.
+alter table public.contacts
+  add column if not exists last_won_at timestamptz,
+  add column if not exists pre_inativo_avisado_para timestamptz;
+
+comment on column public.contacts.last_won_at is
+  'Fechamento (closed_at) do negócio ganho mais recente do contato. Derivado de crm_leads; mantido por trg_crm_lead_ultima_venda (migration 9257). Base da classificação ativo/pré-inativo/inativo.';
+comment on column public.contacts.pre_inativo_avisado_para is
+  'last_won_at para o qual a Central já avisou que o cliente ficou pré-inativo (kind client_pre_inactive). Só o cron classificacao-de-clientes escreve (migration 9257).';
+
+create index if not exists idx_contacts_org_last_won
+  on public.contacts (organization_id, last_won_at);
+
+alter table public.organizations
+  add column if not exists classificacao_ativo_dias smallint not null default 90,
+  add column if not exists classificacao_pre_inativo_dias smallint not null default 180;
+
+do $$
+begin
+  alter table public.organizations drop constraint if exists organizations_classificacao_dias_check;
+  alter table public.organizations add constraint organizations_classificacao_dias_check
+    check (classificacao_ativo_dias between 1 and 3650
+       and classificacao_pre_inativo_dias between 1 and 3650
+       and classificacao_pre_inativo_dias > classificacao_ativo_dias);
+end $$;
+
+-- Recalcula o last_won_at de UM contato a partir de crm_leads.
+create or replace function public.fn_recalcular_ultima_venda(p_contact_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_ultima timestamptz;
+begin
+  if p_contact_id is null then
+    return;
+  end if;
+
+  select max(l.closed_at) into v_ultima
+    from public.crm_leads l
+   where l.contact_id = p_contact_id
+     and l.status = 'won';
+
+  perform set_config('deskcomm.ultima_venda_pelo_lead', 'on', true);
+  update public.contacts
+     set last_won_at = v_ultima
+   where id = p_contact_id
+     and last_won_at is distinct from v_ultima;
+  perform set_config('deskcomm.ultima_venda_pelo_lead', '', true);
+end $$;
+
+revoke execute on function public.fn_recalcular_ultima_venda(uuid) from public, anon, authenticated;
+grant execute on function public.fn_recalcular_ultima_venda(uuid) to service_role;
+
+create or replace function public.fn_crm_lead_ultima_venda()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op in ('UPDATE', 'DELETE') and old.contact_id is not null
+     and (tg_op = 'DELETE'
+       or old.contact_id is distinct from new.contact_id
+       or old.status = 'won') then
+    perform public.fn_recalcular_ultima_venda(old.contact_id);
+  end if;
+
+  if tg_op in ('INSERT', 'UPDATE') and new.contact_id is not null and new.status = 'won'
+     and (tg_op = 'INSERT'
+       or old.contact_id is distinct from new.contact_id
+       or old.status is distinct from new.status
+       or old.closed_at is distinct from new.closed_at) then
+    perform public.fn_recalcular_ultima_venda(new.contact_id);
+  end if;
+
+  return null;
+end $$;
+
+-- Função de trigger não exige EXECUTE de quem dispara a escrita.
+revoke execute on function public.fn_crm_lead_ultima_venda() from public, anon, authenticated;
+
+drop trigger if exists trg_crm_lead_ultima_venda on public.crm_leads;
+create trigger trg_crm_lead_ultima_venda
+  after insert or update of status, closed_at, contact_id or delete on public.crm_leads
+  for each row
+  execute function public.fn_crm_lead_ultima_venda();
+
+-- Guarda: sessão nenhuma grava as duas colunas de venda. O gatilho acima passa
+-- pela flag de transação; service role e migrations não têm auth.uid().
+create or replace function public.fn_colunas_de_venda_sao_do_sistema()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is not null
+     and coalesce(current_setting('deskcomm.ultima_venda_pelo_lead', true), '') <> 'on' then
+    raise exception 'colunas_de_venda_sao_do_sistema' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+
+revoke execute on function public.fn_colunas_de_venda_sao_do_sistema() from public, anon, authenticated;
+
+drop trigger if exists trg_contato_colunas_de_venda on public.contacts;
+create trigger trg_contato_colunas_de_venda
+  before update on public.contacts
+  for each row
+  when (old.last_won_at is distinct from new.last_won_at
+     or old.pre_inativo_avisado_para is distinct from new.pre_inativo_avisado_para)
+  execute function public.fn_colunas_de_venda_sao_do_sistema();
+
+-- Backfill: o last_won_at de todo contato com negócio ganho.
+with ultima as (
+  select l.contact_id, max(l.closed_at) as em
+    from public.crm_leads l
+   where l.status = 'won' and l.contact_id is not null
+   group by l.contact_id
+)
+update public.contacts c
+   set last_won_at = u.em
+  from ultima u
+ where c.id = u.contact_id
+   and c.last_won_at is distinct from u.em;
 
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --

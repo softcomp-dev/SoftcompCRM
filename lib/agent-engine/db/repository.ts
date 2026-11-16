@@ -138,6 +138,9 @@ export type InboxKind =
   // sem resposta e a Central vazia. UM item por incidente (índice único
   // parcial), fechado sozinho quando o login volta pela tela de Credenciais.
   | 'assinatura_desconectada'
+  // (migration 9257) O cliente passou do prazo de ativo e virou pré-inativo.
+  // UM item por venda (marca em contacts.pre_inativo_avisado_para), ref_kind='contact'.
+  | 'client_pre_inactive'
   | 'other';
 
 export interface InboxItemRow {
