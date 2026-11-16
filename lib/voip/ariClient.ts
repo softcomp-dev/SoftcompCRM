@@ -18,6 +18,8 @@
 
 import WebSocket from "ws";
 
+import { discagemPjsip } from "./discagem";
+
 const ARI_URL = process.env.ARI_URL!;
 const ARI_USERNAME = process.env.ARI_USERNAME!;
 const ARI_PASSWORD = process.env.ARI_PASSWORD!;
@@ -78,17 +80,11 @@ export interface OriginateParams {
  */
 export async function originateCall(params: OriginateParams) {
   // PJSIP rejeita "+" no dial string ("Could not create dialog to invalid
-  // URI") — E.164 com "+" é o formato de armazenamento/exibição (crm_calls,
-  // phone_numbers), não o que vai na URI SIP. Provedores variam bastante
-  // aqui (alguns querem prefixo "00", outros nada); "+" cru nunca funciona.
-  const dialNumber = params.toNumber.replace(/^\+/, "");
-
-  // Formato PJSIP/<endpoint>/<uri> falha com "Could not create dialog to
-  // invalid URI" pra número cru (testado ao vivo, os dois com e sem "+").
-  // PJSIP/<destino>@<nome-do-endpoint> é o que este trunk aceita — Asterisk
-  // resolve o host/porta pelo AOR do endpoint, não pelo que vem depois do "/".
-  const [tech, endpointName] = params.trunkEndpoint.split("/");
-  const endpoint = `${tech}/${dialNumber}@${endpointName}`;
+  // URI"), e o formato PJSIP/<endpoint>/<uri> falha para número cru (os dois
+  // testados ao vivo). PJSIP/<destino>@<nome-do-endpoint> é o que funciona —
+  // o Asterisk resolve host/porta pelo AOR do endpoint. A regra, e os dois
+  // formatos de tronco que chegam aqui (env e tela), moram em `discagem.ts`.
+  const endpoint = discagemPjsip(params.trunkEndpoint, params.toNumber);
 
   return ariFetch("/ari/channels", {
     method: "POST",
