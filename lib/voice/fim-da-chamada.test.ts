@@ -36,6 +36,14 @@ describe("desfechoDaLigacao", () => {
     });
   });
 
+  it("a IA atendeu, a pessoa pediu o time e ninguém pegou: avisa", () => {
+    expect(desfechoDaLigacao(RECEBIDA_ATENDIDA, false, { timeNaoAtendeu: true })).toMatchObject({
+      abreAviso: true,
+      tipoNaLinhaDoTempo: "voice_call",
+    });
+    expect(desfechoDaLigacao(RECEBIDA_ATENDIDA, true, { timeNaoAtendeu: true }).abreAviso).toBe(false);
+  });
+
   it("feita sem resposta não pede para ligar de volta", () => {
     expect(desfechoDaLigacao(FEITA_SEM_RESPOSTA, false)).toMatchObject({
       abreAviso: false,

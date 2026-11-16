@@ -51,12 +51,19 @@ export interface PedidoDeRegistrarFim {
   rotuloDaAtendida?: string;
   /** Campos a mais no payload do `voice_call.ended` (ex.: o id do provedor). */
   payloadDoEvento?: Record<string, unknown>;
+  /**
+   * A ligação foi passada ao time (pela IA ou direto) e ninguém atendeu. Ela
+   * pode ter sido atendida pela IA antes — mas quem ligou pediu uma pessoa e
+   * não falou com nenhuma, então alguém precisa ligar de volta.
+   */
+  timeNaoAtendeu?: boolean;
 }
 
 /** Para teste: o desfecho que cada ligação produz, sem tocar banco. */
 export function desfechoDaLigacao(
   ligacao: Pick<LigacaoEncerrada, "answered_at" | "direction">,
   bloqueado: boolean,
+  opcoes: { timeNaoAtendeu?: boolean } = {},
 ): {
   atendida: boolean;
   recebida: boolean;
@@ -70,7 +77,7 @@ export function desfechoDaLigacao(
     atendida,
     recebida,
     // SABOTAGEM: remover o `&& !bloqueado` = o caso de bloqueado volta a avisar.
-    abreAviso: !atendida && recebida && !bloqueado,
+    abreAviso: ((!atendida && recebida) || (recebida && !!opcoes.timeNaoAtendeu)) && !bloqueado,
     carimbaLinhaDoTempo: !(bloqueado && recebida && !atendida),
     tipoNaLinhaDoTempo: atendida ? "voice_call" : recebida ? "voice_call_missed" : "voice_call_unanswered",
   };
@@ -106,7 +113,7 @@ export async function registrarFimDaLigacao(
   const bloqueado = row.contact_id
     ? await contatoEstaBloqueado(pool, p.organizationId, row.contact_id)
     : false;
-  const d = desfechoDaLigacao(row, bloqueado);
+  const d = desfechoDaLigacao(row, bloqueado, { timeNaoAtendeu: p.timeNaoAtendeu });
 
   if (bloqueado) {
     log.info("voz: ligação encerrada de bloqueado, sem aviso", {

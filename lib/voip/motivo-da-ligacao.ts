@@ -9,6 +9,8 @@
  */
 export const END_REASON_SEM_AGENTE = "no_agent";
 export const END_REASON_ORG_PARADA = "org_inactive";
+export const END_REASON_TIME_NAO_ATENDEU = "human_no_answer";
+export const END_REASON_SEM_TELEFONE_DO_TIME = "human_unavailable";
 
 const MOTIVOS: Record<string, string> = {
   user_ended: "A ligação terminou normalmente.",
@@ -21,6 +23,9 @@ const MOTIVOS: Record<string, string> = {
   [END_REASON_SEM_AGENTE]:
     "Nenhum agente de voz estava ativo para atender. Ative um em IA › Agentes ou mude o atendimento do número para o time.",
   [END_REASON_ORG_PARADA]: "A empresa está suspensa ou arquivada, e a ligação não foi atendida.",
+  [END_REASON_TIME_NAO_ATENDEU]: "A ligação foi passada ao time e ninguém atendeu o telefone do time.",
+  [END_REASON_SEM_TELEFONE_DO_TIME]:
+    "O número está configurado para passar ao time, mas a ligação não pôde ser encaminhada (telefone do time ausente ou recusado pela operadora).",
 };
 
 export function motivoDaLigacaoSip(motivo: string | null | undefined): string {

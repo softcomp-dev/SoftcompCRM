@@ -66,8 +66,13 @@ import { registrarChamadaDeIa } from "@/lib/ai/usage/registrar-chamada";
 import { logger } from "@/lib/logger";
 import { linhaDaLigacao } from "./uso-da-sessao";
 import { registrarFimDaLigacaoSip } from "./fim-sip";
+import { encaminharAoTime, quandoOTimeAtende, quandoUmCanalCai } from "./encaminhar-ao-time";
 import type { LigacaoEncerrada } from "@/lib/voice/fim-da-chamada";
-import { END_REASON_ORG_PARADA, END_REASON_SEM_AGENTE } from "@/lib/voip/motivo-da-ligacao";
+import {
+  END_REASON_ORG_PARADA,
+  END_REASON_SEM_AGENTE,
+  END_REASON_SEM_TELEFONE_DO_TIME,
+} from "@/lib/voip/motivo-da-ligacao";
 
 const supabaseAdmin = createAdminClient();
 
@@ -238,6 +243,37 @@ export async function handleStasisStart(event: AriEvent) {
     }
   }
 
+  // MODO "TIME HUMANO": a ligação não passa pela IA — vai direto ao telefone do
+  // time (encaminhar-ao-time.ts), e a perna de quem ligou fica aqui na Stasis.
+  // Sem telefone do time (dado anterior à validação da tela), encerra com o
+  // motivo e o aviso em vez de deixar tocando para ninguém.
+  // SABOTAGEM: remover este bloco = o caso "time humano" de fio-encaminhar-ao-time fica vermelho.
+  if (routing.routing_mode === "human") {
+    if (!routing.forward_to_phone) {
+      await encerrarSemAtender(callRow.id, END_REASON_SEM_TELEFONE_DO_TIME);
+      await hangupChannel(channel.id, "normal");
+      return;
+    }
+    await encaminharAoTime({
+      canalDeQuemLigou: channel.id,
+      callId: callRow.id,
+      organizationId: routing.organization_id,
+      destino: routing.forward_to_phone,
+      tronco: await troncoDaOrganizacao(routing.organization_id, routing.trunk_endpoint),
+      toqueSegundos: routing.forward_ring_seconds ?? 25,
+      numeroDeQuemLigou: callerNumber,
+      ligacao: {
+        id: callRow.id,
+        contact_id: callerContactId,
+        peer_phone: callerNumber,
+        owner_user_id: null,
+        direction: "inbound",
+      },
+      handledBy: "human",
+    });
+    return;
+  }
+
   // audioSocketUuid é o asterisk_channel_id gravado acima — vai como UUID do
   // AudioSocket (mesmo padrão da saída), pra handleAudioSocketConnection
   // achar a linha certa assim que a conexão TCP chegar.
@@ -250,7 +286,27 @@ type RoteamentoInbound = {
   routing_mode: "ai" | "human" | "ai_then_human";
   default_ai_agent_id: string | null;
   fallback_user_id: string | null;
+  /** Telefone do time (migration 9255) — modos human e ai_then_human. */
+  forward_to_phone: string | null;
+  forward_ring_seconds: number | null;
+  trunk_endpoint: string | null;
 };
+
+/**
+ * Por onde discar para o time: o tronco que a organização salvou na tela
+ * (Configurações › Trunk SIP), e, sem ele, o do número (o `VOIP_TRUNK_ENDPOINT`
+ * de quando o número foi cadastrado). Mesma precedência do `POST /api/v1/calls`.
+ */
+async function troncoDaOrganizacao(organizationId: string, doNumero: string | null): Promise<string> {
+  const { data } = await supabaseAdmin
+    .from("voip_trunk_settings")
+    .select("endpoint_name, is_active")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  const daTela = data as { endpoint_name?: string | null; is_active?: boolean } | null;
+  if (daTela?.is_active && daTela.endpoint_name) return daTela.endpoint_name;
+  return doNumero ?? process.env.VOIP_TRUNK_ENDPOINT ?? "";
+}
 
 async function resolveInboundNumber(dialedNumber: string): Promise<RoteamentoInbound | null> {
   // Trunks de DID único mandam a extensão "s" no Request-URI em vez dos
@@ -262,7 +318,9 @@ async function resolveInboundNumber(dialedNumber: string): Promise<RoteamentoInb
   if (dialedNumber === "s") {
     const { data, error } = await supabaseAdmin
       .from("phone_numbers")
-      .select("organization_id, routing_mode, default_ai_agent_id, fallback_user_id")
+      .select(
+        "organization_id, routing_mode, default_ai_agent_id, fallback_user_id, forward_to_phone, forward_ring_seconds, trunk_endpoint",
+      )
       .eq("is_active", true)
       .limit(2);
     if (error || !data || data.length !== 1) {
@@ -632,13 +690,32 @@ export async function handleChannelDestroyed(event: AriEvent) {
   }
 }
 
+/**
+ * Quem cuida de cada evento ARI. Exportada para o teste do fio: a perna do
+ * time entra na app com `args = ["time", …]` e não pode cair no caminho da
+ * ligação recebida; o canal que cai pode ser de um encaminhamento.
+ */
+export async function despacharEventoAri(event: AriEvent) {
+  if (event.type === "StasisStart") {
+    if (event.args?.[0] === "time") {
+      if (event.channel?.id) await quandoOTimeAtende(event.channel.id);
+      return;
+    }
+    await handleStasisStart(event);
+    return;
+  }
+  if (event.type === "ChannelDestroyed") {
+    if (event.channel?.id && (await quandoUmCanalCai(event.channel.id))) return;
+    await handleChannelDestroyed(event);
+  }
+}
+
 function main() {
   assertEnv();
   logger.info("[voice-agent] worker iniciado, conectando ao ARI...");
   connectAriEvents(async (event) => {
     try {
-      if (event.type === "StasisStart") await handleStasisStart(event);
-      if (event.type === "ChannelDestroyed") await handleChannelDestroyed(event);
+      await despacharEventoAri(event);
     } catch (err) {
       logger.error("[voice-agent] erro processando evento ARI", {
         tipo: event.type,

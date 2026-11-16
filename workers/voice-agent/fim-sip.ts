@@ -40,6 +40,8 @@ export async function registrarFimDaLigacaoSip(p: {
   ligacao: LigacaoEncerrada;
   endReason: string;
   agentId?: string | null;
+  /** Passada ao time e ninguém atendeu — avisa mesmo se a IA atendeu antes. */
+  timeNaoAtendeu?: boolean;
 }): Promise<void> {
   const db = poolDoWorker();
   if (!db) {
@@ -59,6 +61,7 @@ export async function registrarFimDaLigacaoSip(p: {
         agentId: p.agentId ?? null,
         rotuloDaAtendida: p.ligacao.owner_user_id ? "Ligação atendida pelo time" : "Ligação atendida pela IA",
         payloadDoEvento: { provider: "sip" },
+        timeNaoAtendeu: p.timeNaoAtendeu ?? false,
       },
       logDoModulo,
     );

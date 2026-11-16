@@ -147,6 +147,68 @@ export async function continueDialplan(channelId: string, context: string, exten
   });
 }
 
+// ---------- Encaminhar ao time (atendimento humano, fase A) ----------
+//
+// A perna do time é originada PARA ESTA Stasis app (não para o dialplan): ela
+// só entra na app quando o telefone do time atende, e aí o worker recebe um
+// StasisStart com `args = ["time", <id da ligação>]`. Se ninguém atende no
+// `timeout`, o canal é destruído sem nunca entrar na app (ChannelDestroyed).
+// A ponte que junta as duas pernas é uma bridge "mixing" entre dois canais SIP
+// — o caso que funciona; o que não funcionava era bridge com externalMedia.
+
+export interface OriginarParaOTimeParams {
+  /** String de discagem pronta (`discagemPjsip`). */
+  endpoint: string;
+  /** Id escolhido por nós — é como o StasisStart e o ChannelDestroyed voltam para o encaminhamento. */
+  channelId: string;
+  /** Id da linha em `voice_calls`, vai nos args do StasisStart. */
+  callId: string;
+  /** Segundos de toque antes de desistir. */
+  timeout: number;
+  /** Número de quem ligou, para o time ver quem é. */
+  callerId?: string;
+  /** Canal de quem ligou — o Asterisk relaciona as duas pernas. */
+  originator?: string;
+}
+
+export async function originarParaOTime(p: OriginarParaOTimeParams) {
+  return ariFetch("/ari/channels", {
+    method: "POST",
+    body: JSON.stringify({
+      endpoint: p.endpoint,
+      app: ARI_APP,
+      appArgs: `time,${p.callId}`,
+      channelId: p.channelId,
+      timeout: p.timeout,
+      ...(p.callerId ? { callerId: p.callerId } : {}),
+      ...(p.originator ? { originator: p.originator } : {}),
+    }),
+  });
+}
+
+/** Toque de chamada para quem espera (o time ainda não atendeu). */
+export async function tocarParaQuemEspera(channelId: string) {
+  return ariFetch(`/ari/channels/${channelId}/ring`, { method: "POST" });
+}
+
+export async function pararDeTocar(channelId: string) {
+  return ariFetch(`/ari/channels/${channelId}/ring`, { method: "DELETE" });
+}
+
+export async function criarPonte(): Promise<{ id: string }> {
+  return ariFetch("/ari/bridges?type=mixing", { method: "POST" }) as Promise<{ id: string }>;
+}
+
+export async function porNaPonte(bridgeId: string, channelIds: string[]) {
+  return ariFetch(`/ari/bridges/${bridgeId}/addChannel?channel=${channelIds.map(encodeURIComponent).join(",")}`, {
+    method: "POST",
+  });
+}
+
+export async function desfazerPonte(bridgeId: string) {
+  return ariFetch(`/ari/bridges/${bridgeId}`, { method: "DELETE" });
+}
+
 // ---------- Eventos (WebSocket) ----------
 
 /** Só os campos que o worker de voz lê — o envelope ARI real tem muito mais. */
@@ -159,6 +221,8 @@ export interface AriChannel {
 export interface AriEvent {
   type: string;
   channel?: AriChannel;
+  /** Só em StasisStart — os argumentos de `Stasis(app,args)` ou do `appArgs` do originate. */
+  args?: string[];
   /** Só em ChannelDestroyed -- motivo do fim da chamada (texto ITU Q.850). */
   cause_txt?: string;
 }
