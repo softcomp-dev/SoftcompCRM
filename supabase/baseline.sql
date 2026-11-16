@@ -73682,7 +73682,7 @@ comment on column public.crm_leads.partial_reason is
 comment on column public.crm_leads.partial_original_value_cents is
   'Valor previsto antes do fechamento parcial (migration 9259). Devolvido a value_cents quando o negócio sai do ganho (trg_crm_lead_parcial_some_ao_reabrir).';
 
-do $
+do $$
 begin
   if not exists (
     select 1 from pg_constraint
@@ -73695,7 +73695,7 @@ begin
         or (status = 'won' and partial_reason is not null and length(btrim(partial_reason)) > 0)
       );
   end if;
-end $;
+end $$;
 
 create or replace function public.fn_crm_lead_parcial_some_ao_reabrir()
 returns trigger
