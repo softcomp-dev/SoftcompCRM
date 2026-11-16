@@ -383,6 +383,13 @@ owner: Rafael Melgaço
 - **Enforcement**: Worker (heartbeat de UI a cada 60s).
 - **Exceção**: Atendente pode pinar status `online` permanentemente em sessão (com warning UX).
 
+### AT-09 — Histórico de atendimento: o que passa pelo CRM entra sozinho; o de fora, a equipe registra
+- **Origem**: pedido do dono do fork (2026-11-16). Código: `lib/atendimento/historico.ts`, `lib/atendimento/interacao-manual.ts`, rota `app/api/v1/contacts/[id]/atendimentos/route.ts`, tela Contatos › ficha › aba "Atendimentos".
+- **Tipo**: Hard constraint
+- **Regra**: GIVEN um contato; THEN o histórico mostra, mais recente primeiro, (a) o chat — as mensagens de UMA conversa num mesmo dia, no fuso da organização, viram UM item, com a contagem do cliente, da equipe, da IA e das automáticas (reação, aviso do sistema e envio que falhou não contam); (b) as ligações de `voice_calls` (VoIP e WhatsApp), com duração, e desfecho "conversou" quando atendida e "sem resposta" quando encerrou sem atender; (c) as interações registradas pela equipe e o resultado do cold call. Nada é copiado: tudo é lido das tabelas de origem a cada consulta. WHEN alguém com papel `agent`+ registra uma interação feita fora do CRM (ligação do celular, WhatsApp pelo celular, e-mail, reunião, visita, outro); THEN vira uma linha em `crm_lead_activities` no negócio escolhido, que precisa ser DESTE contato (422 se não for), com o texto em `reason` e só a forma do contato no `payload`. "Falei com o cliente" grava `interaction_logged`, que atualiza `last_activity_at` do negócio e do contato (migration 9254); "tentei, sem resposta" grava `interaction_attempted`, que não atualiza (a mesma régua de `voice_call`/`voice_call_missed`).
+- **Enforcement**: API (Zod, papel, negócio do contato, contato anonimizado é 409) + DB (gatilho `fn_update_last_activity_at`, RLS de `crm_lead_activities`).
+- **Exceção**: contato sem negócio não registra interação (`lead_id` é NOT NULL na atividade); a tela diz para criar o negócio. A interação registrada não se edita nem se apaga pela tela (a RLS da atividade só tem `select` e `insert`): a correção é registrar outra. Um dia com mais de 500 mensagens no chat aparece com a contagem só das 500 mais recentes daquela leitura.
+
 ---
 
 ## 6. IA & Bot (IA)
