@@ -27,6 +27,9 @@ Hub: "Ver tudo em CRM" → `/app/crm`
 | Contatos | CRM → Contatos `/app/contacts` | As pessoas do outro lado da conversa e seu histórico. | todos |  |
 | Visão consolidada | CRM → Hub "Ver tudo em CRM" → Visão consolidada `/app/consolidado` | Funil, conversas e contatos de todas as suas empresas juntos, com filtro por empresa. | todos | Também em "Ver todas juntas", no seletor de empresa do cabeçalho. Útil para quem participa de mais de uma empresa. |
 | Leads sem vendedor | CRM → Hub "Ver tudo em CRM" → Leads sem vendedor `/app/sdr` | Para quem é SDR: os negócios com você ou sem dono, para escolher o vendedor de cada um. | atendente ou acima | Só aparece com a função SDR ligada (Organização → Equipe → Função SDR). |
+| Lista de espera | CRM → Hub "Ver tudo em CRM" → Lista de espera `/app/agenda/lista-de-espera` | Quem aceitou ser avisado quando abrir um horário, na ordem da fila. | todos | Só aparece se o módulo `lista_de_espera` estiver instalado. |
+| Cold Call | CRM → Hub "Ver tudo em CRM" → Cold Call `/app/cold-call` | Ligue para uma lista de leads, um por vez, com roteiro e resultado de cada ligação. | atendente ou acima | Só aparece se o módulo `cold_call` estiver ligado. |
+| Cadências de e-mail | CRM → Hub "Ver tudo em CRM" → Cadências de e-mail `/app/cadencias` | Sequências de e-mail por negócio, com descadastro. | gerente ou acima | Só aparece com o módulo `cadencias` instalado e ligado na empresa (Configurar cadências). |
 | Empresas | CRM → Hub "Ver tudo em CRM" → Empresas `/app/companies` | Cadastro B2B — razão social, CNPJ e decisores. | todos | Só aparece se o módulo `crm_b2b` estiver ligado. |
 | Pessoas | CRM → Hub "Ver tudo em CRM" → Pessoas `/app/people` | Decisores e contatos ligados a empresas, com vários telefones. | todos | Só aparece se o módulo `crm_b2b` estiver ligado. |
 | Tarefas | CRM → Tarefas `/app/tasks` | O que ficou combinado, com prazo — e o que já venceu sem ninguém fazer. | todos |  |
@@ -128,6 +131,7 @@ Hub: "Configurações" → `/app/settings`
 | Perfil | Organização → Hub "Configurações" → Perfil `/app/settings/profile` | Seu nome, idioma, fuso horário e avatar. | todos |  |
 | Segurança | Organização → Hub "Configurações" → Segurança `/app/settings/security` | Verificação em duas etapas, códigos de recuperação e sessões. | todos |  |
 | Notificações | Organização → Hub "Configurações" → Notificações `/app/settings/notifications` | Por onde e sobre o quê você quer ser avisado. | todos |  |
+| App no celular | Organização → Hub "Configurações" → App no celular `/app/settings/aplicativo` | Instale o sistema na tela de início do celular e receba os avisos. | todos | Sem https, a tela avisa que a instalação não tem app no celular. |
 
 ### Sua empresa
 
@@ -139,6 +143,9 @@ Hub: "Configurações" → `/app/settings`
 | Tags | Organização → Hub "Configurações" → Tags `/app/settings/tags` | O vocabulário de etiquetas da empresa: onde cada uma é usada e como renomear, juntar ou excluir. | gerente ou acima |  |
 | Recursos opcionais | Organização → Hub "Configurações" → Recursos opcionais `/app/settings/recursos` | Tudo o que se liga e desliga, se está ligado e onde se ajusta. | gerente ou acima |  |
 | Organização | Organização → Hub "Configurações" → Organização `/app/settings/tenant` | Dados da empresa, retenção de dados e encarregado de LGPD. | administrador |  |
+| Aviso de agendamento | Organização → Hub "Configurações" → Aviso de agendamento `/app/agenda/avisos` | Receber no WhatsApp cada horário marcado, remarcado ou cancelado, e o resumo das 7h. | administrador |  |
+| Configurar cadências | Organização → Hub "Configurações" → Configurar cadências `/app/settings/cadencias` | Ativar as cadências de e-mail nesta empresa. | administrador | Só aparece se o módulo `cadencias` estiver instalado. |
+| Meta de vendas | Organização → Hub "Configurações" → Meta de vendas `/app/settings/metas` | Quanto a empresa quer vender no mês, para o Desempenho medir o progresso. | gerente ou acima |  |
 | Conversões | Organização → Hub "Configurações" → Conversões `/app/settings/conversoes` | Devolver ao anúncio as vendas que ele trouxe, e marcar a origem de quem chega pelo site. | administrador |  |
 | Meta Ads | Organização → Hub "Configurações" → Meta Ads `/app/settings/meta-ads` | Conectar a conta de anúncios para ler o desempenho das campanhas. | administrador |  |
 | Marca | Organização → Hub "Configurações" → Marca `/app/settings/marca` | O nome e a cor que sua empresa mostra dentro do sistema. | administrador | Com cor opcional para o tema escuro. |
@@ -156,6 +163,7 @@ Hub: "Configurações" → `/app/settings`
 | LGPD | Organização → Hub "Configurações" → LGPD `/app/lgpd/requests` | Pedidos de exportação e exclusão de dados feitos por clientes. | administrador |  |
 | API Tokens | Organização → Hub "Configurações" → API Tokens `/app/settings/api-tokens` | Chaves para outro sistema conversar com o seu CRM. | administrador |  |
 | Documentação da API | Organização → Hub "Configurações" → Documentação da API `/app/docs` | As rotas para integrar outro sistema, com teste pelo navegador. | administrador | O menu mostra a quem cria token; a tela abre para qualquer pessoa logada, e o atalho `/docs` vale para todo papel. |
+| Servidor MCP externo | Organização → Hub "Configurações" → Servidor MCP externo `/app/settings/servidor-mcp-externo` | O endereço e a chave do sistema de fora que a IA da empresa pode consultar. | administrador |  |
 | Trunk SIP | Organização → Hub "Configurações" → Trunk SIP `/app/settings/voip-trunk` | Credenciais do provedor SIP para chamadas de voz por IA. | administrador |  |
 | Dados externos | Organização → Hub "Configurações" → Dados externos `/app/integracao-dados` | Conecte um banco de dados de outro sistema para o agente consultar em tempo real. | todos | Só aparece se o módulo `banco_externo` estiver ligado. |
 | Ajuda | Organização → rodapé do menu → Ajuda `/app/ajuda` | O caminho para cada tarefa e uma linha dizendo quando procurar cada tela. | todos | Último item do rodapé, fora do scroll. O bloco "Para quem instala e mantém" só aparece para quem instalou o servidor (`is_platform_admin`). |

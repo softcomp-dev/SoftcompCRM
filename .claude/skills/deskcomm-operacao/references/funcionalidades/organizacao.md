@@ -18,9 +18,21 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 
 - **Tronco aplicado pela tela** — Salvar o tronco basta: o servidor aplica em até 30 segundos, e a tela mostra se a operadora responde, se deu erro (e por quê) ou se ainda espera o servidor. Cada empresa pode ter o próprio tronco. _(desde 1.104.13)_
 
+### Organização → App no celular
+
+- **Instalar o sistema no celular** — Cada pessoa vê o passo a passo para o seu aparelho (iPhone ou Android), e o app usa o nome e o ícone da instalação. Sem https, a tela avisa que a instalação não tem app no celular. Onde: Organização → Hub "Configurações" → Sua conta → App no celular. _(desde 1.87.0)_
+
 ### Organização → Automações
 
 - **Freio do IA decide** — Um interruptor desliga de uma vez todo passo a IA decide das automações. _(desde 1.76.0)_
+
+### Organização → Aviso de agendamento
+
+- **Horários no WhatsApp do dono** — Cada horário marcado, remarcado ou cancelado avisa o número escolhido (que não pode ser uma conexão da própria empresa), com resumo do dia às 7h; das 22h às 7h, só o resumo. "Enviar teste" manda mensagem de verdade. Desligado por padrão. _(desde 1.88.0)_
+
+### Organização → Configurar cadências
+
+- **Ligar as cadências de e-mail na empresa** — Depois que o dono do servidor instala o módulo `cadencias`, o administrador da empresa liga o uso aqui. Desligar preserva os dados e impede os próximos envios; o descadastro continua funcionando. _(desde 1.104.1)_
 
 ### Organização → Conversões
 
@@ -93,6 +105,10 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Dica em português de Portugal** — Em Portugal a dica da tela Marca manda conferir a "Denominação social" e fala de RGPD; no Brasil o texto não muda. _(desde 1.79.0)_
 - **Logo grande é ajustado** — Logo acima de 512 KB é recortado e reduzido no navegador antes de enviar. _(desde 1.51.0)_
 
+### Organização → Meta de vendas
+
+- **Meta do mês** — Quantas vendas ganhas a empresa espera fechar no mês; o topo do Desempenho compara com o que já foi ganho (feito, percentual e quanto falta). Mês sem meta explica que ela não foi definida, em vez de mostrar zero. _(desde 1.89.0)_
+
 ### Organização → Notificações
 
 - **Avisos chegam no celular** — Três avisos passam ao push com CRM fechado; o par VAPID nasce com a instalação pelo kit. Onde: Organização → Notificações → push. _(desde 1.57.0)_
@@ -124,6 +140,10 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Segundo fator por papel** — Dá para exigir segundo fator por nível de papel, com carência de 0 a 30 dias. _(desde 1.70.0)_
 - **Segundo fator opcional** — Admin decide em Segurança; padrão não exige de ninguém novo. _(desde 1.4.0)_
 - **Login com segundo fator** — Entrar com senha e código do aplicativo para quem administra. _(desde 1.0.0)_
+
+### Organização → Servidor MCP externo
+
+- **O sistema de fora que a IA consulta** — Endereço e chave do servidor MCP da empresa (o sistema da loja, da clínica, do prontuário). Se ele não responde, o atendimento não fica esperando. Onde: Organização → Hub "Configurações" → Dados e acesso → Servidor MCP externo. _(desde 1.83.0)_
 
 ### Organização → Tags
 

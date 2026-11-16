@@ -11,11 +11,19 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 - **Campanhas com ritmo** — Fale com um recorte no ritmo do número, com prévia, teste, pausa e prova de base. _(desde 1.43.0)_
 - **Público pela classificação do cliente** — A campanha pode falar só com Ativos, Pré-inativos, Inativos ou Sem compra. Onde: CRM → Campanhas → público. _(próxima versão)_
 
+### CRM → Cadências de e-mail
+
+- **Sequências de e-mail por negócio** — O gerente monta e-mails, esperas em dias úteis, tarefas e caminhos por abertura autorizada, escolhe a janela e inscreve negócios à mão. Todo e-mail leva descadastro, guardado pelo endereço e pelo contato; o rastreio começa desligado. Onde: CRM → Hub "Ver tudo em CRM" → Cadências de e-mail (pré-requisito: módulo `cadencias` instalado em Administração → Módulos e ligado em Organização → Configurar cadências). _(desde 1.104.1)_
+
 ### CRM → Chamadas
 
 - **Telefonia SIP com IA** — Módulo liga voz por tronco SIP com IA, transcrição e tela de Chamadas. (credenciais do tronco em Organização → Trunk SIP) Onde: CRM → Chamadas → histórico. _(desde 1.41.0)_
 - **Ligação chega ao time** — Nos modos Time humano e IA, depois time humano, o número de voz encaminha a ligação ao Telefone do time, pelo mesmo tronco SIP; quem não atende vira o aviso Ligar de volta na Central. Onde: número de voz → modo e Telefone do time. _(desde 1.104.13)_
 - **Custo da voz no Uso de IA** — A ligação atendida pelo agente de voz entra no gasto e no teto de orçamento, pela tarifa de áudio. Onde: Análise → Uso de IA. _(desde 1.104.13)_
+
+### CRM → Cold Call
+
+- **Ligar para uma lista, um por vez** — Cria um funil próprio, importa a lista e abre uma sessão de ligações com os dados do contato, a conversa e um roteiro editável. Com o canal de voz conectado a ligação sai pelo CRM; sem ele, abre o discador do aparelho. Quem pediu para não ser incomodado aparece como "Não ligar". Cada resultado move o lead no funil. Onde: CRM → Hub "Ver tudo em CRM" → Cold Call (pré-requisito: módulo `cold_call`, ligado pelo dono do servidor). _(desde 1.100.0)_
 
 ### CRM → Comandas
 
@@ -97,6 +105,10 @@ O menu e o código mandam sobre este arquivo; para ver o que mudou depois, use
 ### CRM → Leads sem vendedor
 
 - **Fila do SDR** — Os negócios abertos com o SDR ou sem dono, do mais antigo ao mais novo, com filtros Comigo, Na fila e Com a IA; em cada linha o SDR escolhe o vendedor e clica em Passar. Só aparece com a função SDR ligada. Onde: CRM → Hub "Ver tudo em CRM" → Leads sem vendedor. _(desde 1.104.10)_
+
+### CRM → Lista de espera
+
+- **A vaga que abre vai a uma pessoa por vez** — Quem aceitou ser avisado quando abrir um horário fica na fila, e a vaga é oferecida em ordem. Cada empresa escolhe os prazos da oferta e liga o recurso; não há valor padrão. Onde: CRM → Hub "Ver tudo em CRM" → Lista de espera (pré-requisito: módulo `lista_de_espera` instalado em Administração → Módulos). _(desde 1.104.0)_
 
 ### CRM → Planos de tarefa
 
