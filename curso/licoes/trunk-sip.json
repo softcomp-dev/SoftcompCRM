@@ -2,7 +2,7 @@
   "id": "trunk-sip",
   "titulo": "Trunk SIP",
   "tela": "/app/settings/voip-trunk",
-  "resumo": "Onde você guarda os dados da linha de telefone contratada com um provedor, para a IA fazer ligações de voz, e pega o bloco de configuração que vai para o servidor.",
+  "resumo": "Onde você guarda os dados da linha de telefone contratada com um provedor, para a IA fazer ligações de voz, e acompanha se o servidor já aplicou a linha e se a operadora está respondendo.",
   "licoes": [
     {
       "id": "conhecendo-a-tela",
@@ -15,7 +15,10 @@
         "configurar telefone",
         "provedor de telefonia",
         "linha telefônica no sistema",
-        "credenciais sip"
+        "credenciais sip",
+        "operadora não responde",
+        "tronco sip aplicado",
+        "aguardando o servidor aplicar"
       ],
       "passos": [
         {
@@ -41,7 +44,7 @@
         {
           "id": "p2",
           "titulo": "Para que serve",
-          "texto": "Para a IA fazer ligações de voz, a empresa contrata uma linha com um provedor de telefone pela internet (o \"provedor SIP\"). Aqui você guarda os dados de acesso dessa linha. Salvar aqui não liga nada sozinho: depois, quem cuida do servidor precisa colar um bloco de configuração no servidor de telefone, como diz o texto do topo.",
+          "texto": "Para a IA fazer ligações de voz, a empresa contrata uma linha com um provedor de telefone pela internet (o \"provedor SIP\"). Aqui você guarda os dados de acesso dessa linha. Ao salvar, o servidor de telefone aplica a configuração sozinho, em até 30 segundos, como diz o texto do topo: ninguém precisa colar arquivo nem reiniciar nada.",
           "antes": [
             {
               "acao": "click",
@@ -64,7 +67,7 @@
                 "texto": "^Credenciais de registro",
                 "regex": true
               },
-              "rotulo": "A ligação com o servidor é feita à mão",
+              "rotulo": "O servidor aplica sozinho",
               "tipo": "caixa"
             },
             {
@@ -116,7 +119,7 @@
         {
           "id": "p4",
           "titulo": "Campo opcional, chave e Salvar",
-          "texto": "\"From-domain (opcional)\" só é preenchido se o provedor exigir: normalmente é o endereço público do seu servidor. A chave \"Ativo\" diz se as ligações que o sistema faz saem por esta linha. Desligada, os dados ficam guardados e o sistema para de ligar por ela; as ligações recebidas não mudam, porque dependem do que foi colado no servidor. O botão \"Salvar\" grava tudo.",
+          "texto": "\"From-domain (opcional)\" só é preenchido se o provedor exigir: normalmente é o endereço público do seu servidor. A chave \"Ativo\" diz se as ligações que o sistema faz saem por esta linha. Desligada, os dados ficam guardados e o servidor remove o tronco: o sistema para de ligar por ela. O botão \"Salvar\" grava tudo.",
           "dica": "Na primeira vez a senha é obrigatória: sem ela, o sistema avisa e não salva. Depois, para salvar qualquer mudança (até desligar \"Ativo\"), digite a senha de novo.",
           "antes": [],
           "destaques": [
@@ -150,7 +153,7 @@
     {
       "id": "cadastrar-o-provedor",
       "titulo": "Cadastrar e alterar o provedor",
-      "objetivo": "Salvar os dados da linha, pegar o bloco para o servidor e alterar um dado depois.",
+      "objetivo": "Salvar os dados da linha, ver o servidor aplicar e conferir se a operadora responde, e alterar um dado depois.",
       "papel": "admin",
       "busca": [
         "cadastrar provedor sip",
@@ -158,7 +161,11 @@
         "bloco pjsip para o servidor",
         "trocar porta do provedor",
         "configurar ligação da ia",
-        "copiar configuração do telefone"
+        "copiar configuração do telefone",
+        "estado do tronco sip",
+        "operadora não responde",
+        "aguardando o servidor aplicar",
+        "erro ao aplicar o tronco"
       ],
       "passos": [
         {
@@ -229,9 +236,9 @@
         },
         {
           "id": "p2",
-          "titulo": "O bloco para o servidor",
-          "texto": "Logo depois de salvar aparece o quadro \"Cole em asterisk/pjsip.conf\". É o texto que quem cuida do servidor cola no arquivo de configuração do telefone. Clique em \"Copiar\" e mande para essa pessoa agora: ele leva a senha e só aparece neste momento.",
-          "dica": "Se o botão disser que não conseguiu copiar, selecione o texto do quadro e copie à mão.",
+          "titulo": "O servidor aplica sozinho",
+          "texto": "Logo depois de salvar aparece o quadro \"No servidor\". Ele diz o que o servidor de telefone fez com a linha. Logo após salvar, a frase é \"Aguardando o servidor aplicar (até 30 segundos)\": o servidor confere de tempos em tempos e aplica a configuração sozinho, sem ninguém colar nada nem reiniciar. A tela se atualiza sozinha, não precisa recarregar.",
+          "dica": "Se a frase de espera não mudar depois de alguns minutos, a telefonia pode estar desligada no servidor. Avise quem cuida da instalação.",
           "antes": [
             {
               "acao": "click",
@@ -244,7 +251,61 @@
             {
               "acao": "aguardar",
               "alvo": {
-                "texto": "Cole em asterisk/pjsip.conf",
+                "texto": "No servidor",
+                "exato": true
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "texto": "No servidor",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "div.rounded-lg:has(p[role='status'])"
+              },
+              "rotulo": "O que o servidor fez",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "p[role='status']"
+              },
+              "rotulo": "Aguardando o servidor",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Os resultados possíveis",
+          "texto": "Passados alguns segundos, a frase muda para uma destas. \"Ativo no servidor: a operadora está respondendo\" quer dizer que está tudo certo e a linha pode ligar. \"Aplicado no servidor, mas a operadora não responde\" quer dizer que o servidor aplicou, mas não alcançou o provedor: confira host, porta, usuário e senha. \"O servidor não conseguiu aplicar o tronco\" vem com o motivo logo abaixo, em letra cinza, e quem cuida do servidor precisa lê-lo. \"Desativado: o servidor removeu este tronco\" aparece quando a chave \"Ativo\" está desligada. Embaixo, \"Conferido em\" mostra a hora da última conferência.",
+          "dica": "Nesta foto o servidor ainda está aplicando. Na sua tela, a frase muda sozinha quando ele terminar.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "div.rounded-lg:has(p[role='status'])"
+              },
+              "rotulo": "Aqui aparece o resultado",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "O bloco, só se preferir o arquivo",
+          "texto": "Mais abaixo aparece o quadro \"Aplicar à mão (opcional)\". Você não precisa dele, porque o servidor já aplica sozinho. Ele é para quem prefere editar o arquivo asterisk/pjsip.conf à mão, e nesse caso não se usam os dois para a mesma operadora. O bloco leva a senha e só aparece logo depois de salvar. Para copiar, clique em \"Copiar\".",
+          "dica": "Se o botão disser que não conseguiu copiar, selecione o texto do quadro e copie à mão.",
+          "antes": [
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "Aplicar à mão (opcional)",
                 "exato": true
               }
             },
@@ -271,13 +332,13 @@
               "alvo": {
                 "css": "div.rounded-lg:has(pre) pre"
               },
-              "rotulo": "Bloco para o servidor",
+              "rotulo": "Bloco para quem usa o arquivo",
               "tipo": "caixa"
             }
           ]
         },
         {
-          "id": "p3",
+          "id": "p5",
           "titulo": "A senha fica guardada",
           "texto": "No cadastro, ao lado de \"Senha\", agora aparece \"configurada, termina em 4821\": são os quatro últimos caracteres da senha salva. O campo voltou a ficar vazio, porque a senha nunca é mostrada inteira de novo.",
           "antes": [],
@@ -292,9 +353,9 @@
           ]
         },
         {
-          "id": "p4",
+          "id": "p6",
           "titulo": "Ao voltar à tela",
-          "texto": "Quando você abre a tela de novo, os dados salvos aparecem preenchidos, mas o quadro do bloco não volta: sem a senha inteira, ele não pode ser montado outra vez. A senha continua guardada; o campo fica vazio.",
+          "texto": "Quando você abre a tela de novo, os dados salvos aparecem preenchidos e o quadro \"No servidor\" mostra a situação atual. O quadro do bloco opcional não volta: sem a senha inteira, ele não pode ser montado outra vez. A senha continua guardada; o campo fica vazio.",
           "rota": "/app/settings/voip-trunk",
           "antes": [],
           "destaques": [
@@ -311,13 +372,20 @@
               },
               "rotulo": "Senha guardada",
               "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "div.rounded-lg:has(p[role='status'])"
+              },
+              "rotulo": "A situação atual",
+              "tipo": "caixa"
             }
           ]
         },
         {
-          "id": "p5",
+          "id": "p7",
           "titulo": "Alterar um dado",
-          "texto": "Para mudar um dado, como a porta, troque o campo, digite a senha da linha de novo e clique em \"Salvar\". O quadro \"Cole em asterisk/pjsip.conf\" aparece outra vez, já com a mudança e com a senha. Copie e mande de novo para quem cuida do servidor: a mudança só vale para as ligações depois que ele colar o bloco novo.",
+          "texto": "Para mudar um dado, como a porta, troque o campo, digite a senha da linha de novo e clique em \"Salvar\". O servidor aplica a mudança sozinho em até 30 segundos, e o quadro \"No servidor\" volta a esperar. O bloco opcional também aparece de novo, já com a mudança, para quem usa o arquivo.",
           "dica": "Digite a senha sempre que salvar uma mudança, mesmo com o texto cinza \"Deixe em branco para manter a atual\" no campo. Hoje, salvar com a senha em branco mostra \"Erro interno. Tente de novo em instantes.\" e não grava nada; tentar de novo não adianta, só digitar a senha.",
           "antes": [
             {
@@ -345,7 +413,7 @@
             {
               "acao": "aguardar",
               "alvo": {
-                "texto": "Cole em asterisk/pjsip.conf",
+                "texto": "Aplicar à mão (opcional)",
                 "exato": true
               }
             },
@@ -373,6 +441,13 @@
                 "css": "div.rounded-lg:has(pre) pre"
               },
               "rotulo": "Bloco novo, com a porta 5080",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "div.rounded-lg:has(p[role='status'])"
+              },
+              "rotulo": "Volta a aguardar o servidor",
               "tipo": "caixa"
             }
           ]

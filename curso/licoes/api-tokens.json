@@ -15,7 +15,9 @@
         "ligar outro sistema ao crm",
         "integrar agenda online",
         "token de acesso",
-        "conectar assistente de ia"
+        "conectar assistente de ia",
+        "documentação da api",
+        "swagger"
       ],
       "passos": [
         {
@@ -162,6 +164,29 @@
               "tipo": "caixa"
             }
           ]
+        },
+        {
+          "id": "p5",
+          "titulo": "A documentação da API",
+          "texto": "No alto da tela, abaixo da frase sobre a chave, fica o link \"Ver a documentação da API (Swagger)\". Quem monta a integração do outro sistema usa essa página para ver quais rotas existem e testá-las com a chave que você criou aqui. Clique nele para abri-la.",
+          "dica": "A página abre para qualquer pessoa com login. Só o administrador cria chaves.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "link",
+                "nome": "Ver a documentação da API (Swagger)",
+                "exato": true
+              },
+              "rotulo": "Documentação da API",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "link",
+            "nome": "Ver a documentação da API (Swagger)",
+            "exato": true
+          }
         }
       ]
     },

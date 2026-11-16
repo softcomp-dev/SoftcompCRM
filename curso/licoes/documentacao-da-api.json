@@ -1,0 +1,213 @@
+{
+  "id": "documentacao-da-api",
+  "titulo": "Documentação da API",
+  "tela": "/app/docs",
+  "resumo": "Onde quem monta a integração de outro sistema (um ERP, uma loja, uma automação) vê as rotas que aceitam token e testa uma delas pelo navegador.",
+  "licoes": [
+    {
+      "id": "conhecendo-a-tela",
+      "titulo": "Ler e testar a documentação da API",
+      "objetivo": "Achar a documentação, ler uma rota e saber onde colar o token para testá-la.",
+      "papel": "admin",
+      "busca": [
+        "documentação da api",
+        "swagger",
+        "integrar outro sistema",
+        "testar rota da api",
+        "botão authorize",
+        "rotas que aceitam token"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Onde fica a documentação",
+          "texto": "Abra \"Configurações\", no rodapé do menu lateral. Na parte \"Dados e acesso\" está o cartão \"Documentação da API\". Clique nele. O mesmo caminho existe na tela de API Tokens, que tem um link para ela.",
+          "dica": "A página também abre pelo endereço /docs. Só o administrador vê o cartão no menu, mas qualquer pessoa com login consegue ler: ver a documentação não dá acesso a nada, cada rota continua pedindo o token.",
+          "rota": "/app/settings",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "a[href='/app/docs']"
+              },
+              "rotulo": "Documentação da API",
+              "tipo": "caixa"
+            }
+          ],
+          "clicar": {
+            "css": "a[href='/app/docs']"
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "A lista de rotas",
+          "texto": "A tela lista as rotas que um sistema de fora pode chamar com um token, agrupadas por assunto: Contatos, Funis, Leads e assim por diante. O título já leva o nome da sua marca, e as rotas já apontam para o endereço desta instalação. A frase do alto lembra o caminho: crie o token em API Tokens e cole no botão \"Authorize\".",
+          "dica": "O texto das rotas vem escrito em português, mesmo com o sistema em outro idioma. Os botões do Swagger, como \"Authorize\" e \"Try it out\", ficam em inglês.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "a[href='/app/docs']"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "#operations-tag-Contatos"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#operations-tag-Contatos"
+              },
+              "rotulo": "Um grupo de rotas",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": ".auth-wrapper > button.btn.authorize"
+              },
+              "rotulo": "Onde colar o token",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "role": "link",
+                "nome": "Baixar a especificação (JSON)",
+                "exato": true
+              },
+              "rotulo": "A especificação em arquivo",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Abrir uma rota",
+          "texto": "Clique numa rota para abri-la. Cada rota mostra para que serve, quais campos aceita (os parâmetros) e o que devolve. O \"GET\" quer dizer que a rota só lê. As rotas que criam, mudam ou apagam dados trazem outro verbo, como POST, PATCH ou DELETE.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .opblock-summary"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .try-out__btn"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .opblock-summary"
+              },
+              "rotulo": "A rota: o verbo e o caminho",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .opblock-description-wrapper"
+              },
+              "rotulo": "Para que serve",
+              "tipo": "caixa"
+            }
+          ],
+          "clicar": {
+            "css": "#operations-Contatos-listarContatos .opblock-summary"
+          }
+        },
+        {
+          "id": "p4",
+          "titulo": "Colar o token no Authorize",
+          "texto": "Para testar, clique em \"Authorize\". Abre uma janela com um campo \"Value\": cole ali o token que você criou em API Tokens. Cole só o código que começa com dsk_, sem escrever \"Bearer\" antes. Confirme no botão \"Authorize\" da própria janela e feche.",
+          "dica": "O token colado fica só na memória desta aba. Se você recarregar a página, cole de novo.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": ".auth-wrapper > button.btn.authorize"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": ".modal-ux"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": ".auth-container input"
+              },
+              "rotulo": "Cole o token aqui",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Apply credentials",
+                "exato": true
+              },
+              "rotulo": "Confirmar",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p5",
+          "titulo": "Testar a rota",
+          "texto": "Com a janela fechada e a rota aberta, clique em \"Try it out\" para liberar os campos. Preencha o que quiser e clique em \"Execute\": o Swagger chama a rota e mostra a resposta logo abaixo. O teste usa só o token, e não a sua sessão, então o resultado é o mesmo que o seu sistema vai receber.",
+          "dica": "Teste primeiro as rotas que só leem (GET). As que criam, mudam ou apagam dados fazem isso de verdade na sua operação.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "css": ".modal-ux-header .close-modal"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .try-out__btn"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .btn.execute"
+              }
+            },
+            {
+              "acao": "rolar",
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .btn.execute"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .btn.execute"
+              },
+              "rotulo": "Execute chama a rota",
+              "tipo": "seta"
+            },
+            {
+              "alvo": {
+                "css": "#operations-Contatos-listarContatos .try-out__btn"
+              },
+              "rotulo": "Cancelar o teste",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

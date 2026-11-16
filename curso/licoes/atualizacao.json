@@ -15,7 +15,9 @@
         "nova versão disponível",
         "qual versão estou usando",
         "o que mudou na versão",
-        "atualizar agora"
+        "atualizar agora",
+        "buscar atualização",
+        "conferir versão nova agora"
       ],
       "passos": [
         {
@@ -68,6 +70,24 @@
         },
         {
           "id": "p3",
+          "titulo": "Buscar atualização",
+          "texto": "No quadro da versão instalada, quem administra o servidor vê o botão \"Buscar atualização\". Ele pergunta ao GitHub, na hora, qual é a última versão publicada, em vez de esperar a conferência automática, que roda a cada 5 minutos. A resposta aparece logo abaixo do botão: \"Saiu a versão...\" ou \"Você já está na mais recente\". O botão só traz a notícia: quando há versão nova, o \"Atualizar agora\" aparece em até 5 minutos, assim que o servidor confirmar.",
+          "dica": "O botão aparece depois da primeira atualização feita com a versão que o trouxe, que é quando o servidor passa a informar de onde vêm as versões. Se ele não aparece, a conferência automática continua funcionando.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Buscar atualização",
+                "exato": true
+              },
+              "rotulo": "Conferir agora",
+              "tipo": "seta"
+            }
+          ]
+        },
+        {
+          "id": "p4",
           "titulo": "O que muda",
           "texto": "Mais abaixo, \"O que muda\" lista as novidades da versão nova, como o próprio projeto as publicou. Se alguma delas pedir uma ação sua, um quadro amarelo \"Requer atenção\" aparece antes do botão, e aí vale ler antes de atualizar.",
           "antes": [],
@@ -83,7 +103,7 @@
           ]
         },
         {
-          "id": "p4",
+          "id": "p5",
           "titulo": "O botão Atualizar agora",
           "texto": "Ao lado de \"Atualizar agora\", a tela avisa o que acontece: o sistema sai do ar por cerca de 2 minutos e volta sozinho, e antes disso é feita uma cópia de segurança dos dados. Escolha um horário de pouco movimento e clique.",
           "antes": [],
@@ -105,7 +125,7 @@
           }
         },
         {
-          "id": "p5",
+          "id": "p6",
           "titulo": "Pedido enviado",
           "texto": "O pedido fica anotado e o servidor confere de poucos em poucos minutos se há algo a fazer: a atualização pode levar uns cinco minutos para começar, e a tela parada nesse tempo é normal. O relógio mostra há quanto tempo o pedido espera. Pode fechar a página: o pedido não se perde, e a tela acompanha sozinha cada etapa até o sistema voltar.",
           "antes": [

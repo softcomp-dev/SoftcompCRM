@@ -1263,6 +1263,220 @@
           ]
         }
       ]
+    },
+    {
+      "id": "telefone-atendimento-do-time",
+      "titulo": "Escolher quem atende o número de voz",
+      "objetivo": "Cadastrar um número de voz e escolher se a IA, uma pessoa do time ou os dois atendem as ligações.",
+      "papel": "admin",
+      "busca": [
+        "número de voz",
+        "ligação cai no celular do time",
+        "telefone do time",
+        "time humano",
+        "ia depois time humano",
+        "encaminhar ligação",
+        "modo de atendimento"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "Cadastrar um número",
+          "texto": "Na aba \"Telefone\" de Conexões, clique em \"Novo número\". A janela pede o número, com código do país, um rótulo se quiser, e o \"Modo de atendimento\", que diz quem atende as ligações desse número. O modo que já vem escolhido é \"IA responde\": o agente de voz atende todas as ligações.",
+          "dica": "A ligação só chega se a telefonia estiver ligada no servidor e a linha estiver salva em Configurações › Trunk SIP.",
+          "rota": "/app/connections?aba=telefonia",
+          "antes": [
+            {
+              "acao": "esperar",
+              "ms": 1500
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Novo número",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "dialog"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "[role='dialog'] input",
+                "n": 0
+              },
+              "rotulo": "O número que recebe a ligação",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "combobox",
+                "n": 0,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "Quem atende",
+              "tipo": "seta"
+            }
+          ],
+          "clicar": {
+            "role": "button",
+            "nome": "Novo número",
+            "exato": true
+          }
+        },
+        {
+          "id": "p2",
+          "titulo": "Time humano",
+          "texto": "Escolha \"Time humano\" para a ligação tocar direto no telefone de uma pessoa do time. Aparece o campo \"Telefone do time\": o celular ou o fixo de quem atende. A ligação é discada pelo mesmo tronco SIP, então gasta os minutos de saída da linha. Se ninguém atender, vira o aviso \"Ligar de volta\" na Central.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "n": 0,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "option",
+                "nome": "Time humano",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "Time humano",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#telefone-do-time"
+              },
+              "rotulo": "Telefone de quem atende",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "texto": "A ligação é encaminhada para o telefone do time. Se ninguém atender, vira aviso na Central.",
+                "exato": true
+              },
+              "rotulo": "O que este modo faz",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "IA, depois time humano",
+          "texto": "Com \"IA, depois time humano\", o agente de voz atende primeiro e passa a ligação para o telefone do time quando a pessoa pede ou o assunto exige. O telefone do time continua sendo obrigatório. Se ninguém do time atender, a ligação também vira o aviso \"Ligar de volta\". A ligação atendida aparece na linha do tempo do negócio.",
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "combobox",
+                "n": 0,
+                "dentro": {
+                  "role": "dialog"
+                }
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "option",
+                "nome": "IA, depois time humano",
+                "exato": true
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "option",
+                "nome": "IA, depois time humano",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "combobox",
+                "n": 0,
+                "dentro": {
+                  "role": "dialog"
+                }
+              },
+              "rotulo": "O agente atende e depois passa",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "css": "#telefone-do-time"
+              },
+              "rotulo": "Para onde a ligação é passada",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "titulo": "Cadastrar",
+          "texto": "Digite o número e o telefone do time. O botão \"Cadastrar\" só acende quando os dois estão preenchidos. Depois de cadastrado, o número aparece na lista com o modo escolhido e o campo \"Telefone do time\", que você troca ali mesmo, sem abrir a janela. Aqui paramos antes de cadastrar, para não criar um número de verdade.",
+          "dica": "O telefone direto no navegador ainda não existe: quem atende usa o celular ou o fixo cadastrado.",
+          "antes": [
+            {
+              "acao": "fill",
+              "alvo": {
+                "css": "[role='dialog'] input",
+                "n": 0
+              },
+              "valor": "+551140028922"
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "css": "#telefone-do-time"
+              },
+              "valor": "+5511987654321"
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "css": "#telefone-do-time"
+              },
+              "rotulo": "Telefone do time",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Cadastrar",
+                "exato": true
+              },
+              "rotulo": "Cadastrar",
+              "tipo": "seta"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
