@@ -84,12 +84,12 @@ export type RegistrarInteracaoInput = z.infer<typeof registrarInteracaoSchema>;
  * O texto vai em `reason`, que é a coluna que a anonimização apaga e a linha do
  * tempo lê.
  */
-export interface PayloadDaInteracao {
+export type PayloadDaInteracao = {
   channel: CanalDeRegistro;
   direction: Direcao;
   outcome: Desfecho;
   duration_minutes?: number;
-}
+};
 
 export function payloadDaInteracao(input: RegistrarInteracaoInput): PayloadDaInteracao {
   return {

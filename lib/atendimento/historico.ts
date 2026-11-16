@@ -78,6 +78,23 @@ export interface ItemDoHistoricoView extends Omit<ItemDoHistorico, "team_user_id
   team: { user_id: string; name: string | null }[];
 }
 
+/** Um negócio do contato, para o diálogo escolher onde a interação entra. */
+export interface NegocioDoContato {
+  id: string;
+  title: string;
+  status: string;
+  pipeline_name: string | null;
+  last_activity_at: string | null;
+  created_at: string;
+}
+
+/** O corpo de `GET /api/v1/contacts/[id]/atendimentos`. */
+export interface HistoricoDeAtendimento {
+  items: ItemDoHistoricoView[];
+  /** Só na primeira página (sem cursor): é o que o diálogo de registro usa. */
+  leads?: NegocioDoContato[];
+}
+
 // ─── As linhas como o banco as entrega ──────────────────────────────────────
 
 export interface MensagemBruta {
