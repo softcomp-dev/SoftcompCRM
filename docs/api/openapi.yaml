@@ -3474,6 +3474,14 @@ components:
         recurring_value_cents: { type: [integer, "null"], minimum: 0 }
         recurring_period: { type: [string, "null"], enum: [monthly, null] }
         recurring_months: { type: [integer, "null"], minimum: 1, maximum: 600 }
+        sales_document_kind:
+          type: [string, "null"]
+          enum: [quote, order, null]
+          description: "O documento de venda do negócio: `quote` (cotação) OU `order` (pedido), nunca os dois. Sem `sales_document_number` preenchido (na requisição ou já gravado), é 422."
+        sales_document_number:
+          type: [string, "null"]
+          maxLength: 60
+          description: "Número da cotação ou do pedido como o ERP o escreve. Vazio ou nulo limpa o documento inteiro, o tipo junto. Chave ausente mantém o que está gravado."
         currency: { type: string, minLength: 3, maxLength: 3, description: ISO-4217. }
         owner_user_id: { type: [string, "null"], format: uuid }
         owner_agent_id: { type: [string, "null"], format: uuid }
@@ -3493,6 +3501,8 @@ components:
         title: { type: string }
         description: { type: [string, "null"] }
         value_cents: { type: [integer, "null"] }
+        sales_document_kind: { type: [string, "null"], enum: [quote, order, null], description: "Cotação (quote) ou pedido (order)." }
+        sales_document_number: { type: [string, "null"], description: Número da cotação ou do pedido. }
         currency: { type: string }
         owner_user_id: { type: [string, "null"], format: uuid }
         owner_agent_id: { type: [string, "null"], format: uuid }
