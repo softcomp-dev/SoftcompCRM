@@ -36,6 +36,8 @@ import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSes
 import { useT } from "@/hooks/i18n/useT";
 import { useAgentesPublicados, useEtapas, useFunis } from "@/hooks/campanhas/useDestinoDaCampanha";
 import { DESCRICAO_DA_VARIAVEL, VARIAVEIS_DA_CAMPANHA } from "@/lib/campanhas/renderizador";
+import { CampoDeClassificacao, classificacaoDoFiltro } from "@/components/campanhas/CampoDeClassificacao";
+import type { Classificacao } from "@/lib/clientes/classificacao";
 
 import {
   ModeloDaCampanha,
@@ -58,6 +60,7 @@ export function EditarCampanha({ id }: { id: string }) {
   const [comAlgumaTag, setComAlgumaTag] = useState("");
   const [semTags, setSemTags] = useState("");
   const [semInteracao, setSemInteracao] = useState("");
+  const [classificacao, setClassificacao] = useState<Classificacao | "">("");
   const [limite, setLimite] = useState("100");
   const [texto, setTexto] = useState("");
   const [funil, setFunil] = useState("");
@@ -83,6 +86,7 @@ export function EditarCampanha({ id }: { id: string }) {
     setComAlgumaTag(juntar(f.com_alguma_tag));
     setSemTags(juntar(f.sem_tags));
     setSemInteracao(f.sem_interacao_ha_dias == null ? "" : String(f.sem_interacao_ha_dias));
+    setClassificacao(classificacaoDoFiltro(f.classificacoes));
     setLimite(f.limite == null ? "100" : String(f.limite));
     setTexto(c.message_body ?? "");
     setModelo(
@@ -105,14 +109,16 @@ export function EditarCampanha({ id }: { id: string }) {
       com_alguma_tag: listar(comAlgumaTag),
       sem_tags: listar(semTags),
       sem_interacao_ha_dias: semInteracao ? Number(semInteracao) : null,
+      classificacoes: classificacao ? [classificacao] : [],
       limite: Number(limite) || 100,
     }),
-    [comAlgumaTag, semTags, semInteracao, limite],
+    [comAlgumaTag, semTags, semInteracao, classificacao, limite],
   );
 
   const temCriterio =
     filtro.com_alguma_tag.length > 0 ||
     filtro.sem_tags.length > 0 ||
+    filtro.classificacoes.length > 0 ||
     filtro.sem_interacao_ha_dias !== null;
 
   // O que o número escolhido aceita: texto livre (QR) ou modelo aprovado (oficial).
@@ -274,6 +280,7 @@ export function EditarCampanha({ id }: { id: string }) {
               onChange={(e) => setSemInteracao(e.target.value)}
             />
           </div>
+          <CampoDeClassificacao id="e-classificacao" valor={classificacao} aoMudar={setClassificacao} />
           <div className="space-y-2">
             <Label htmlFor="e-limite">{t("Máximo de contatos nesta campanha")}</Label>
             <Input

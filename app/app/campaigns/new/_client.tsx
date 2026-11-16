@@ -32,6 +32,8 @@ import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSes
 import { useT } from "@/hooks/i18n/useT";
 import { useAgentesPublicados, useEtapas, useFunis } from "@/hooks/campanhas/useDestinoDaCampanha";
 import { VARIAVEIS_DA_CAMPANHA, DESCRICAO_DA_VARIAVEL } from "@/lib/campanhas/renderizador";
+import { CampoDeClassificacao } from "@/components/campanhas/CampoDeClassificacao";
+import type { Classificacao } from "@/lib/clientes/classificacao";
 
 import {
   ModeloDaCampanha,
@@ -59,6 +61,7 @@ export function NovaCampanha() {
   const [comAlgumaTag, setComAlgumaTag] = useState("");
   const [semTags, setSemTags] = useState("");
   const [semInteracao, setSemInteracao] = useState("");
+  const [classificacao, setClassificacao] = useState<Classificacao | "">("");
   const [limite, setLimite] = useState("100");
   const [texto, setTexto] = useState("");
   const [intervalo, setIntervalo] = useState("");
@@ -112,11 +115,12 @@ export function NovaCampanha() {
       com_alguma_tag: listar(comAlgumaTag),
       sem_tags: listar(semTags),
       sem_interacao_ha_dias: semInteracao ? Number(semInteracao) : null,
+      classificacoes: classificacao ? [classificacao] : [],
       funis: funilDoPublico ? [funilDoPublico] : [],
       etapas: etapaDoPublico ? [etapaDoPublico] : [],
       limite: Number(limite) || 100,
     }),
-    [comAlgumaTag, semTags, semInteracao, funilDoPublico, etapaDoPublico, limite],
+    [comAlgumaTag, semTags, semInteracao, classificacao, funilDoPublico, etapaDoPublico, limite],
   );
 
   const temCriterio =
@@ -124,6 +128,7 @@ export function NovaCampanha() {
     filtro.sem_tags.length > 0 ||
     filtro.funis.length > 0 ||
     filtro.etapas.length > 0 ||
+    filtro.classificacoes.length > 0 ||
     filtro.sem_interacao_ha_dias !== null;
 
   const podeSalvar =
@@ -329,6 +334,7 @@ export function NovaCampanha() {
               onChange={(e) => setSemInteracao(e.target.value)}
             />
           </div>
+          <CampoDeClassificacao id="pub-classificacao" valor={classificacao} aoMudar={setClassificacao} />
           <div className="space-y-2">
             <Label htmlFor="pub-funil">{t("Com negócio no funil")}</Label>
             <select

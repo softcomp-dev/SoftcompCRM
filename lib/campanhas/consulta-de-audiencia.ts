@@ -18,6 +18,8 @@ import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { recusouMarketing, type CandidatoDaAudiencia } from "./elegibilidade";
 import { camposUsadosNoTexto, type CamposPersonalizados } from "./renderizador";
 import { buscaEmLotes } from "@/lib/supabase/em-lotes";
+import { filtroOrDaClassificacao } from "@/lib/clientes/classificacao";
+import { limitesDaOrganizacaoNoBanco } from "@/lib/clientes/limites-no-banco";
 
 /**
  * O teto de linhas por resposta do PostgREST (`max_rows` em `supabase/config.toml`).
@@ -178,6 +180,16 @@ export async function buscarCandidatos(
   //   * com recorte de negócio, a consulta é fatiada por `buscaEmLotes`;
   //   * sem ele, a consulta é única e paginada por `max_rows`, parando cedo.
   const excluidos = new Set(filtro.excluir_contatos);
+  // A classificação usa os prazos da ORGANIZAÇÃO e o mesmo `agora` da prévia,
+  // pela mesma régua do selo da lista (`lib/clientes/classificacao.ts`).
+  const faixaDeClassificacao =
+    filtro.classificacoes.length > 0
+      ? filtroOrDaClassificacao(
+          filtro.classificacoes,
+          await limitesDaOrganizacaoNoBanco(admin, organizationId),
+          agora,
+        )
+      : null;
   const consultaDeContatos = () => {
     let consulta = admin
       .from("contacts")
@@ -196,6 +208,7 @@ export async function buscarCandidatos(
       consulta = consulta.not("tags", "ov", `{${filtro.sem_tags.map(citar).join(",")}}`);
     }
     if (filtro.origens.length > 0) consulta = consulta.in("source", filtro.origens);
+    if (faixaDeClassificacao) consulta = consulta.or(faixaDeClassificacao);
     if (filtro.sem_interacao_ha_dias !== null) {
       const limite = limiteDeSilencio(filtro.sem_interacao_ha_dias, agora).toISOString();
       // Quem nunca interagiu ENTRA no recorte de silêncio: `last_activity_at` nulo

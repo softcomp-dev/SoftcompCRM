@@ -12976,6 +12976,9 @@ export const DICIONARIO: Traducoes = {
   "Não foi possível salvar os prazos da classificação.": { es: "No se pudieron guardar los plazos de clasificación." },
   // ─── lib/ai/agent-inbox-copy.ts + inbox-destino.ts, `client_pre_inactive` (migration 9257) ───
   "Um cliente está esfriando — virou pré-inativo": { es: "Un cliente se está enfriando — pasó a preinactivo" },
+  // Público da campanha: o critério "Classificação do cliente" (migration 9257).
+  "Classificação do cliente": { es: "Clasificación del cliente" },
+  "Qualquer uma": { es: "Cualquiera" },
   // O corpo do aviso, montado pelo cron `classificacao-de-clientes`.
   "A última venda ganha deste cliente foi em {data}, e o prazo de ativo da empresa é de {ativo} dias. Se não houver nova venda, ele vira inativo depois de {pre} dias.": {
     es: "La última venta ganada de este cliente fue el {data}, y el plazo de activo de la empresa es de {ativo} días. Si no hay una nueva venta, pasa a inactivo después de {pre} días.",

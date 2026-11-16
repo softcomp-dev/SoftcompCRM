@@ -27,6 +27,8 @@
  */
 import { z } from "zod";
 
+import { CLASSIFICACOES } from "@/lib/clientes/classificacao";
+
 /** Estados em que uma campanha ainda pretende falar com a lista dela. */
 export const CAMPANHAS_VIVAS = [
   "draft",
@@ -62,6 +64,12 @@ export const filtroDeAudienciaSchema = z
     /** Cadastrado a partir de / até (ISO). */
     cadastrado_de: z.string().datetime().nullable().default(null),
     cadastrado_ate: z.string().datetime().nullable().default(null),
+    /**
+     * Classificação pela última venda ganha (migration 9257), em OU — com os
+     * prazos da organização na hora da prévia. `pre_inativo` é o público de
+     * reativação: quem esfriou mas ainda não virou inativo.
+     */
+    classificacoes: z.array(z.enum(CLASSIFICACOES)).max(CLASSIFICACOES.length).default([]),
     /** `contacts.source` — de onde o contato veio. */
     origens: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
 
@@ -83,6 +91,7 @@ export const filtroDeAudienciaSchema = z
       f.responsaveis.length > 0 ||
       f.situacoes_do_negocio.length > 0 ||
       f.origens.length > 0 ||
+      f.classificacoes.length > 0 ||
       f.sem_interacao_ha_dias !== null ||
       f.com_interacao_ha_dias !== null ||
       f.cadastrado_de !== null ||
@@ -107,6 +116,7 @@ export const FILTRO_VAZIO = {
   cadastrado_de: null,
   cadastrado_ate: null,
   origens: [],
+  classificacoes: [],
   incluir_contatos: [],
   excluir_contatos: [],
   limite: 500,
