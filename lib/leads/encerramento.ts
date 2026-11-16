@@ -35,6 +35,12 @@ import {
   validaCamposExigidos,
 } from "@/lib/leads/campos-exigidos";
 import {
+  type GanhoParcialInput,
+  patchDoGanhoParcial,
+  razaoDoGanhoParcialNaTimeline,
+  recusaDoValorParcial,
+} from "@/lib/leads/ganho-parcial";
+import {
   razaoDaPerdaNaTimeline,
   recusaDeMotivoDaPerdaPeloBanco,
 } from "@/lib/leads/motivo-da-perda";
@@ -63,6 +69,13 @@ export interface EncerraDemandaInput {
   razaoNaTimeline?: string;
   /** Acrescentado ao `payload` da linha (ex.: para onde o negócio foi). */
   payloadNaTimeline?: Record<string, unknown>;
+  /**
+   * GANHO PARCIAL (migration 9259): só em `won`. O negócio fecha como ganho —
+   * conta como venda em toda métrica —, `value_cents` vira o valor fechado e o
+   * motivo é obrigatório. Num negócio que JÁ está ganho, marca o parcial sem
+   * mover o card (o ganho total que virou parcial depois da conferência).
+   */
+  parcial?: GanhoParcialInput | null;
 }
 
 export interface DemandaEncerrada {
@@ -113,6 +126,25 @@ export async function encerraDemanda(
     );
   }
 
+  if (input.parcial && input.desfecho !== "won") {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      undefined,
+      ctx.requestId,
+      traduzir("Só um ganho pode ser parcial.", ctx.idioma ?? "pt-BR"),
+    );
+  }
+  if (input.parcial && !input.parcial.reason?.trim()) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      undefined,
+      ctx.requestId,
+      traduzir("Informe o motivo do ganho parcial.", ctx.idioma ?? "pt-BR"),
+    );
+  }
+
   const { data: lead, error: selErr } = await supabase
     .from("crm_leads")
     .select("*")
@@ -133,7 +165,28 @@ export async function encerraDemanda(
     );
   }
 
+  if (input.parcial) {
+    const recusaValor = recusaDoValorParcial(lead as Record<string, never>, input.parcial.value_cents);
+    if (recusaValor) {
+      throw new ApiError(
+        422,
+        "partial_value_invalid",
+        undefined,
+        ctx.requestId,
+        recusaValor === "sem_valor"
+          ? traduzir("Informe o valor efetivamente fechado.", ctx.idioma ?? "pt-BR")
+          : traduzir(
+              "No ganho parcial o valor fechado precisa ser menor que o previsto.",
+              ctx.idioma ?? "pt-BR",
+            ),
+      );
+    }
+  }
+
   if ((lead as { status: string }).status === input.desfecho) {
+    if (input.parcial) {
+      return marcaParcialNoGanho(supabase, ctx, lead as Record<string, unknown>, input.parcial);
+    }
     return { lead: lead as Record<string, unknown>, jaEstava: true };
   }
 
@@ -258,6 +311,10 @@ export async function encerraDemanda(
   if (input.desfecho === "won" && input.motivo?.trim()) {
     patch.won_reason = input.motivo.trim();
   }
+  // O parcial entra na MESMA escrita do ganho: a CHECK
+  // `crm_leads_parcial_coerente` exige status = 'won', que o gatilho da etapa
+  // grava antes de a CHECK ser avaliada.
+  if (input.parcial) Object.assign(patch, patchDoGanhoParcial(lead as Record<string, never>, input.parcial));
 
   const { error: updErr } = await supabase
     .from("crm_leads")
@@ -312,10 +369,22 @@ export async function encerraDemanda(
     // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
     reason:
       input.razaoNaTimeline ??
-      (input.desfecho === "won" ? "Ganho" : razaoDaPerdaNaTimeline(input.motivo ?? "")),
+      (input.parcial
+        ? razaoDoGanhoParcialNaTimeline(input.parcial.reason)
+        : input.desfecho === "won"
+          ? "Ganho"
+          : razaoDaPerdaNaTimeline(input.motivo ?? "")),
     payload: {
       ...(input.payloadNaTimeline ?? {}),
       desfecho: input.desfecho,
+      ...(input.parcial
+        ? {
+            parcial: true,
+            valor_fechado_cents: input.parcial.value_cents,
+            valor_previsto_cents: (finalLead as { partial_original_value_cents?: unknown })
+              .partial_original_value_cents ?? null,
+          }
+        : {}),
       from_stage_id: (lead as { stage_id: string }).stage_id,
       to_stage_id: (stage as { id: string }).id,
     },
@@ -348,6 +417,104 @@ export async function encerraDemanda(
       ...(input.desfecho === "won" && input.motivo?.trim()
         ? { won_reason: input.motivo.trim() }
         : {}),
+      ...(input.parcial
+        ? {
+            partial: true,
+            partial_reason: input.parcial.reason.trim(),
+            value_cents: input.parcial.value_cents,
+          }
+        : {}),
+    },
+  });
+
+  return { lead: finalLead, jaEstava: false };
+}
+
+/**
+ * O negócio JÁ estava ganho e agora é parcial (ou o parcial foi corrigido).
+ * Não move o card — a etapa de ganho é a mesma —, só grava a marca, o valor
+ * fechado e o motivo, com linha na timeline e auditoria como qualquer desfecho.
+ */
+async function marcaParcialNoGanho(
+  supabase: SupabaseClient,
+  ctx: HandlerCtx,
+  lead: Record<string, unknown>,
+  parcial: GanhoParcialInput,
+): Promise<DemandaEncerrada> {
+  const leadId = lead.id as string;
+  const patch = {
+    ...patchDoGanhoParcial(lead as Record<string, never>, parcial),
+    updated_at: new Date().toISOString(),
+  };
+  // `.eq("status", "won")` é a trava: se o negócio saiu do ganho entre a
+  // leitura e a escrita, nada é gravado e a releitura não encontra o parcial.
+  const { error: updErr } = await supabase
+    .from("crm_leads")
+    .update(patch)
+    .eq("id", leadId)
+    .eq("organization_id", ctx.organization_id)
+    .eq("status", "won");
+  if (updErr) {
+    throw new ApiError(500, "internal_error", undefined, ctx.requestId, updErr.message);
+  }
+  const { data: fresh } = await supabase
+    .from("crm_leads")
+    .select("*")
+    .eq("id", leadId)
+    .eq("organization_id", ctx.organization_id)
+    .maybeSingle();
+  if (!fresh || (fresh as { is_partial_win?: unknown }).is_partial_win !== true) {
+    // Saiu do ganho entre a leitura e a escrita: não há o que marcar.
+    throw new ApiError(
+      409,
+      "conflict",
+      undefined,
+      ctx.requestId,
+      traduzir("O negócio não está mais ganho.", ctx.idioma ?? "pt-BR"),
+    );
+  }
+  const finalLead = fresh as Record<string, unknown>;
+
+  const atividade = await emitLeadActivity(supabase, {
+    organizationId: ctx.organization_id,
+    leadId,
+    contactId: (finalLead.contact_id as string | null | undefined) ?? null,
+    type: "demand_closed",
+    sourceModule: "crm",
+    sourceId: leadId,
+    actor: ctx.actor,
+    reason: razaoDoGanhoParcialNaTimeline(parcial.reason),
+    payload: {
+      desfecho: "won",
+      parcial: true,
+      valor_fechado_cents: parcial.value_cents,
+      valor_previsto_cents: finalLead.partial_original_value_cents ?? null,
+    },
+  });
+  if (!atividade.ok) {
+    await registraFalhaDeAtividade(supabase, {
+      organizationId: ctx.organization_id,
+      leadId,
+      tipo: "demand_closed",
+      origem: "lib/leads/encerramento.marcaParcialNoGanho",
+      erro: atividade.error,
+      requestId: ctx.requestId,
+    });
+  }
+
+  const a = actorAuditPayload(ctx.actor);
+  await audit({
+    action: "lead.partial_win",
+    actorUserId: a.actorUserId,
+    organizationId: ctx.organization_id,
+    resourceType: "crm_lead",
+    resourceId: leadId,
+    requestId: ctx.requestId,
+    metadata: {
+      ...a.metadataActor,
+      partial_reason: parcial.reason.trim(),
+      value_cents: parcial.value_cents,
+      previous_value_cents: lead.value_cents ?? null,
     },
   });
 

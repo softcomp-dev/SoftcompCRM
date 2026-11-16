@@ -19,7 +19,9 @@ import { falhaDoHandlerParaToken } from "@/lib/api/integracao-por-token";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
+import { traduzir } from "@/lib/i18n/dicionario";
 import { encerraDemanda } from "@/lib/leads/encerramento";
+import { GanhoParcialSchema } from "@/lib/leads/ganho-parcial";
 import { extractBearer } from "@/lib/mcp/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,7 +66,7 @@ async function ganharPorToken(req: NextRequest, leadId: string, requestId: strin
     }
   }
   const parsed = z
-    .object({ won_reason: z.string().max(500).nullish() })
+    .object({ won_reason: z.string().max(500).nullish(), partial: GanhoParcialSchema.nullish() })
     .strict()
     .safeParse(corpo);
   if (!parsed.success) {
@@ -78,7 +80,12 @@ async function ganharPorToken(req: NextRequest, leadId: string, requestId: strin
     const { lead } = await encerraDemanda(
       authz.supabase,
       { organization_id: authz.organizationId, actor: authz.actor, requestId },
-      { leadId, desfecho: "won", motivo: parsed.data.won_reason ?? null },
+      {
+        leadId,
+        desfecho: "won",
+        motivo: parsed.data.won_reason ?? null,
+        parcial: parsed.data.partial ?? null,
+      },
     );
     return ok(lead, { requestId });
   } catch (err) {
@@ -114,6 +121,23 @@ export async function POST(
     typeof (corpo as { won_reason?: unknown }).won_reason === "string"
       ? ((corpo as { won_reason: string }).won_reason as string)
       : null;
+  // GANHO PARCIAL (migration 9259): `partial: { value_cents, reason }`. Ausente
+  // é o ganho total de sempre; presente e malformado é 422, nunca ignorado —
+  // ignorar fecharia como ganho total quem pediu parcial.
+  const parcialBruto = (corpo as { partial?: unknown }).partial;
+  let parcial = null;
+  if (parcialBruto != null) {
+    const p = GanhoParcialSchema.safeParse(parcialBruto);
+    if (!p.success) {
+      return fail(
+        "validation_failed",
+        traduzir("Informe o valor fechado e o motivo do ganho parcial.", authz.user.idioma ?? "pt-BR"),
+        422,
+        { requestId, details: { issues: p.error.issues } },
+      );
+    }
+    parcial = p.data;
+  }
 
   try {
     const { lead } = await encerraDemanda(
@@ -124,7 +148,7 @@ export async function POST(
         requestId,
         idioma: authz.user.idioma,
       },
-      { leadId, desfecho: "won", motivo: wonReason },
+      { leadId, desfecho: "won", motivo: wonReason, parcial },
     );
     return ok(lead, { requestId });
   } catch (err) {

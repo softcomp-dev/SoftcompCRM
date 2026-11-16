@@ -8975,6 +8975,17 @@ export const DICIONARIO: Traducoes = {
   "Em negociação": { es: "En negociación" },
   Ganho: { es: "Ganado" },
   Perdido: { es: "Perdido" },
+  // ─── Ganho parcial (migration 9259) ───
+  "Só um ganho pode ser parcial.": { es: "Solo una venta ganada puede ser parcial." },
+  "Informe o motivo do ganho parcial.": { es: "Indica el motivo de la venta parcial." },
+  "Informe o valor efetivamente fechado.": { es: "Indica el valor efectivamente cerrado." },
+  "No ganho parcial o valor fechado precisa ser menor que o previsto.": {
+    es: "En una venta parcial el valor cerrado debe ser menor que el previsto.",
+  },
+  "O negócio não está mais ganho.": { es: "El negocio ya no está ganado." },
+  "Informe o valor fechado e o motivo do ganho parcial.": {
+    es: "Indica el valor cerrado y el motivo de la venta parcial.",
+  },
   // ─── Achados: chamadas com aspas simples (ponto cego do checker por regex) ───
   "O relatório de {lei} entregue ao cliente traz a {campo_alto} da sua empresa, e não o nome aqui de cima — é ela que responde legalmente pelos dados. Confira o campo \"{campo}\" em Configurações → Organização.": {
     es: "El informe de {lei} que se entrega al cliente incluye la {campo_alto} de tu empresa, no el nombre de arriba, porque es ella quien responde legalmente por los datos. Revisa el campo \"{campo}\" en Configuración → Organización.",

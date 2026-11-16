@@ -408,4 +408,93 @@ describe("encerraDemanda", () => {
       encerraDemanda(db.client as never, ctx, { leadId: LEAD, desfecho: "lost", motivo: "price" }),
     ).rejects.toMatchObject({ code: "internal_error", status: 500 });
   });
+describe("ganho parcial (migration 9259)", () => {
+    it("ganha como parcial na MESMA escrita: valor fechado, previsto guardado, motivo", async () => {
+      const db = makeDb({ leads: [baseLead({ value_cents: 100_000 })], stages: baseStages() });
+
+      const result = await encerraDemanda(db.client as never, ctx, {
+        leadId: LEAD,
+        desfecho: "won",
+        parcial: { value_cents: 60_000, reason: "Levou metade do lote" },
+      });
+
+      expect(db.updates).toHaveLength(1);
+      expect(db.updates[0]).toMatchObject({
+        stage_id: WON_STAGE,
+        is_partial_win: true,
+        partial_reason: "Levou metade do lote",
+        partial_original_value_cents: 100_000,
+        value_cents: 60_000,
+      });
+      expect(result.lead).toMatchObject({ status: "won", is_partial_win: true });
+    });
+
+    it("valor fechado igual ao previsto: 422 partial_value_invalid e nenhum update", async () => {
+      const db = makeDb({ leads: [baseLead({ value_cents: 100_000 })], stages: baseStages() });
+
+      await expect(
+        encerraDemanda(db.client as never, ctx, {
+          leadId: LEAD,
+          desfecho: "won",
+          parcial: { value_cents: 100_000, reason: "x" },
+        }),
+      ).rejects.toMatchObject({ code: "partial_value_invalid", status: 422 });
+      expect(db.updates).toEqual([]);
+    });
+
+    it("parcial sem motivo: 422 antes de consultar o banco", async () => {
+      const db = makeDb({ leads: [baseLead()], stages: baseStages() });
+
+      await expect(
+        encerraDemanda(db.client as never, ctx, {
+          leadId: LEAD,
+          desfecho: "won",
+          parcial: { value_cents: 500, reason: "  " },
+        }),
+      ).rejects.toMatchObject({ code: "validation_failed", status: 422 });
+      expect(db.updates).toEqual([]);
+    });
+
+    it("perda não pode ser parcial", async () => {
+      const db = makeDb({ leads: [baseLead()], stages: baseStages() });
+
+      await expect(
+        encerraDemanda(db.client as never, ctx, {
+          leadId: LEAD,
+          desfecho: "lost",
+          motivo: "price",
+          parcial: { value_cents: 500, reason: "x" },
+        }),
+      ).rejects.toMatchObject({ code: "validation_failed", status: 422 });
+      expect(db.updates).toEqual([]);
+    });
+
+    it("negócio JÁ ganho vira parcial sem mudar de etapa — não é o idempotente mudo", async () => {
+      const db = makeDb({
+        leads: [baseLead({ stage_id: WON_STAGE, status: "won", closed_at: "2026-11-01T00:00:00.000Z", value_cents: 100_000 })],
+        stages: baseStages(),
+      });
+
+      const result = await encerraDemanda(db.client as never, ctx, {
+        leadId: LEAD,
+        desfecho: "won",
+        parcial: { value_cents: 40_000, reason: "Cliente devolveu parte" },
+      });
+
+      expect(result.jaEstava).toBe(false);
+      expect(db.updates).toHaveLength(1);
+      expect(db.updates[0]).not.toHaveProperty("stage_id");
+      expect(db.updates[0]).toMatchObject({ is_partial_win: true, value_cents: 40_000, partial_original_value_cents: 100_000 });
+      expect(result.lead).toMatchObject({ stage_id: WON_STAGE, is_partial_win: true });
+    });
+
+    it("ganho sem `parcial` segue como antes: nenhuma coluna do parcial na escrita", async () => {
+      const db = makeDb({ leads: [baseLead()], stages: baseStages() });
+
+      await encerraDemanda(db.client as never, ctx, { leadId: LEAD, desfecho: "won" });
+
+      expect(db.updates[0]).not.toHaveProperty("is_partial_win");
+      expect(db.updates[0]).not.toHaveProperty("value_cents");
+    });
+  });
 });
