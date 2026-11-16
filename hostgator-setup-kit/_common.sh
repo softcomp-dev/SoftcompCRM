@@ -1484,6 +1484,31 @@ recriar_o_proxy() {
     || c_ylw "⚠ não consegui recriar o proxy — rode: docker compose $(dc_files) up -d --force-recreate caddy"
 }
 
+# ── A telefonia relê o dialplan desta versão ────────────────────────────────
+#
+# Mesmo defeito do Caddyfile (ver o bloco do proxy no update.sh): os arquivos de
+# `asterisk/` entram no contêiner por bind mount de UM ARQUIVO, preso ao inode,
+# e o `git checkout` da versão nova escreve outro arquivo. Sem recriar, o
+# Asterisk segue com o `extensions.conf` antigo para sempre — e o dialplan é
+# contrato com o worker de voz (a passagem da IA para o time, por exemplo, só
+# existe no dialplan desta versão em diante).
+#
+# O `voice-agent` vai junto: a conexão dele com o Asterisk (ARI) cai quando o
+# Asterisk reinicia, e só um processo novo a reabre.
+#
+# Sem `telefonia` em COMPOSE_PROFILES não há o que recriar — e nomear o serviço
+# no `up -d` ATIVARIA o profile, subindo a telefonia em quem nunca a ligou.
+# Uma ligação em andamento cai: é atualização, o app também reinicia.
+recriar_a_telefonia() {  # recriar_a_telefonia [envfile]
+  local perfis
+  perfis="$(valor_do_env "${1:-.env}" COMPOSE_PROFILES)"
+  case ",${perfis// /}," in
+    *,telefonia,*) ;;
+    *) return 0 ;;
+  esac
+  dc up -d --force-recreate --no-deps asterisk voice-agent >/dev/null 2>&1     && c_grn "✓ telefonia recarregada com o dialplan desta versão"     || c_ylw "⚠ não consegui recriar a telefonia — rode: docker compose $(dc_files) up -d --force-recreate --no-deps asterisk voice-agent"
+}
+
 # ── O rollback dos pins de versão (#1955, critério 4) ───────────────────────
 #
 # `gravar_imagens` troca os OITO pins de versão do `.env` ANTES de baixar

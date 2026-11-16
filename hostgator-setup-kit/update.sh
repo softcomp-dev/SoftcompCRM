@@ -902,6 +902,10 @@ traefik|npm|cloudflared)
   ;;
 esac
 
+# A telefonia (profile `telefonia`) tem o mesmo bind mount de arquivo que o
+# Caddy: sem recriar, o Asterisk segue com o dialplan da versão anterior.
+recriar_a_telefonia .env || true
+
 # ── 6. O app voltou no ar? ───────────────────────────────────────────────────
 step "Conferindo se o app voltou no ar"
 ok=""
