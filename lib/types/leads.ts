@@ -1,5 +1,6 @@
 import type { AnexosDoCampoNoCard } from "@/lib/kanban/anexos-no-card";
 import type { ScoreBand } from "@/lib/kanban/score-band";
+import type { TipoDeDocumentoDeVenda } from "@/lib/leads/documento-de-venda";
 import type { ResumoDasTarefas } from "@/lib/tarefas/tipos";
 
 /**
@@ -60,6 +61,13 @@ export interface Lead {
   recurring_period?: "monthly" | null;
   /** Duração em meses; `null` = sem prazo (diferente de "12 meses"). */
   recurring_months?: number | null;
+  /**
+   * O documento de venda (migration 9260): `quote` (cotação) OU `order`
+   * (pedido), nunca os dois. Preenchido junto com `sales_document_number`.
+   */
+  sales_document_kind?: TipoDeDocumentoDeVenda | null;
+  /** O número da cotação ou do pedido, como o ERP o escreve. */
+  sales_document_number?: string | null;
   currency: string | null;
   owner_user_id: string | null;
   /** 0070: quem é dono do negócio — humano, agente de IA, ou ninguém. */

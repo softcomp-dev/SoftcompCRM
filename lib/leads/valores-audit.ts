@@ -47,6 +47,11 @@ export const CAMPOS_TIPADOS_SEM_PII = [
   "recurring_value_cents",
   "recurring_period",
   "recurring_months",
+  // O documento de venda (migration 9260): tipo fechado e número de ERP, sem
+  // dado de titular. Sem eles, "quem trocou a cotação pelo pedido?" não teria
+  // o antes-e-depois na auditoria.
+  "sales_document_kind",
+  "sales_document_number",
   "currency",
   "owner_user_id",
   "owner_agent_id",

@@ -24,6 +24,11 @@ import {
   recorrenciaParaGravar,
   type RecorrenciaNoPatch,
 } from "@/lib/leads/valor-recorrente";
+import {
+  documentoParaGravar,
+  mencionaDocumentoDeVenda,
+  type DocumentoDeVendaNoPatch,
+} from "@/lib/leads/documento-de-venda";
 import { RECUSA_DE_TROCA_DE_FUNIL } from "@/lib/leads/clonar-para-funil";
 import {
   camposQueMudaram,
@@ -1111,6 +1116,36 @@ export async function updateLeadHandler(
         recurring_months: valorDe("recurring_months"),
       }),
     );
+  }
+  // O DOCUMENTO DE VENDA (migration 9260) só é tocado quando a requisição o
+  // menciona, e vai sempre o PAR coerente: cotação OU pedido, com o número.
+  // A chave ausente vale o que a linha já tem — "agora é pedido" não apaga o
+  // número gravado.
+  if (mencionaDocumentoDeVenda(input)) {
+    const atual = existing as DocumentoDeVendaNoPatch;
+    const leitura = documentoParaGravar({
+      sales_document_kind:
+        input.sales_document_kind !== undefined ? input.sales_document_kind : atual.sales_document_kind,
+      sales_document_number:
+        input.sales_document_number !== undefined
+          ? input.sales_document_number
+          : atual.sales_document_number,
+    });
+    if (!leitura.ok) {
+      throw new ApiError(
+        422,
+        "validation_failed",
+        undefined,
+        ctx.requestId,
+        traduzir(
+          leitura.motivo === "numero_sem_tipo"
+            ? "Informe se o número é de cotação ou de pedido."
+            : "O número da cotação ou do pedido tem no máximo 60 caracteres.",
+          ctx.idioma ?? "pt-BR",
+        ),
+      );
+    }
+    Object.assign(patch, leitura.par);
   }
   if (input.currency !== undefined) patch.currency = input.currency;
   // Dono do negócio (0070): regra em lib/leads/owner-patch.ts, compartilhada

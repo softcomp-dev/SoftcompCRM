@@ -8,6 +8,10 @@
  *  - bulkLeadActionSchema → POST /api/v1/leads/bulk  (AT-06, max 50)
  */
 import { z } from "zod";
+import {
+  TAMANHO_MAXIMO_DO_NUMERO,
+  TIPOS_DE_DOCUMENTO_DE_VENDA,
+} from "@/lib/leads/documento-de-venda";
 
 /**
  * Accept either ISO 8601 (e.g. "2026-04-29T03:15:54.000Z") or Postgres-style
@@ -313,6 +317,13 @@ export const updateLeadSchema = z.object({
    * contrato que não dura nada, e quem divide pelo prazo dividiria por ele.
    */
   recurring_months: z.coerce.number().int().min(1).max(600).nullable().optional(),
+  /**
+   * O documento de venda (migration 9260): cotação OU pedido, e o número dele.
+   * O par é coerente no handler (`documentoParaGravar`): número vazio limpa os
+   * dois, e número sem tipo é 422.
+   */
+  sales_document_kind: z.enum(TIPOS_DE_DOCUMENTO_DE_VENDA).nullable().optional(),
+  sales_document_number: z.string().trim().max(TAMANHO_MAXIMO_DO_NUMERO).nullable().optional(),
   currency: z.string().length(3).optional(),
   owner_user_id: z.string().uuid().nullable().optional(),
   /**

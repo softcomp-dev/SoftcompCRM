@@ -480,6 +480,8 @@ const NOME_DO_CAMPO: Record<string, string> = {
   recurring_value_cents: "o valor recorrente",
   recurring_period: "a periodicidade",
   recurring_months: "a duração",
+  sales_document_kind: "o tipo do documento (cotação ou pedido)",
+  sales_document_number: "o número da cotação ou do pedido",
   currency: "a moeda",
   owner_user_id: "o responsável",
   owner_agent_id: "o agente responsável",

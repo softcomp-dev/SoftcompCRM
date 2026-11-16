@@ -11141,6 +11141,8 @@ export const DICIONARIO: Traducoes = {
   "Valor recorrente (mensal)": { es: "Valor recurrente (mensual)" },
   "Duração (meses)": { es: "Duración (meses)" },
   "sem prazo": { es: "sin plazo" },
+  "Informe se o número é de cotação ou de pedido.": { es: "Indique si el número es de cotización o de pedido." },
+  "O número da cotação ou do pedido tem no máximo 60 caracteres.": { es: "El número de la cotización o del pedido tiene como máximo 60 caracteres." },
   "Duração inválida": { es: "Duración inválida" },
   "Informe a mensalidade para usar a duração": {
     es: "Informa la mensualidad para usar la duración",
