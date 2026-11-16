@@ -71,6 +71,16 @@ export const BLOCOS_DE_AJUDA: readonly BlocoDeAjuda[] = [
         href: "/app/connections",
         detalhe: "Por onde as mensagens entram: WhatsApp, Instagram e os demais canais.",
       },
+      {
+        texto: "Ver todas as suas empresas juntas",
+        href: "/app/consolidado",
+        detalhe: "Quando você atende em mais de uma empresa e quer o funil, as conversas e os contatos numa tela só.",
+      },
+      {
+        texto: "Passar os leads ao vendedor",
+        href: "/app/sdr",
+        detalhe: "Para quem é SDR: os negócios que estão com você ou sem dono, esperando um vendedor.",
+      },
     ],
   },
   {
@@ -105,6 +115,11 @@ export const BLOCOS_DE_AJUDA: readonly BlocoDeAjuda[] = [
         texto: "Renomear as etapas e criar campos",
         href: "/app/settings/tenant/pipelines",
         detalhe: "O vocabulário que a sua operação usa, no lugar do padrão.",
+      },
+      {
+        texto: "Integrar outro sistema",
+        href: "/app/docs",
+        detalhe: "Quando um ERP, uma loja ou uma automação precisa ler ou gravar no CRM pela API.",
       },
     ],
   },

@@ -4,13 +4,15 @@ import { blocosVisiveis } from "@/lib/ajuda/hub";
 import type { Role } from "@/lib/auth/types";
 import { combinarInterfaces, destinosDaInterface } from "@/lib/navigation/interface";
 
-const basicos = ["/app/inbox", "/app/kanban", "/app/contacts"];
+const basicos = ["/app/inbox", "/app/kanban", "/app/contacts", "/app/consolidado"];
 const equipe = "/app/team";
 const casos = "/app/ai/cases";
 const montagem = ["/app/ai/agents", "/app/ai/knowledge/sources"];
 const etapas = "/app/settings/tenant/pipelines";
 const conexoes = "/app/connections";
 const instalacao = "/app/settings/atualizacao";
+const docs = "/app/docs";
+const sdr = "/app/sdr";
 
 function blocos(role: Role, settings?: unknown, plataforma = false, suporte = false) {
   return blocosVisiveis(
@@ -27,7 +29,7 @@ describe("Ajuda respeita a mesma interface do menu", () => {
     ["viewer", [...basicos, equipe]],
     ["agent", [...basicos, equipe, casos]],
     ["manager", [...basicos, equipe, casos, ...montagem, etapas]],
-    ["admin", [...basicos, equipe, casos, ...montagem, etapas, conexoes]],
+    ["admin", [...basicos, equipe, casos, ...montagem, etapas, conexoes, docs]],
   ] as const)("%s recebe só os atalhos permitidos pelo catálogo", (role, esperados) => {
     expect(hrefs(blocos(role))).toEqual([...esperados].sort());
   });
@@ -58,6 +60,13 @@ describe("Ajuda respeita a mesma interface do menu", () => {
 
   it("admin de tenant não ganha a porta da instalação", () => {
     expect(hrefs(blocos("admin"))).not.toContain(instalacao);
+  });
+
+  it("a fila do SDR só aparece quando a empresa tem a capacidade sdr", () => {
+    const comSdr = blocosVisiveis(false, destinosDaInterface(undefined, false, "agent", [], ["sdr"]));
+    expect(hrefs(comSdr)).toContain(sdr);
+    expect(hrefs(blocos("agent"))).not.toContain(sdr);
+    expect(hrefs(blocosVisiveis(false, destinosDaInterface(undefined, false, "viewer", [], ["sdr"])))).not.toContain(sdr);
   });
 
   it("a porta de instalação preserva o gate próprio de plataforma", () => {

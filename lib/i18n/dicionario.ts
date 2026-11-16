@@ -20163,6 +20163,24 @@ export const DICIONARIO: Traducoes = {
   "Atualizar esta instalação": {
     es: "Actualizar esta instalación",
   },
+  "Ver todas as suas empresas juntas": {
+    es: "Ver todas tus empresas juntas",
+  },
+  "Quando você atende em mais de uma empresa e quer o funil, as conversas e os contatos numa tela só.": {
+    es: "Cuando atiendes en más de una empresa y quieres el embudo, las conversaciones y los contactos en una sola pantalla.",
+  },
+  "Passar os leads ao vendedor": {
+    es: "Pasar los leads al vendedor",
+  },
+  "Para quem é SDR: os negócios que estão com você ou sem dono, esperando um vendedor.": {
+    es: "Para quien es SDR: los negocios que están contigo o sin dueño, esperando un vendedor.",
+  },
+  "Integrar outro sistema": {
+    es: "Integrar otro sistema",
+  },
+  "Quando um ERP, uma loja ou uma automação precisa ler ou gravar no CRM pela API.": {
+    es: "Cuando un ERP, una tienda o una automatización necesita leer o escribir en el CRM por la API.",
+  },
   "A versão que roda aqui, a que já existe e o que muda ao atualizar.": {
     es: "La versión que corre aquí, la que ya existe y qué cambia al actualizar.",
   },
