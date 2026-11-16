@@ -20,7 +20,7 @@
  * `voice_human_mode_unavailable`: o atendente ainda não tem de onde falar —
  * nem o celular dele cadastrado, nem o telefone no navegador (WebRTC). Antes a
  * rota aceitava o modo e o worker abria a IA do mesmo jeito. O que falta está em
- * docs/specs/36-spec-telefonia-sip-atendimento-humano.md.
+ * docs/specs/33-spec-telefonia-sip-atendimento-humano.md.
  */
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";

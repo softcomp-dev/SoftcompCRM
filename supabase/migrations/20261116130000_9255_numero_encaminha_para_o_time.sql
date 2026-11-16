@@ -5,7 +5,7 @@
 -- IA, e sem agente de voz ela caía. O atendimento humano, nesta fase, é o
 -- encaminhamento da ligação para um telefone do time (celular ou fixo) pelo
 -- mesmo tronco SIP. O telefone no navegador (WebRTC) é a fase seguinte e não
--- está aqui — ver docs/specs/36-spec-telefonia-sip-atendimento-humano.md.
+-- está aqui — ver docs/specs/33-spec-telefonia-sip-atendimento-humano.md.
 --
 -- Idempotente: colunas `if not exists`, constraints com `drop ... if exists`
 -- antes, função recriada. As colunas nascem vazias/no default, então nenhuma

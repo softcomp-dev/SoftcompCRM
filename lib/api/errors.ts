@@ -186,7 +186,7 @@ export const ApiErrorCodes = {
   // 422: ligação feita com o atendente falando (`POST /api/v1/calls`,
   // `mode: "human"`). O caminho ainda não existe — falta ao atendente um
   // telefone de onde falar (o celular dele ou o navegador, ver
-  // docs/specs/36-spec-telefonia-sip-atendimento-humano.md). Antes, a rota
+  // docs/specs/33-spec-telefonia-sip-atendimento-humano.md). Antes, a rota
   // aceitava o modo e a IA atendia escondida.
   voice_human_mode_unavailable: "voice_human_mode_unavailable",
   // 422, e é PRODUTO, não erro: o aviso do art. 12.º vale só para organizações

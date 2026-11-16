@@ -64,7 +64,7 @@ const ROUTING_LABELS: Record<RoutingMode, string> = {
 /**
  * O que cada modo faz, dito na tela. "Time humano" encaminha a ligação para um
  * telefone do time pelo tronco SIP; o telefone no navegador ainda não existe
- * (docs/specs/36-spec-telefonia-sip-atendimento-humano.md).
+ * (docs/specs/33-spec-telefonia-sip-atendimento-humano.md).
  */
 const ROUTING_HINTS: Record<RoutingMode, string> = {
   ai: "O agente de voz atende todas as ligações.",

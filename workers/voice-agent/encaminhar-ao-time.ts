@@ -16,7 +16,7 @@
  *      "Ligar de volta" nasce na Central e quem ligou é desligado.
  *
  * A fase B — o telefone no navegador do atendente (WebRTC), sem custo de
- * minuto de saída — NÃO está aqui: docs/specs/36-spec-telefonia-sip-atendimento-humano.md.
+ * minuto de saída — NÃO está aqui: docs/specs/33-spec-telefonia-sip-atendimento-humano.md.
  *
  * O estado mora em memória. Não há o que reconstruir depois de um reinício do
  * worker: a ponte morre junto, e o cron `recover-stuck-calls` fecha a linha
