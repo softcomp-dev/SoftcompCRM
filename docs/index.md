@@ -55,6 +55,8 @@ de menor precedência e registre.
 | [`business-rules/00-business-rules-catalog.md`](business-rules/00-business-rules-catalog.md) | **Catálogo de regras de negócio** — fonte da verdade fora do código |
 | [`features/atendimento-alerta-humano-nome-informado.md`](features/atendimento-alerta-humano-nome-informado.md) | Aviso interno por episódio de transferência e opt-in para preencher nome vazio com limites da prova |
 | [`features/feature-a-leadsubmitted-ctwa.md`](features/feature-a-leadsubmitted-ctwa.md) | Feature A portada: LeadSubmitted por clique CTWA recebido, evidência do fork e validações pendentes do upstream |
+| [`features/sdr.md`](features/sdr.md) | **Função SDR** — interruptor por organização, marca SDR por pessoa em Equipe, os dois fluxos de distribuição de leads novos, "Passar para vendedor" e a tela Leads sem vendedor |
+| [`features/classificacao-de-clientes.md`](features/classificacao-de-clientes.md) | **Classificação de clientes** (ativo, pré-inativo, inativo, sem compra) pela última venda ganha — selo, filtro, prazos da organização, público de campanha e aviso diário na Central |
 | [`presentation/pitch-deck.md`](presentation/pitch-deck.md) | Pitch |
 
 ## 3. Contrato técnico (specs)
