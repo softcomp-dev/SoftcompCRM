@@ -251,6 +251,20 @@ export type ActivityType =
    * própria fila é a memória dela, com trecho e decisão por proposta.
    */
   | "document_attached"
+  /**
+   * A INTERAÇÃO QUE O VENDEDOR REGISTROU À MÃO — a ligação do celular, a
+   * reunião, a visita, o e-mail: o contato que aconteceu FORA do CRM e que, sem
+   * esta linha, não deixaria rastro nenhum no histórico de atendimento.
+   *
+   * São DOIS tipos pelo mesmo motivo de `voice_call`/`voice_call_unanswered`:
+   * quem decide se a linha quebra o silêncio do negócio é o gatilho
+   * `fn_update_last_activity_at`, que só enxerga `new.type`. "Falei com o
+   * cliente" quebra o silêncio; "liguei e ninguém atendeu" é constatação dele.
+   * Regras em `lib/atendimento/interacao-manual.ts`; o texto vai em `reason`,
+   * que a anonimização (LGPD) apaga.
+   */
+  | "interaction_logged"
+  | "interaction_attempted"
   | "cold_call_result";
 
 export const ACTIVITY_LABELS: Record<ActivityType, string> = {
@@ -377,6 +391,8 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   // quem lê a timeline do negócio precisa saber é que um documento entrou; qual
   // campo e qual arquivo saem do payload (`field_key`/`file_name`).
   document_attached: "Documento anexado ao negócio",
+  interaction_logged: "Interação registrada",
+  interaction_attempted: "Tentativa de contato registrada",
 };
 
 /** Quando o tipo é legado/desconhecido, a linha ainda é honesta — sem jargão. */
