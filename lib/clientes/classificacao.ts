@@ -91,3 +91,31 @@ export const ROTULO_DA_CLASSIFICACAO: Record<Classificacao, string> = {
   inativo: "Inativo",
   sem_compra: "Sem compra",
 };
+
+/**
+ * As faixas escolhidas como UMA expressão `or` do PostgREST sobre
+ * `last_won_at` (OU entre as faixas). Devolve `null` quando a escolha cobre
+ * todas — sem filtro é o mesmo resultado, e mais barato.
+ */
+export function filtroOrDaClassificacao(
+  escolhidas: readonly Classificacao[],
+  limites: LimitesDeClassificacao,
+  agora: Date = new Date(),
+): string | null {
+  const unicas = [...new Set(escolhidas)];
+  if (unicas.length === 0 || unicas.length === CLASSIFICACOES.length) return null;
+  const { ativoDesde, preInativoDesde } = cortesDaClassificacao(limites, agora);
+  const partes = unicas.map((c) => {
+    switch (c) {
+      case "ativo":
+        return `last_won_at.gte.${ativoDesde}`;
+      case "pre_inativo":
+        return `and(last_won_at.gte.${preInativoDesde},last_won_at.lt.${ativoDesde})`;
+      case "inativo":
+        return `last_won_at.lt.${preInativoDesde}`;
+      case "sem_compra":
+        return "last_won_at.is.null";
+    }
+  });
+  return partes.join(",");
+}

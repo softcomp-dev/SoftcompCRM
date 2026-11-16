@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   classificar,
   cortesDaClassificacao,
+  filtroOrDaClassificacao,
   LIMITES_PADRAO,
   limitesDaOrganizacao,
 } from "./classificacao";
@@ -52,5 +53,28 @@ describe("limitesDaOrganizacao", () => {
     expect(
       limitesDaOrganizacao({ classificacao_ativo_dias: 200, classificacao_pre_inativo_dias: 100 }),
     ).toEqual(LIMITES_PADRAO);
+  });
+});
+
+describe("filtroOrDaClassificacao", () => {
+  const { ativoDesde, preInativoDesde } = cortesDaClassificacao(LIMITES_PADRAO, AGORA);
+
+  it("monta uma faixa por escolha, em OU", () => {
+    expect(filtroOrDaClassificacao(["pre_inativo"], LIMITES_PADRAO, AGORA)).toBe(
+      `and(last_won_at.gte.${preInativoDesde},last_won_at.lt.${ativoDesde})`,
+    );
+    expect(filtroOrDaClassificacao(["ativo", "sem_compra"], LIMITES_PADRAO, AGORA)).toBe(
+      `last_won_at.gte.${ativoDesde},last_won_at.is.null`,
+    );
+    expect(filtroOrDaClassificacao(["inativo", "inativo"], LIMITES_PADRAO, AGORA)).toBe(
+      `last_won_at.lt.${preInativoDesde}`,
+    );
+  });
+
+  it("sem escolha ou com todas, não filtra", () => {
+    expect(filtroOrDaClassificacao([], LIMITES_PADRAO, AGORA)).toBeNull();
+    expect(
+      filtroOrDaClassificacao(["ativo", "pre_inativo", "inativo", "sem_compra"], LIMITES_PADRAO, AGORA),
+    ).toBeNull();
   });
 });

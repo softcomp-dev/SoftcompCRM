@@ -96,8 +96,10 @@ function supabaseEspiao() {
   };
   return {
     client: {
-      from: () => {
-        estado.aberturas += 1;
+      // Conta só a consulta de CONTATOS: a leitura dos prazos de classificação
+      // (`organizations`, migration 9257) não é a busca que este teste mede.
+      from: (tabela: string) => {
+        if (tabela === "contacts") estado.aberturas += 1;
         return chain;
       },
     } as never,

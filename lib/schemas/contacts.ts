@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 
+import { CLASSIFICACOES } from "@/lib/clientes/classificacao";
 import { normalizarTag, normalizarTags } from "@/lib/contacts/tag-normalizada";
 import {
   MAXIMO_DE_ETIQUETAS_NO_FILTRO,
@@ -349,6 +350,20 @@ export const contactListQuerySchema = z.object({
    * sempre); `z.enum` recusa o valor inventado com 422, como o `modo`.
    */
   blocked: z.enum(["yes", "no"]).optional(),
+  /**
+   * Classificação por recência da última venda ganha (ativo, pre_inativo,
+   * inativo, sem_compra). Várias em OU, pela repetição na URL
+   * (`?classificacao=ativo&classificacao=pre_inativo`), como `tag`. Valor fora
+   * do vocabulário é 422. Lista vazia vira `undefined` (sem filtro).
+   */
+  classificacao: z
+    .union([z.enum(CLASSIFICACOES), z.array(z.enum(CLASSIFICACOES)).max(CLASSIFICACOES.length)])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      const lista = Array.isArray(v) ? v : [v];
+      return lista.length > 0 ? lista : undefined;
+    }),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   order_by: z.enum(CONTACT_ORDER_BY).default("last_activity_at"),

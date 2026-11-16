@@ -143,6 +143,12 @@ paths:
         - { name: source, in: query, schema: { type: string }, description: Origem do contato. }
         - { name: pessoais, in: query, schema: { type: string, enum: ["true", "false"], default: "false" }, description: Incluir contatos marcados como pessoais. }
         - { name: blocked, in: query, schema: { type: string, enum: ["yes", "no"] } }
+        - name: classificacao
+          in: query
+          description: Classificação pela última venda ganha, com os prazos da organização. Repita o parâmetro para combinar faixas em OU.
+          schema: { type: array, items: { type: string, enum: [ativo, pre_inativo, inativo, sem_compra] } }
+          style: form
+          explode: true
         - { name: cursor, in: query, schema: { type: string }, description: Valor de `meta.cursor` da página anterior. }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
         - name: order_by
@@ -3337,6 +3343,8 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         last_activity_at: { type: [string, "null"], format: date-time }
+        last_won_at: { type: [string, "null"], format: date-time, description: Fechamento do negócio ganho mais recente. }
+        classificacao: { type: string, enum: [ativo, pre_inativo, inativo, sem_compra], description: Calculada de last_won_at e dos prazos da organização. }
         conversa:
           type: [object, "null"]
           properties:

@@ -1,3 +1,5 @@
+import type { Classificacao } from "@/lib/clientes/classificacao";
+
 /**
  * Domain types for Contacts (EPIC-05).
  * Mirror the verified `contacts` schema (see CLAUDE.md / Spec 05).
@@ -100,6 +102,16 @@ export interface Contact {
    * recusa (42501) a escrita de sessão nesta coluna. Não entra no PATCH.
    */
   first_service_at: string | null;
+  /**
+   * Fechamento do negócio ganho mais recente (migration 9257). Derivado de
+   * `crm_leads` por gatilho; sessão nenhuma o grava.
+   */
+  last_won_at?: string | null;
+  /**
+   * Derivado (não é coluna): ativo / pre_inativo / inativo / sem_compra, de
+   * `last_won_at` e dos prazos da organização (`lib/clientes/classificacao.ts`).
+   */
+  classificacao?: Classificacao;
   /**
    * Derivado (não é coluna): a conversa mais recente deste contato — atalho para o inbox.
    * Ausente é normal: contato criado à mão pode nunca ter conversado.

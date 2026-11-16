@@ -11,6 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revogarAcessosDoContato } from "@/lib/mcp/servidor-externo/do-agente/revogacao";
 import { logger } from "@/lib/logger";
+import { classificar, filtroOrDaClassificacao, type LimitesDeClassificacao } from "@/lib/clientes/classificacao";
+import { limitesDaOrganizacaoNoBanco } from "@/lib/clientes/limites-no-banco";
 import { observeServiceOrigin } from "@/lib/atendimento/origem";
 import { ApiError } from "@/lib/api/types";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
@@ -55,7 +57,7 @@ import { testaComPrazo } from "@/lib/leads/padrao-do-campo-no-servidor";
 type SB = SupabaseClient;
 
 const SELECT_COLS =
-  "id, organization_id, name, display_name, address_book_name, zip_code, street, number, complement, district, city, state, email, email_normalized, phone_number, cpf_encrypted, birthdate, is_blocked, blocked_reason, is_personal, contact_type, ai_opt_out, is_anonymized, anonymized_at, is_merged_into, merged_at, consent, tags, source, source_metadata, custom_fields, created_at, updated_at, last_activity_at, first_service_at";
+  "id, organization_id, name, display_name, address_book_name, zip_code, street, number, complement, district, city, state, email, email_normalized, phone_number, cpf_encrypted, birthdate, is_blocked, blocked_reason, is_personal, contact_type, ai_opt_out, is_anonymized, anonymized_at, is_merged_into, merged_at, consent, tags, source, source_metadata, custom_fields, created_at, updated_at, last_activity_at, first_service_at, last_won_at";
 
 /**
  * A linha como o banco devolve. `cpf_encrypted` é interno a este módulo e só diz
@@ -69,8 +71,14 @@ type LinhaDeContato = Omit<Contact, "cpf_available"> & { cpf_encrypted: unknown 
  * A ficha que sai deste módulo: o sinal de que há CPF, nunca a coluna. Toda
  * saída de `SELECT_COLS` passa aqui — os handlers servem à REST e ao MCP.
  */
-function fichaDaResposta({ cpf_encrypted, ...ficha }: LinhaDeContato): Contact {
-  return { ...ficha, cpf_available: !!cpf_encrypted };
+function fichaDaResposta(
+  { cpf_encrypted, ...ficha }: LinhaDeContato,
+  limites?: LimitesDeClassificacao,
+  agora: Date = new Date(),
+): Contact {
+  const base: Contact = { ...ficha, cpf_available: !!cpf_encrypted };
+  // A classificação só sai onde a leitura trouxe os prazos (lista e ficha).
+  return limites ? { ...base, classificacao: classificar(ficha.last_won_at ?? null, limites, agora) } : base;
 }
 
 /**
@@ -182,6 +190,10 @@ export async function listContactsHandler(
 
   const sortCol = q.order_by;
   const asc = q.order_dir === "asc";
+  // Os prazos e o "agora" UMA vez: o filtro e o selo da mesma resposta usam
+  // a mesma régua (`lib/clientes/classificacao.ts`).
+  const limites = await limitesDaOrganizacaoNoBanco(supabase, ctx.organization_id);
+  const agora = new Date();
 
   let query = supabase
     .from("contacts")
@@ -345,6 +357,10 @@ export async function listContactsHandler(
   // `yes` responde "quem pediu para não ser incomodado"; `no`, quem não pediu
   // opt-out. Só o opt-out: exclusão de campanha e anonimizados não entram aqui.
   if (q.blocked) query = query.eq("is_blocked", q.blocked === "yes");
+  if (q.classificacao) {
+    const faixa = filtroOrDaClassificacao(q.classificacao, limites, agora);
+    if (faixa) query = query.or(faixa);
+  }
   if (soContato) query = query.eq("id", soContato);
   // Pessoal fora da lista por padrão; `?pessoais=true` lista SÓ pessoais
   // (spec 21, etapa 13 — a tela do filtro e o desmarcar). Sem esta linha a
@@ -379,7 +395,7 @@ export async function listContactsHandler(
     throw new ApiError(500, "internal_error", undefined, ctx.requestId, error.message);
   }
 
-  const rows = ((data ?? []) as LinhaDeContato[]).map(fichaDaResposta);
+  const rows = ((data ?? []) as LinhaDeContato[]).map((linha) => fichaDaResposta(linha, limites, agora));
   const hasMore = rows.length > q.limit;
   const page = hasMore ? rows.slice(0, q.limit) : rows;
   const last = page[page.length - 1];
@@ -483,7 +499,10 @@ export async function getContactHandler(
       traduzir("Contato não encontrado.", ctx.idioma ?? "pt-BR"),
     );
   }
-  const contact = fichaDaResposta(data as LinhaDeContato);
+  const contact = fichaDaResposta(
+    data as LinhaDeContato,
+    await limitesDaOrganizacaoNoBanco(supabase, ctx.organization_id),
+  );
 
   let cpfDecrypted: string | null = null;
   let cpfDecryptDenied = false;
