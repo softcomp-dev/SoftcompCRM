@@ -7032,6 +7032,9 @@ export type Database = {
           last_activity_at: string | null;
           lost_from_stage_id: string | null;
           lost_reason: string | null;
+          is_partial_win: boolean;
+          partial_original_value_cents: number | null;
+          partial_reason: string | null;
           organization_id: string;
           owner_agent_id: string | null;
           owner_kind: string | null;
@@ -7072,6 +7075,9 @@ export type Database = {
           last_activity_at?: string | null;
           lost_from_stage_id?: string | null;
           lost_reason?: string | null;
+          is_partial_win?: boolean;
+          partial_original_value_cents?: number | null;
+          partial_reason?: string | null;
           organization_id: string;
           owner_agent_id?: string | null;
           owner_kind?: string | null;
@@ -7111,6 +7117,9 @@ export type Database = {
           last_activity_at?: string | null;
           lost_from_stage_id?: string | null;
           lost_reason?: string | null;
+          is_partial_win?: boolean;
+          partial_original_value_cents?: number | null;
+          partial_reason?: string | null;
           organization_id?: string;
           owner_agent_id?: string | null;
           owner_kind?: string | null;
