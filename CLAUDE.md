@@ -396,6 +396,21 @@ pnpm test:db tests/invariants/x.test.ts     # um invariante (o script repassa os
 pnpm playwright test tests/e2e/x.spec.ts    # uma spec e2e
 ```
 
+**Escopo dos testes locais (decisão do dono do fork, 16/11/2026): rode o que a alteração precisa,
+não a suíte inteira.** Quando a mudança é localizada, basta rodar:
+
+- os testes da própria alteração (os novos e os co-localizados nos arquivos tocados);
+- os testes que importam ou varrem o que foi tocado. Para achá-los,
+  `git grep -l "<módulo tocado>" -- '*.test.ts' '*.test.tsx'`, mais as cercas da área (rotas de
+  `app/api/v1`, vocabulário, i18n);
+- `typecheck` e `lint`.
+
+A suíte completa (`pnpm test:unit` sem caminho) fica para quando a mudança for transversal: um
+helper usado em muitos lugares, config do vitest ou do tsconfig, um mock global ou um setup de
+teste. Fica também para quando alguém pedir explicitamente. O CI continua rodando a suíte inteira
+em todo push. **Ao relatar, diga o recorte que rodou** ("rodei N arquivos: os da alteração + as
+cercas X e Y"), nunca "a suíte está verde". Um verde do recorte é verde do recorte.
+
 **⚠️ `test:unit` NÃO é `tests/unit/`.** O script é `vitest run` **sem caminho**, e ele alcança
 o repositório inteiro — os testes co-localizados em `lib/`, `app/`, `components/` e `hooks/`
 inclusive. Medido em 2026-08-28: `vitest run` alcança **566 arquivos**; `tests/unit/` tem **388**.
@@ -403,13 +418,16 @@ Os 178 de fora são 133 em `lib/`, 37 em `app/`, 3 em `components/`, 1 em `hooks
 
 Quem lê o nome do script e roda `vitest run tests/unit` obtém um **verde menor e mais fácil** sem
 perceber que obteve — e foi o que aconteceu num PR: a suíte foi reportada como verde, e o que
-estava verde era o recorte. O comando que vale é `pnpm test:unit`, sem caminho.
+estava verde era o recorte. Quando a suíte inteira for necessária (ver "Escopo dos testes locais"
+acima), o comando que vale é `pnpm test:unit`, sem caminho. Rodar um recorte é permitido; o que
+não pode é chamar o recorte de suíte.
 
 Duas armadilhas irmãs, as duas pagas no mesmo dia:
 
 - **Gate escolhido não é suíte.** `typecheck`, `lint`, `lint:channels` e os arquivos de cerca
   podem estar todos verdes enquanto a suíte tem 17 falhas — nenhum deles toca o arquivo que
-  quebrou. Antes de abrir PR, rode a suíte, não os gates que você lembra.
+  quebrou. Por isso o recorte local inclui os testes que IMPORTAM o que foi tocado, não só os
+  gates que você lembra. Mudança transversal pede a suíte.
 - **Não corte a saída.** `| tail -8` guarda o rodapé e joga fora os NOMES dos arquivos que
   falharam, que é o único dado que permite reconciliar depois. Redirecione e filtre:
 

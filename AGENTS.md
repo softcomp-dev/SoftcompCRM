@@ -152,6 +152,14 @@ pnpm test:db tests/invariants/x.test.ts     # um invariante (o script repassa os
 pnpm playwright test tests/e2e/x.spec.ts    # uma spec e2e
 ```
 
+**Escopo dos testes locais: rode o que a alteração precisa, não a suíte inteira.** Mudança
+localizada pede os testes da própria alteração, os testes que importam ou varrem os arquivos
+tocados (`git grep -l "<módulo>" -- '*.test.ts' '*.test.tsx'`, mais as cercas da área),
+`typecheck` e `lint`. A suíte completa (`pnpm test:unit` sem caminho) fica para mudança
+transversal (helper muito usado, config de vitest/tsconfig, mock ou setup global) ou para quando
+for pedida; o CI roda a suíte inteira em todo push. Ao relatar, diga qual recorte rodou, nunca
+"a suíte está verde". Detalhe em `CLAUDE.md` › Testes.
+
 ⚠️ **`pnpm gov:verify` não cobre tudo.** Ele omite `test:db`, `test:e2e` **e** `test:shell`.
 Se a mudança toca schema/RLS/tabela tenant-aware, rode `pnpm test:db`. Se toca UI ou fluxo de
 usuário, rode `pnpm test:e2e` com evidência visual. Se toca `Dockerfile*`, `docker-compose*` ou
