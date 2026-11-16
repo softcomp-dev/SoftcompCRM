@@ -3,6 +3,7 @@
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium, expect, type Page } from "@playwright/test";
 import {
   CSS_DE_FOTO,
@@ -336,7 +337,7 @@ async function main() {
 }
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
 ) {
   main().catch(() => {
     console.error(

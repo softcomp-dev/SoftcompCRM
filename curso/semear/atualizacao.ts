@@ -15,12 +15,13 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { type Contexto, confirmarVersaoDaInstalacao, semErro, versaoDasFotos } from "../semear-demonstracao";
 
 export async function semear(c: Contexto) {
   const nova = versaoDasFotos();
-  const changelog = readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), "..", "..", "CHANGELOG.md"), "utf8");
+  const changelog = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "CHANGELOG.md"), "utf8");
   // a seção da versão das fotos e a anterior: a anterior é a instalada
   const secoes = [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)];
   const i = secoes.findIndex((m) => m[1] === nova);

@@ -17,10 +17,10 @@ describe("idioma das fotografias reais", () => {
     vi.stubEnv("CURSO_IDIOMA", "pt-BR");
     vi.stubEnv("CURSO_SAIDA", "");
     expect(idiomaDaCaptura()).toBe("pt-BR");
-    expect(pastaDaSaida()).toMatch(/curso\/saida$/);
+    expect(pastaDaSaida().replaceAll(path.sep, "/")).toMatch(/curso\/saida$/);
     expect(textoDaInterface("Assumir")).toBe("Assumir");
     vi.stubEnv("CURSO_IDIOMA", "es");
-    expect(pastaDaSaida()).toMatch(/curso\/saida\/es$/);
+    expect(pastaDaSaida().replaceAll(path.sep, "/")).toMatch(/curso\/saida\/es$/);
     expect(textoDaInterface("Assumir")).toBe("Asumir");
   });
   it("recusa idiomas que o app não serve e commit sem proveniência", () => {

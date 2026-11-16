@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { GRUPO_NO_RODAPE, NAV_CATALOG, NAV_GROUPS } from "../lib/navigation/catalogo";
 import { Modulo, chaveDoPasso } from "./licao";
@@ -23,7 +24,7 @@ import { Nicho, validarJornadas } from "./jornada";
 import { menuDoAdmin } from "./menu-do-admin";
 import { pastaDaSaida } from "./configuracao";
 
-const RAIZ = path.dirname(new URL(import.meta.url).pathname);
+const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 const SAIDA = pastaDaSaida();
 const ler = (f: string) => readFileSync(path.join(RAIZ, f), "utf8");
 

@@ -1,7 +1,8 @@
 /** Metadados e saída do curso; não importa o dicionário da interface. */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-const raiz = path.dirname(new URL(import.meta.url).pathname);
+import { fileURLToPath } from "node:url";
+const raiz = path.dirname(fileURLToPath(import.meta.url));
 export type IdiomaDaCaptura = "pt-BR" | "es";
 
 export function idiomaDaCaptura(): IdiomaDaCaptura {

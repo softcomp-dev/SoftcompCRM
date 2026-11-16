@@ -5,6 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { cifrarSenha } from "../lib/external-db/credenciais";
 import { validarHostDeBanco } from "../lib/external-db/guardas";
@@ -88,6 +89,6 @@ async function main() {
     console.info("Fonte fictícia local preparada; senha aleatória somente cifrada na bancada.");
   } finally { await admin.end(); }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   main().catch(() => { console.error("Preparação recusada. Confira destino local, ownership da fixture e configuração privada; nenhum segredo é exibido."); process.exitCode = 1; });
 }

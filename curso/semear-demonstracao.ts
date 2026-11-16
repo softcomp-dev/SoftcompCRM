@@ -19,6 +19,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { type User, createClient } from "@supabase/supabase-js";
 import pg from "pg";
@@ -586,7 +587,7 @@ export async function semearBase(): Promise<Contexto> {
       `excluir ${x.slug}`,
     );
   }
-  const saida = path.join(path.dirname(new URL(import.meta.url).pathname), "saida");
+  const saida = path.join(path.dirname(fileURLToPath(import.meta.url)), "saida");
   await voltarAoEstadoDeFabrica(org, saida);
   await confirmarVersaoDaInstalacao();
   semErro(
@@ -1083,7 +1084,7 @@ export async function semearBase(): Promise<Contexto> {
  * limpeza chamada antes de QUALQUER aula. Cada `limpar` apaga só as próprias linhas.
  */
 async function limparSementesDeModulo(ctx: Contexto) {
-  const pasta = path.join(path.dirname(new URL(import.meta.url).pathname), "semear");
+  const pasta = path.join(path.dirname(fileURLToPath(import.meta.url)), "semear");
   for (const arquivo of readdirSync(pasta).filter((f) => f.endsWith(".ts")).sort()) {
     const semente = (await import(path.join(pasta, arquivo))) as { limpar?: (c: Contexto) => Promise<void> };
     if (typeof semente.limpar === "function") await semente.limpar(ctx);
@@ -1097,7 +1098,7 @@ async function rodar() {
   if (!modulo || modulo === "inbox") return;
   if (!/^[a-z0-9-]+$/.test(modulo)) throw new Error(`módulo inválido: ${modulo}`);
   const arquivo = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     "semear",
     `${modulo}.ts`,
   );
@@ -1110,7 +1111,7 @@ async function rodar() {
 // só roda quando chamado direto; as sementes de módulo importam os ajudantes daqui
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
 ) {
   rodar().catch((e) => {
     console.error(e);

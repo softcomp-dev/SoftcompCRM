@@ -1,12 +1,13 @@
 /** Configuração da fotografia: idioma real da conta, controles nativos e saída separados. */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { DICIONARIO, traduzir } from "../lib/i18n/dicionario";
 import type { Alvo } from "./licao";
 
 import { idiomaDaCaptura } from "./configuracao";
 export { idiomaDaCaptura, pastaDaSaida, commitDaFoto, type IdiomaDaCaptura } from "./configuracao";
-const raiz = path.dirname(new URL(import.meta.url).pathname);
+const raiz = path.dirname(fileURLToPath(import.meta.url));
 
 function catalogo(nome: string): Record<string, string> {
   const arquivo = path.join(raiz, nome);

@@ -16,6 +16,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { chromium, type Locator, type Page } from "@playwright/test";
 
@@ -31,7 +32,7 @@ import { abrirManifestoDaRodada } from "./manifesto";
 import { exigirHttpLocal } from "./seguranca";
 import { type Acao, type Alvo, Modulo, chaveDoPasso } from "./licao";
 
-const RAIZ = path.dirname(new URL(import.meta.url).pathname);
+const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 const SAIDA = pastaDaSaida();
 const FOTOS = path.join(SAIDA, "capturas");
 const URL_BASE = exigirHttpLocal(process.env.CURSO_URL ?? "http://127.0.0.1:3460");
@@ -401,7 +402,7 @@ async function main() {
 
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
 ) {
   main().catch((e) => {
     console.error(

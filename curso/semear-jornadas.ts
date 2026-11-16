@@ -3,6 +3,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { exigirHttpLocal } from "./seguranca";
 import { exigir, semErro, type Contexto } from "./semear-demonstracao";
@@ -678,7 +679,7 @@ async function main() {
 }
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
 ) {
   main().catch(() => {
     console.error("Falha ao semear jornada; confira a bancada local e o catálogo.");

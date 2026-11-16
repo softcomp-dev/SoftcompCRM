@@ -13,8 +13,9 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ARQUIVO = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "lib", "admin", "navegacao.ts");
+const ARQUIVO = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "lib", "admin", "navegacao.ts");
 
 export type ItemDoAdmin = { href: string; rotulo: string };
 
