@@ -1,6 +1,12 @@
 ; asterisk/pjsip.conf.example
-; Copiar pra pjsip.conf (git-ignorado, tem credenciais reais) e preencher
-; com os dados do SEU provedor de trunk SIP genérico.
+; Copiar pra pjsip.conf (git-ignorado) e trocar SEU_IP_PUBLICO no transporte.
+;
+; O TRONCO da operadora não precisa mais ser escrito aqui: salve-o em
+; Configurações › Trunk SIP e o worker de voz o aplica sozinho pela ARI
+; (asterisk/sorcery.conf + workers/voice-agent/aplicar-tronco.ts), em até 30 s.
+; As seções trunk-* abaixo continuam valendo para quem prefere o arquivo — ou
+; para uma instalação anterior a isso —, mas não as use junto com o tronco da
+; tela para a mesma operadora: seriam dois registros.
 
 [transport-udp]
 type=transport

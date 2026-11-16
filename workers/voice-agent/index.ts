@@ -67,6 +67,8 @@ import { logger } from "@/lib/logger";
 import { linhaDaLigacao } from "./uso-da-sessao";
 import { registrarFimDaLigacaoSip } from "./fim-sip";
 import { encaminharAoTime, quandoOTimeAtende, quandoUmCanalCai } from "./encaminhar-ao-time";
+import { iniciarAplicacaoDoTronco } from "./aplicar-tronco";
+import { organizacaoDoEndpoint } from "@/lib/voip/tronco-dinamico";
 import type { LigacaoEncerrada } from "@/lib/voice/fim-da-chamada";
 import {
   END_REASON_ORG_PARADA,
@@ -91,7 +93,10 @@ export async function handleStasisStart(event: AriEvent) {
 
   // chamada de entrada: resolve o tenant pelo número discado (phone_numbers)
   const dialedNumber = channel.dialplan?.exten ?? "unknown";
-  const routing = await resolveInboundNumber(dialedNumber);
+  // O tronco por onde a ligação chegou (`Stasis(voice-agent,inbound,${CHANNEL(endpoint)})`
+  // em extensions.conf). O tronco salvo na tela tem o id da organização no nome.
+  const organizacaoDoTronco = organizacaoDoEndpoint(event.args?.[1]);
+  const routing = await resolveInboundNumber(dialedNumber, organizacaoDoTronco);
   if (!routing) {
     logger.error("[voice-agent] número discado não mapeado em phone_numbers", { extensao_s: dialedNumber === "s" });
     await hangupChannel(channel.id, "normal");
@@ -339,21 +344,30 @@ async function troncoDaOrganizacao(organizationId: string, doNumero: string | nu
   return doNumero ?? process.env.VOIP_TRUNK_ENDPOINT ?? "";
 }
 
-async function resolveInboundNumber(dialedNumber: string): Promise<RoteamentoInbound | null> {
+async function resolveInboundNumber(
+  dialedNumber: string,
+  organizacaoDoTronco: string | null = null,
+): Promise<RoteamentoInbound | null> {
   // Trunks de DID único mandam a extensão "s" no Request-URI em vez dos
   // dígitos do número discado (ver extensions.conf, contexto [from-trunk] —
   // "extension not found" antes desta função nem rodar era o sintoma).  Sem
   // DNIS real não dá pra saber QUAL número foi discado — mas com exatamente
   // UM número ativo cadastrado não tem ambiguidade nenhuma: só pode ser ele.
   // Se um dia existir mais de um, isto recusa (ambíguo) em vez de adivinhar.
+  //
+  // Com o tronco da tela, a ligação diz por qual tronco chegou — e o tronco é de
+  // UMA organização. Aí a pergunta vira "um número ativo NESTA organização", e
+  // várias empresas podem ter cada uma o seu tronco de DID único na mesma VPS.
   if (dialedNumber === "s") {
-    const { data, error } = await supabaseAdmin
+    let consulta = supabaseAdmin
       .from("phone_numbers")
       .select(
         "organization_id, routing_mode, default_ai_agent_id, fallback_user_id, forward_to_phone, forward_ring_seconds, trunk_endpoint",
       )
-      .eq("is_active", true)
-      .limit(2);
+      .eq("is_active", true);
+    // SABOTAGEM: remover este filtro = o caso "duas empresas" de fio-tronco-da-organizacao fica vermelho.
+    if (organizacaoDoTronco) consulta = consulta.eq("organization_id", organizacaoDoTronco);
+    const { data, error } = await consulta.limit(2);
     if (error || !data || data.length !== 1) {
       logger.error(
         '[voice-agent] extensão "s" (trunk de DID único) só resolve com exatamente 1 número ativo',
@@ -825,6 +839,7 @@ function main() {
     }
   });
   startAudioSocketServer();
+  iniciarAplicacaoDoTronco();
 }
 
 // O teste do fio importa `handleStasisStart` deste módulo: sem esta guarda,

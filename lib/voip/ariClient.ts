@@ -211,6 +211,48 @@ export async function desfazerPonte(bridgeId: string) {
   return ariFetch(`/ari/bridges/${bridgeId}`, { method: "DELETE" });
 }
 
+// ---------- Configuração dinâmica do PJSIP (o tronco salvo na tela) ----------
+//
+// `PUT /asterisk/config/dynamic/{classe}/{tipo}/{id}` cria ou substitui um
+// objeto do PJSIP sem editar arquivo nem reiniciar. Só funciona para os tipos
+// mapeados num "wizard" gravável em `asterisk/sorcery.conf` (astdb) — sem ele
+// o Asterisk responde 403. Ver `lib/voip/tronco-dinamico.ts`.
+
+export async function gravarObjetoPjsip(
+  configClass: string,
+  objectType: string,
+  id: string,
+  fields: Array<{ attribute: string; value: string }>,
+) {
+  return ariFetch(
+    `/ari/asterisk/config/dynamic/${encodeURIComponent(configClass)}/${encodeURIComponent(objectType)}/${encodeURIComponent(id)}`,
+    { method: "PUT", body: JSON.stringify({ fields }) },
+  );
+}
+
+/** Remove o objeto; o que já não existe (404) conta como removido. */
+export async function apagarObjetoPjsip(configClass: string, objectType: string, id: string) {
+  try {
+    await ariFetch(
+      `/ari/asterisk/config/dynamic/${encodeURIComponent(configClass)}/${encodeURIComponent(objectType)}/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
+  } catch (err) {
+    if (err instanceof Error && / -> 404:/.test(err.message)) return;
+    throw err;
+  }
+}
+
+/**
+ * Estado do endpoint segundo o Asterisk: `online` quando o contato do AOR
+ * responde ao qualify (a operadora está alcançável), `offline` quando não,
+ * `unknown` antes da primeira conferência.
+ */
+export async function estadoDoEndpoint(nome: string): Promise<string> {
+  const r = (await ariFetch(`/ari/endpoints/PJSIP/${encodeURIComponent(nome)}`)) as { state?: string } | null;
+  return r?.state ?? "unknown";
+}
+
 // ---------- Eventos (WebSocket) ----------
 
 /** Só os campos que o worker de voz lê — o envelope ARI real tem muito mais. */

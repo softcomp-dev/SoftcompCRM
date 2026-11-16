@@ -457,6 +457,9 @@ services:
       - ./asterisk/ari.conf:/etc/asterisk/ari.conf:ro
       - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
       - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      # O tronco salvo na tela entra pela ARI e mora no astdb (asterisk-data);
+      # este arquivo é o que deixa a ARI escrever nesses tipos de objeto.
+      - ./asterisk/sorcery.conf:/etc/asterisk/sorcery.conf:ro
       - asterisk-data:/var/lib/asterisk
       - asterisk-logs:/var/log/asterisk
     healthcheck:
