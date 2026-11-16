@@ -190,6 +190,13 @@ export type ActivityType =
    * `demand_closed` da origem, com a razão "Levado para o funil X".
    */
   | "moved_from_pipeline"
+  /**
+   * O negócio nasceu da TRANSFERÊNCIA ENTRE EMPRESAS
+   * (`POST /api/v1/leads/[id]/transferir-empresa`). É a linha que abre a
+   * história no destino; o outro lado é a `demand_closed` da origem, com a razão
+   * "Transferido para a empresa X". Regras em `lib/leads/transferir-entre-empresas.ts`.
+   */
+  | "transferred_from_organization"
   | "proposal_drafted"
   | "proposal_sent"
   | "proposal_accepted"
@@ -350,6 +357,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   // ter mudado de contato sem ninguém tê-lo movido.
   contacts_merged: "Contatos duplicados juntados",
   moved_from_pipeline: "Veio de outro funil",
+  transferred_from_organization: "Veio de outra empresa",
   proposal_drafted: "Rascunho de proposta criado",
   proposal_sent: "Proposta enviada",
   proposal_accepted: "Proposta aceita",

@@ -986,6 +986,11 @@ export const AUDIT_ACTIONS = [
   // Mover um card para OUTRO funil (issue #922) clona o negócio no destino e
   // encerra o original: é a escrita que mexe em DOIS funis de uma vez.
   "lead.moved_to_pipeline",
+  // TRANSFERIR o negócio para OUTRA EMPRESA (lib/leads/transferir-entre-empresas.ts):
+  // uma linha em CADA empresa, porque cada uma lê só o próprio audit. A de
+  // origem diz para onde foi; a de destino, de onde veio.
+  "lead.transferred_to_organization",
+  "lead.received_from_organization",
   /**
    * A equipe perguntou à IA sobre um caso (migration 0281). Uma linha por
    * PERGUNTA, respondida ou não — `respondeu:false` com `error_code` é o que
