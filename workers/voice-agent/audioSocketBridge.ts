@@ -27,6 +27,8 @@
  */
 
 import WebSocket from "ws";
+
+import { logger } from "@/lib/logger";
 import type { Socket } from "node:net";
 import { pcm16ToUlaw, ulawToPcm16 } from "@/lib/voip/ulaw";
 import { somarUsoDaResposta, usoVazio, type UsoDaSessao } from "./uso-da-sessao";
@@ -241,7 +243,7 @@ export class AudioSocketCallBridge {
       this.drainFrames();
     });
     this.socket.on("close", () => this.handleEnd("socket fechado"));
-    this.socket.on("error", (err) => console.error(`[audiosocket] call=${this.ctx.callId} erro no socket:`, err.message));
+    this.socket.on("error", (err) => logger.error("[audiosocket] erro no socket", { call_id: this.ctx.callId, err: err.message }));
   }
 
   /** Consome quantos frames completos já estiverem no buffer acumulado. */
@@ -267,7 +269,7 @@ export class AudioSocketCallBridge {
   private handleEnd(reason: string) {
     if (this.closed) return;
     this.closed = true;
-    console.info(`[audiosocket] call=${this.ctx.callId} encerrando (${reason})`);
+    logger.info("[audiosocket] encerrando", { call_id: this.ctx.callId, motivo: reason });
     this.ctx.onCallEnded();
     this.close();
   }
@@ -279,7 +281,7 @@ export class AudioSocketCallBridge {
       // saber se oferece a tool de RAG ou não.
       const knowledgeSourceIds = await this.ctx.knowledgeSourceIdsPromise;
 
-      console.info(`[realtime] call=${this.ctx.callId} websocket aberto, enviando session.update`);
+      logger.info("[realtime] websocket aberto, enviando session.update", { call_id: this.ctx.callId });
       this.realtimeWs.send(
         JSON.stringify({
           type: "session.update",
@@ -358,7 +360,7 @@ export class AudioSocketCallBridge {
       // ("conversation_already_has_active_response"). Se o cliente falar por
       // cima da saudação, o semantic_vad a interrompe, como em qualquer turno.
       if (this.ctx.falaPrimeiro) {
-        console.info(`[realtime] call=${this.ctx.callId} ligação recebida: IA abre a conversa`);
+        logger.info("[realtime] ligação recebida: IA abre a conversa", { call_id: this.ctx.callId });
         this.realtimeWs.send(JSON.stringify({ type: "response.create" }));
       }
 
@@ -376,7 +378,7 @@ export class AudioSocketCallBridge {
       const event = JSON.parse(raw.toString());
 
       if (event.type !== "response.output_audio.delta") {
-        console.info(`[realtime] call=${this.ctx.callId} evento: ${event.type}`);
+        logger.debug("[realtime] evento", { call_id: this.ctx.callId, tipo: event.type });
       }
 
       switch (event.type) {
@@ -401,7 +403,7 @@ export class AudioSocketCallBridge {
           // estruturado da Realtime API é usado, que aqui não aconteceu.
           const narracaoDeEncerrar = new RegExp(ENCERRAR_CHAMADA_TOOL_NAME, "i").test(event.transcript);
           if (narracaoDeEncerrar) {
-            console.info(`[realtime] call=${this.ctx.callId} modelo narrou a function de encerrar em texto (fallback ativado)`);
+            logger.info("[realtime] modelo narrou a function de encerrar em texto (fallback ativado)", { call_id: this.ctx.callId });
             this.endCallRequested = true;
           }
           // A limpeza tira qualquer trecho entre parênteses/chaves que
@@ -439,13 +441,13 @@ export class AudioSocketCallBridge {
             (item) => item.type === "function_call" && item.name === ENCERRAR_CHAMADA_TOOL_NAME,
           );
           if (pediuEncerrar) {
-            console.info(`[realtime] call=${this.ctx.callId} agente pediu pra encerrar a chamada`);
+            logger.info("[realtime] agente pediu pra encerrar a chamada", { call_id: this.ctx.callId });
             this.endCallRequested = true;
           }
           break;
         }
         case "error":
-          console.error(`[realtime] call=${this.ctx.callId} erro:`, JSON.stringify(event.error));
+          logger.error("[realtime] erro da sessão", { call_id: this.ctx.callId, erro: event.error });
           break;
       }
     });
@@ -458,12 +460,12 @@ export class AudioSocketCallBridge {
           message: `handshake rejeitado: ${body}`.slice(0, 500),
           ...(typeof res.statusCode === "number" ? { status: res.statusCode } : {}),
         };
-        console.error(`[realtime] call=${this.ctx.callId} handshake rejeitado, HTTP ${res.statusCode}: ${body}`);
+        logger.error("[realtime] handshake rejeitado", { call_id: this.ctx.callId, http: res.statusCode, corpo: body });
       });
     });
 
     this.realtimeWs.on("close", (code, reason) => {
-      console.info(`[realtime] call=${this.ctx.callId} ws fechado, code=${code} reason=${reason}`);
+      logger.info("[realtime] ws fechado", { call_id: this.ctx.callId, code, motivo: String(reason) });
       this.handleEnd("openai ws fechado");
     });
   }
@@ -501,10 +503,10 @@ export class AudioSocketCallBridge {
           ? resultado.trechos.map((t) => `[${t.source_name ?? "material"}] ${t.content}`).join("\n\n")
           : "Nada encontrado na base de conhecimento para esta pergunta -- responda com o que você já sabe e não invente fatos.";
     } catch (err) {
-      console.error(
-        `[realtime] call=${this.ctx.callId} busca de conhecimento falhou:`,
-        err instanceof Error ? err.message : err,
-      );
+      logger.error("[realtime] busca de conhecimento falhou", {
+        call_id: this.ctx.callId,
+        err: err instanceof Error ? err.message : String(err),
+      });
       output = "A base de conhecimento está indisponível agora -- responda com o que você já sabe e não invente fatos.";
     }
 
@@ -524,7 +526,7 @@ export class AudioSocketCallBridge {
   private sendAudioToAsterisk(ulawChunk: Buffer) {
     if (!this.outboundFramesLogged) {
       this.outboundFramesLogged = true;
-      console.info(`[audiosocket] call=${this.ctx.callId} primeiro trecho de resposta enfileirado (pacing a 20ms/frame)`);
+      logger.info("[audiosocket] primeiro trecho de resposta enfileirado (pacing a 20ms/frame)", { call_id: this.ctx.callId });
     }
     this.outboundQueue = Buffer.concat([this.outboundQueue, ulawToPcm16(ulawChunk)]);
   }

@@ -85,7 +85,7 @@ export async function handleStasisStart(event: AriEvent) {
   const dialedNumber = channel.dialplan?.exten ?? "unknown";
   const routing = await resolveInboundNumber(dialedNumber);
   if (!routing) {
-    console.error(`[voice-agent] número ${dialedNumber} não mapeado em phone_numbers`);
+    logger.error("[voice-agent] número discado não mapeado em phone_numbers", { extensao_s: dialedNumber === "s" });
     await hangupChannel(channel.id, "normal");
     return;
   }
@@ -105,7 +105,10 @@ export async function handleStasisStart(event: AriEvent) {
       callerNumber,
     );
   } catch (err) {
-    console.error(`[voice-agent] falha ao resolver contato de ${callerNumber}:`, err);
+    logger.error("[voice-agent] falha ao resolver o contato de quem liga", {
+      organization_id: routing.organization_id,
+      err: err instanceof Error ? err.message : String(err),
+    });
   }
   const callerContactId = contatoDeQuemLiga?.id ?? null;
 
@@ -131,9 +134,9 @@ export async function handleStasisStart(event: AriEvent) {
       ended_at: agora,
     });
     if (refuseError) {
-      console.error(`[voice-agent] falha ao gravar recusa de bloqueado:`, refuseError.message);
+      logger.error("[voice-agent] falha ao gravar recusa de bloqueado", { err: refuseError.message });
     } else {
-      console.info(`[voice-agent] chamada recusada de bloqueado`);
+      logger.info("[voice-agent] chamada recusada de bloqueado", { organization_id: routing.organization_id });
     }
     await hangupChannel(channel.id, "normal");
     return;
@@ -162,9 +165,9 @@ export async function handleStasisStart(event: AriEvent) {
       ended_at: agora,
     });
     if (refuseError) {
-      console.error(`[voice-agent] falha ao gravar recusa de pessoal:`, refuseError.message);
+      logger.error("[voice-agent] falha ao gravar recusa de pessoal", { err: refuseError.message });
     } else {
-      console.info(`[voice-agent] chamada recusada de pessoal`);
+      logger.info("[voice-agent] chamada recusada de pessoal", { organization_id: routing.organization_id });
     }
     await hangupChannel(channel.id, "normal");
     return;
@@ -200,7 +203,7 @@ export async function handleStasisStart(event: AriEvent) {
     .single();
 
   if (error || !callRow) {
-    console.error(`[voice-agent] falha ao criar voice_calls pra chamada de entrada:`, error?.message);
+    logger.error("[voice-agent] falha ao criar voice_calls pra chamada de entrada", { err: error?.message });
     await hangupChannel(channel.id, "normal");
     return;
   }
@@ -220,10 +223,13 @@ export async function handleStasisStart(event: AriEvent) {
         origem: { rotulo: "telefone", source: "voip", motivo: "primeira ligação recebida" },
       });
       if (!nascimento.criado) {
-        console.info(`[voice-agent] lead não criado para ${callerNumber}: ${nascimento.motivo}`);
+        logger.info("[voice-agent] lead não criado para quem ligou", { call_id: callRow.id, motivo: nascimento.motivo });
       }
     } catch (err) {
-      console.error(`[voice-agent] falha ao garantir lead da chamada de ${callerNumber}:`, err);
+      logger.error("[voice-agent] falha ao garantir lead da chamada", {
+        call_id: callRow.id,
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -255,8 +261,9 @@ async function resolveInboundNumber(dialedNumber: string): Promise<RoteamentoInb
       .eq("is_active", true)
       .limit(2);
     if (error || !data || data.length !== 1) {
-      console.error(
-        `[voice-agent] extensão "s" (trunk de DID único) só resolve com exatamente 1 número ativo — achei ${data?.length ?? 0}`,
+      logger.error(
+        '[voice-agent] extensão "s" (trunk de DID único) só resolve com exatamente 1 número ativo',
+        { encontrados: data?.length ?? 0 },
       );
       return null;
     }
@@ -356,7 +363,7 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     .single();
 
   if (error || !callRow) {
-    console.error(`[audiosocket] uuid ${uuid} não corresponde a nenhuma voice_calls — encerrando`);
+    logger.error("[audiosocket] uuid não corresponde a nenhuma voice_calls — encerrando", { uuid });
     socket.end();
     return;
   }
@@ -367,7 +374,10 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
   // que é paga por minuto, e sem regravar a linha como `connected`.
   // SABOTAGEM: remover este bloco = o caso "recusada" de fio-recusada-pela-tela fica vermelho.
   if (callRow.status === "ended") {
-    console.info(`[audiosocket] chamada ${callRow.id} já encerrada (${callRow.end_reason ?? "sem motivo"}) — desligando`);
+    logger.info("[audiosocket] chamada já encerrada — desligando", {
+      call_id: callRow.id,
+      end_reason: callRow.end_reason ?? null,
+    });
     socket.end();
     return;
   }
@@ -381,14 +391,14 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     .eq("id", callRow.organization_id)
     .maybeSingle();
   if (orgErr || !ehOperante(org?.status)) {
-    console.warn(`[audiosocket] voz_org_suspensa org ${callRow.organization_id} — encerrando`);
+    logger.warn("[audiosocket] voz_org_suspensa — encerrando", { organization_id: callRow.organization_id });
     socket.end();
     return;
   }
 
   const agent = await getActiveVoiceAgent(callRow.organization_id);
   if (!agent) {
-    console.error(`[audiosocket] nenhum agente de voz ativo pra org ${callRow.organization_id}`);
+    logger.error("[audiosocket] nenhum agente de voz ativo", { organization_id: callRow.organization_id });
     socket.end();
     return;
   }
@@ -405,7 +415,10 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     callRow.organization_id,
     agent.id,
   ).catch((err) => {
-    console.error(`[audiosocket] falha ao resolver acervo do agente de voz:`, err);
+    logger.error("[audiosocket] falha ao resolver acervo do agente de voz", {
+      call_id: callRow.id,
+      err: err instanceof Error ? err.message : String(err),
+    });
     return [] as string[];
   });
 
@@ -421,8 +434,8 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     .in("status", ["starting", "ringing"])
     .select("id");
   if (!atendida || atendida.length === 0) {
-    if (claimErr) console.error(`[audiosocket] falha ao marcar chamada ${callRow.id} como atendida:`, claimErr.message);
-    else console.info(`[audiosocket] chamada ${callRow.id} deixou de tocar antes do atendimento — desligando`);
+    if (claimErr) logger.error("[audiosocket] falha ao marcar chamada como atendida", { call_id: callRow.id, err: claimErr.message });
+    else logger.info("[audiosocket] chamada deixou de tocar antes do atendimento — desligando", { call_id: callRow.id });
     socket.end();
     return;
   }
@@ -485,7 +498,7 @@ function startAudioSocketServer() {
       socket.off("data", onFirstData);
 
       if (type !== 0x01) {
-        console.error(`[audiosocket] primeiro frame não é UUID (tipo 0x${type.toString(16)}) — fechando`);
+        logger.error("[audiosocket] primeiro frame não é UUID — fechando", { tipo: `0x${type.toString(16)}` });
         socket.end();
         return;
       }
@@ -496,11 +509,11 @@ function startAudioSocketServer() {
     };
 
     socket.on("data", onFirstData);
-    socket.on("error", (err) => console.error("[audiosocket] erro antes do UUID:", err.message));
+    socket.on("error", (err) => logger.error("[audiosocket] erro antes do UUID", { err: err.message }));
   });
 
   server.listen(AUDIOSOCKET_PORT, () => {
-    console.info(`[audiosocket] servidor TCP escutando na porta ${AUDIOSOCKET_PORT}`);
+    logger.info(`[audiosocket] servidor TCP escutando na porta ${AUDIOSOCKET_PORT}`, { porta: AUDIOSOCKET_PORT });
   });
 }
 
@@ -545,25 +558,29 @@ export async function handleChannelDestroyed(event: AriEvent) {
     .maybeSingle();
 
   if (error) {
-    console.error(`[voice-agent] falha ao marcar timeout pro canal ${channelId}:`, error.message);
+    logger.error("[voice-agent] falha ao marcar timeout pro canal", { channel_id: channelId, err: error.message });
     return;
   }
   if (data) {
-    console.info(
-      `[voice-agent] chamada ${data.id} marcada sem resposta (${event.cause_txt ?? "motivo desconhecido"})`,
-    );
+    logger.info("[voice-agent] chamada marcada sem resposta", {
+      call_id: data.id,
+      causa: event.cause_txt ?? null,
+    });
   }
 }
 
 function main() {
   assertEnv();
-  console.info("[voice-agent] worker iniciado, conectando ao ARI...");
+  logger.info("[voice-agent] worker iniciado, conectando ao ARI...");
   connectAriEvents(async (event) => {
     try {
       if (event.type === "StasisStart") await handleStasisStart(event);
       if (event.type === "ChannelDestroyed") await handleChannelDestroyed(event);
     } catch (err) {
-      console.error("[voice-agent] erro processando evento ARI:", err);
+      logger.error("[voice-agent] erro processando evento ARI", {
+        tipo: event.type,
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
   });
   startAudioSocketServer();
