@@ -55,6 +55,7 @@ import { rotuloParaAEquipe } from "@/lib/contacts/rotulo-do-contato";
 import { ORIGEM_AGENDA_DO_CELULAR, origemDoContato } from "@/lib/leads/origem-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { TelefonesDaFicha } from "@/components/contacts/TelefonesDaFicha";
+import { SeloDeClassificacao } from "@/components/contacts/SeloDeClassificacao";
 import { DialButton } from "@/components/voice/DialButton";
 import { ListaDeLinks } from "@/components/contacts/ListaDeLinks";
 import { AcessosMcpDoContato } from "@/components/contacts/AcessosMcpDoContato";
@@ -233,6 +234,11 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [], acessosMc
                 continua a verdade mesmo quando a conversa já voltou ao automático. */}
             {contact.ai_opt_out && <Badge variant="secondary">{t("Sempre atendimento humano")}</Badge>}
             {contact.is_anonymized && <Badge variant="destructive">{t("Anonimizado")}</Badge>}
+            {/* A classificação pela última venda ganha (migration 9257), com a
+                mesma regra da lista: fora da carteira, nenhum selo. */}
+            {!contact.is_anonymized && !contact.is_personal && contact.contact_type !== "fornecedor" && (
+              <SeloDeClassificacao classificacao={contact.classificacao} ultimaVenda={contact.last_won_at} />
+            )}
           </div>
         </div>
         {!contact.is_anonymized && user.support?.access_mode !== "support_readonly" && (

@@ -122,6 +122,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     source: url.searchParams.get("source") ?? undefined,
     pessoais: url.searchParams.get("pessoais") ?? undefined,
     blocked: url.searchParams.get("blocked") ?? undefined,
+    classificacao: url.searchParams.getAll("classificacao"),
     order_by: url.searchParams.get("order_by") ?? undefined,
     order_dir: url.searchParams.get("order_dir") ?? undefined,
     limit: String(TAMANHO_DA_PAGINA),

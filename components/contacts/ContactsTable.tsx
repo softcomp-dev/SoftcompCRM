@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
+import { SeloDeClassificacao } from "@/components/contacts/SeloDeClassificacao";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -346,8 +347,14 @@ export function ContactsTable({
                 {clientesLigado && c.first_service_at && (
                   <Badge variant="secondary">{t("Cliente")}</Badge>
                 )}
-                {!c.is_anonymized && !c.is_blocked && !c.is_personal && (
-                  <Badge variant="success">{t("Ativo")}</Badge>
+                {/*
+                  A CLASSIFICAÇÃO pela última venda ganha (migration 9257) ocupa o
+                  lugar do antigo "Ativo", que só dizia "não está bloqueado".
+                  Anonimizado, pessoal e fornecedor estão fora da carteira de
+                  clientes, e chamá-los de "sem compra" ou "inativo" mentiria.
+                */}
+                {!c.is_anonymized && !c.is_personal && c.contact_type !== "fornecedor" && (
+                  <SeloDeClassificacao classificacao={c.classificacao} ultimaVenda={c.last_won_at} />
                 )}
               </div>
             </TableCell>

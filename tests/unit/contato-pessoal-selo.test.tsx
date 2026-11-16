@@ -70,6 +70,10 @@ function contato(pessoal: boolean, tags: string[]): Contact {
     last_activity_at: null,
     first_service_at: null,
     ai_opt_out: false,
+    // O "Ativo" da tabela é a classificação pela última venda (migration 9257):
+    // o contato normal deste teste é um cliente que comprou há pouco.
+    classificacao: "ativo",
+    last_won_at: "2026-10-01T00:00:00.000Z",
   };
 }
 

@@ -12927,6 +12927,12 @@ export const DICIONARIO: Traducoes = {
   // O botão diz o que FAZER ("Reconectar"), não "revisar": nada há para inspecionar,
   // a conta precisa ser conectada de novo. O espanhol repete a ação, não o rótulo.
   "Reconectar a assinatura": { es: "Reconectar la suscripción" },
+  // ─── classificação do cliente (migration 9257): filtro e selo da lista/ficha ───
+  "Classificação": { es: "Clasificación" },
+  "Última venda ganha:": { es: "Última venta ganada:" },
+  "Nenhuma venda ganha": { es: "Ninguna venta ganada" },
+  "Pré-inativo": { es: "Preinactivo" },
+  "Sem compra": { es: "Sin compra" },
   // ─── lib/ai/agent-inbox-copy.ts + inbox-destino.ts, `client_pre_inactive` (migration 9257) ───
   "Um cliente está esfriando — virou pré-inativo": { es: "Un cliente se está enfriando — pasó a preinactivo" },
   "Faça contato com o cliente antes que ele vire inativo: confira na ficha a última compra e ofereça uma recompra.": {

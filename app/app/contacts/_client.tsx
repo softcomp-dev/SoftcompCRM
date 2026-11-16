@@ -31,6 +31,7 @@ import { queryDaExportacao, type FormatoDeExport } from "@/lib/contacts/exportar
 import { roleAtLeast } from "@/lib/auth/types";
 import { ORIGEM_AGENDA_DO_CELULAR } from "@/lib/leads/origem-do-contato";
 import { type ModoDeEtiqueta } from "@/lib/inbox/marcador-da-conversa";
+import { CLASSIFICACOES, ROTULO_DA_CLASSIFICACAO, type Classificacao } from "@/lib/clientes/classificacao";
 import { useActiveOrg, usePermission } from "@/hooks/auth/AuthProvider";
 import { MergeDialog } from "@/components/contacts/MergeDialog";
 import { EmptyContacts } from "@/components/empty";
@@ -71,6 +72,8 @@ export function ContactsListClient() {
   // Só pessoais (spec 21, etapa 15 — filtro "Pessoais"): ligado lista SÓ
   // pessoais (`?pessoais=true`, etapa 13); desligado é o padrão que exclui.
   const [soPessoais, setSoPessoais] = useState(false);
+  // Classificação pela última venda ganha (migration 9257): várias em OU.
+  const [classificacoes, setClassificacoes] = useState<Classificacao[]>([]);
   const [orderBy, setOrderBy] = useState<ContactOrderBy>("last_activity_at");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [limit, setLimit] = useState<number>(25);
@@ -91,11 +94,12 @@ export function ContactsListClient() {
       tagMode,
       source,
       pessoais: soPessoais || undefined,
+      classificacao: classificacoes.length > 0 ? classificacoes : undefined,
       order_by: orderBy,
       order_dir: orderDir,
       limit,
     }),
-    [search, tags, tagMode, source, soPessoais, orderBy, orderDir, limit],
+    [search, tags, tagMode, source, soPessoais, classificacoes, orderBy, orderDir, limit],
   );
   const q = useContactList(filters);
 
@@ -174,6 +178,7 @@ export function ContactsListClient() {
         tagMode,
         source,
         pessoais: soPessoais,
+        classificacao: classificacoes,
         order_by: orderBy,
         order_dir: orderDir,
       });
@@ -181,7 +186,7 @@ export function ContactsListClient() {
       // não navegar — o mesmo gesto do "Exportar CSV" da tela de auditoria.
       window.location.href = `/api/v1/contacts/export?${qs}`;
     },
-    [search, tags, tagMode, source, soPessoais, orderBy, orderDir],
+    [search, tags, tagMode, source, soPessoais, classificacoes, orderBy, orderDir],
   );
 
   return (
@@ -357,6 +362,41 @@ export function ContactsListClient() {
               <DropdownMenuItem key={s.label} onClick={() => setSource(s.value)}>
                 {t(s.label)}
               </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Classificação: achar quem está esfriando (pré-inativo) para
+            reativar. Checkbox que não fecha o menu, como o de etiquetas. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" data-testid="filtro-classificacao">
+              {classificacoes.length === 0
+                ? `${t("Classificação")}: ${t("todas")}`
+                : classificacoes.length === 1
+                  ? `${t("Classificação")}: ${t(ROTULO_DA_CLASSIFICACAO[classificacoes[0]!])}`
+                  : `${t("Classificação")}: ${t(ROTULO_DA_CLASSIFICACAO[classificacoes[0]!])} +${classificacoes.length - 1}`}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>{t("Classificação")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setClassificacoes([])}>{t("Todas")}</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {CLASSIFICACOES.map((faixa) => (
+              <DropdownMenuCheckboxItem
+                key={faixa}
+                data-testid={`filtro-classificacao-${faixa}`}
+                checked={classificacoes.includes(faixa)}
+                onCheckedChange={() =>
+                  setClassificacoes((atuais) =>
+                    atuais.includes(faixa) ? atuais.filter((f) => f !== faixa) : [...atuais, faixa],
+                  )
+                }
+                onSelect={(e) => e.preventDefault()}
+              >
+                {t(ROTULO_DA_CLASSIFICACAO[faixa])}
+              </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>

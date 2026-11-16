@@ -174,6 +174,8 @@ export interface FiltrosDaTela {
   tagMode?: ModoDeEtiqueta;
   source?: string;
   pessoais?: boolean;
+  /** Faixas de classificação (migration 9257), repetidas na URL como `tag`. */
+  classificacao?: readonly string[];
   order_by?: string;
   order_dir?: "asc" | "desc";
 }
@@ -197,6 +199,7 @@ export function queryDaExportacao(
   if (filtros.tagMode === "ou") qs.set("modo", "ou");
   if (filtros.source) qs.set("source", filtros.source);
   if (filtros.pessoais) qs.set("pessoais", "true");
+  for (const faixa of filtros.classificacao ?? []) qs.append("classificacao", faixa);
   if (filtros.order_by) qs.set("order_by", filtros.order_by);
   if (filtros.order_dir) qs.set("order_dir", filtros.order_dir);
   return qs.toString();

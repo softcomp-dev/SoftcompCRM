@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { ContactOrderBy } from "@/lib/schemas/contacts";
 import type { Contact } from "@/lib/types/contacts";
+import type { Classificacao } from "@/lib/clientes/classificacao";
 import {
   type ModoDeEtiqueta,
   marcadoresEscolhidos,
@@ -32,6 +33,8 @@ export interface ContactListFilters {
    * exclui. Viaja como `?pessoais=true` — só o ligado viaja, como o `modo=ou`.
    */
   pessoais?: boolean;
+  /** Faixas de classificação (migration 9257), em OU. Vazio = todas. */
+  classificacao?: readonly Classificacao[];
   order_by?: ContactOrderBy;
   order_dir?: "asc" | "desc";
   limit?: number;
@@ -55,6 +58,7 @@ export function useContactList(filters: ContactListFilters) {
       // Só o ligado viaja: desligado é o padrão do servidor, e um
       // `&pessoais=false` colado num link de hoje mudaria a URL sem mudar nada.
       if (filters.pessoais) qs.set("pessoais", "true");
+      for (const faixa of filters.classificacao ?? []) qs.append("classificacao", faixa);
       if (filters.order_by) qs.set("order_by", filters.order_by);
       if (filters.order_dir) qs.set("order_dir", filters.order_dir);
       if (filters.limit) qs.set("limit", String(filters.limit));
