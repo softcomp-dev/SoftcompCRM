@@ -29,6 +29,82 @@ export interface TrunkSettingsRow {
 
 const queryKey = ["voip", "trunk"] as const;
 
+/** `voip_trunk_status` — o que o servidor fez com o tronco (migration 9256). */
+export interface TrunkStatusRow {
+  state: "pendente" | "erro" | "online" | "offline" | "desligado";
+  error: string | null;
+  applied_at: string | null;
+  checked_at: string | null;
+}
+
+/**
+ * O estado que a tela mostra. Estado conferido ANTES do último salvamento é
+ * de outra configuração: a nova ainda está "aguardando o servidor aplicar".
+ */
+export function situacaoDoTronco(
+  trunk: Pick<TrunkSettingsRow, "updated_at"> | null,
+  status: TrunkStatusRow | null,
+): Exclude<TrunkStatusRow["state"], "pendente"> | "aguardando" | null {
+  if (!trunk) return null;
+  if (!status || status.state === "pendente") return "aguardando";
+  const aplicadoEm = status.applied_at ? Date.parse(status.applied_at) : 0;
+  if (Date.parse(trunk.updated_at) > aplicadoEm && status.state !== "erro") return "aguardando";
+  return status.state;
+}
+
+const TEXTO_DA_SITUACAO: Record<Exclude<ReturnType<typeof situacaoDoTronco>, null>, string> = {
+  aguardando:
+    "Aguardando o servidor aplicar (até 30 segundos). Se não mudar, a telefonia pode estar desligada no servidor.",
+  online: "Ativo no servidor: a operadora está respondendo.",
+  offline:
+    "Aplicado no servidor, mas a operadora não responde. Confira host, porta, usuário e senha, e se o servidor alcança a operadora.",
+  erro: "O servidor não conseguiu aplicar o tronco.",
+  desligado: "Desativado: o servidor removeu este tronco.",
+};
+
+function useTrunkStatus(ligado: boolean) {
+  return useQuery({
+    queryKey: ["voip", "trunk", "status"],
+    enabled: ligado,
+    queryFn: async () => {
+      const res = await apiClient.get<{ data: TrunkStatusRow | null }>("/api/v1/voip/trunk/status");
+      return res.data;
+    },
+    // Enquanto espera o servidor, confere mais vezes; depois, sem pressa.
+    refetchInterval: (q) => {
+      const s = q.state.data;
+      return !s || s.state === "pendente" || s.state === "erro" ? 10_000 : 30_000;
+    },
+  });
+}
+
+function SituacaoDoTronco({ trunk }: { trunk: TrunkSettingsRow | null }) {
+  const t = useT();
+  const { data: status } = useTrunkStatus(!!trunk);
+  const situacao = situacaoDoTronco(trunk, status ?? null);
+  if (!situacao) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("No servidor")}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <p role="status" className="text-sm">
+          {t(TEXTO_DA_SITUACAO[situacao])}
+        </p>
+        {situacao === "erro" && status?.error && (
+          <p className="break-words text-sm text-muted-foreground">{status.error}</p>
+        )}
+        {status?.checked_at && (
+          <p className="text-xs text-muted-foreground">
+            {t("Conferido em")} {new Date(status.checked_at).toLocaleString()}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function useTrunkSettings(initialData: TrunkSettingsRow | null) {
   return useQuery({
     queryKey,
@@ -102,6 +178,7 @@ export function TrunkSettingsClient({
       setUltimoSalvo({ ...form });
       setForm((f) => ({ ...f, password: "" }));
       queryClient.setQueryData(queryKey, row);
+      void queryClient.invalidateQueries({ queryKey: ["voip", "trunk", "status"] });
     },
     onError: (err) => showApiError(err),
   });
@@ -217,15 +294,17 @@ retry_interval=60`
         </CardContent>
       </Card>
 
+      <SituacaoDoTronco trunk={trunk} />
+
       {blocoParaColar && (
         <Card>
           <CardHeader>
-            <CardTitle>{t("Cole em asterisk/pjsip.conf")}</CardTitle>
+            <CardTitle>{t("Aplicar à mão (opcional)")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               {t(
-                "Só aparece agora, logo após salvar — a senha não é guardada em claro, então este bloco completo não pode ser reconstruído depois.",
+                "O servidor aplica o tronco sozinho. Este bloco é só para quem prefere o arquivo asterisk/pjsip.conf — não use os dois para a mesma operadora. Ele só aparece agora, logo após salvar, porque a senha não é guardada em claro.",
               )}
             </p>
             <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{blocoParaColar}</pre>

@@ -14860,6 +14860,16 @@ export const DICIONARIO: Traducoes = {
 
   // ─── app/app/settings/voip-trunk (Trunk SIP, migration 0349) ───
   "Trunk SIP": { es: "Trunk SIP" },
+  "No servidor": { es: "En el servidor" },
+  "Conferido em": { es: "Verificado el" },
+  "Aplicar à mão (opcional)": { es: "Aplicar a mano (opcional)" },
+  "Aguardando o servidor aplicar (até 30 segundos). Se não mudar, a telefonia pode estar desligada no servidor.": { es: "Esperando que el servidor lo aplique (hasta 30 segundos). Si no cambia, la telefonía puede estar apagada en el servidor." },
+  "Ativo no servidor: a operadora está respondendo.": { es: "Activo en el servidor: el operador está respondiendo." },
+  "Aplicado no servidor, mas a operadora não responde. Confira host, porta, usuário e senha, e se o servidor alcança a operadora.": { es: "Aplicado en el servidor, pero el operador no responde. Revisa host, puerto, usuario y contraseña, y si el servidor alcanza al operador." },
+  "O servidor não conseguiu aplicar o tronco.": { es: "El servidor no pudo aplicar el troncal." },
+  "Desativado: o servidor removeu este tronco.": { es: "Desactivado: el servidor quitó este troncal." },
+  "Credenciais de registro do seu provedor SIP. Depois de salvar, o servidor aplica o tronco sozinho em até 30 segundos, e o quadro abaixo mostra se a operadora está respondendo.": { es: "Credenciales de registro de tu proveedor SIP. Después de guardar, el servidor aplica el troncal solo en hasta 30 segundos, y el cuadro de abajo muestra si el operador está respondiendo." },
+  "O servidor aplica o tronco sozinho. Este bloco é só para quem prefere o arquivo asterisk/pjsip.conf — não use os dois para a mesma operadora. Ele só aparece agora, logo após salvar, porque a senha não é guardada em claro.": { es: "El servidor aplica el troncal solo. Este bloque es solo para quien prefiere el archivo asterisk/pjsip.conf — no uses los dos para el mismo operador. Solo aparece ahora, justo después de guardar, porque la contraseña no se guarda en claro." },
   "Credenciais de registro do seu provedor SIP (Asterisk/AudioSocket). Depois de salvar, aplique o bloco abaixo em": {
     es: "Credenciales de registro de tu proveedor SIP (Asterisk/AudioSocket). Después de guardar, aplica el bloque de abajo en",
   },
