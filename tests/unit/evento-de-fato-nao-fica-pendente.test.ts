@@ -160,10 +160,11 @@ const NASCE_DONE_NA_ORIGEM: Record<string, { onde: string[]; porque: string }> =
       "por decisão explícita, documentada no cabeçalho do módulo).",
   },
   "voice_call.ended": {
-    onde: ["lib/wacalls/events-bridge.ts"],
+    onde: ["lib/voice/fim-da-chamada.ts"],
     porque:
-      "inserido com `status='done'` no mesmo statement, com o comentário dizendo que a " +
-      "linha nascia `pending` e ficava pendurada para sempre — o defeito da issue #753.",
+      "inserido com `status='done'` no mesmo statement — o fim da ligação dos dois " +
+      "provedores (WaCalls e SIP) mora ali; nascendo `pending`, a linha ficava " +
+      "pendurada para sempre — o defeito da issue #753.",
   },
 };
 

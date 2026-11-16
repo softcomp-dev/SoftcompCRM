@@ -7,7 +7,7 @@
  * (`despacharEventoWacalls`) contra o Postgres efêmero, lendo o estado que
  * sobrou.
  *
- * SABOTAGEM: voltar a consulta de `contatoEstaBloqueado` para
+ * SABOTAGEM: voltar a consulta de `contatoEstaBloqueado` (`lib/voice/fim-da-chamada.ts`) para
  * `select is_blocked` (sem `or is_personal`) = este caso vermelho.
  */
 import pg from "pg";

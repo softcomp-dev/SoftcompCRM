@@ -15,7 +15,7 @@
 import type pg from 'pg';
 
 import { phoneLookupVariants } from '@/lib/channels/phone-variants';
-import { emitAgentActivityForContact } from '@/lib/leads/agent-activity';
+import { registrarFimDaLigacao } from '@/lib/voice/fim-da-chamada';
 import { motivoDaChamadaEmPortugues } from '@/lib/wacalls/motivo-da-chamada';
 
 import type { Logger } from '../agent-engine/obs/logger';
@@ -350,30 +350,6 @@ async function handleCallStatus(
   }
 }
 
-/**
- * Bloqueado na ligação (WaCalls): a linha continua gravada, mas chamada de
- * bloqueado não abre aviso na Central, e a PERDIDA não carimba a timeline (a
- * atendida aconteceu e fica). Fail-open: erro de leitura devolve `false` (segue como hoje) —
- * nunca se suprime aviso no escuro.
- */
-async function contatoEstaBloqueado(
-  pool: pg.Pool,
-  organizationId: string,
-  contactId: string,
-): Promise<boolean> {
-  try {
-    // Contato pessoal (spec 21) sai da operação do mesmo jeito: sem aviso na
-    // Central e sem carimbo de perdida na timeline.
-    const { rows } = await pool.query<{ is_blocked: boolean | null }>(
-      `select (is_blocked or is_personal) as is_blocked from contacts where organization_id = $1 and id = $2`,
-      [organizationId, contactId],
-    );
-    return rows[0]?.is_blocked === true;
-  } catch {
-    return false;
-  }
-}
-
 async function handleCallEnded(
   pool: pg.Pool,
   sess: WacallsSessionMap,
@@ -409,113 +385,28 @@ async function handleCallEnded(
     return;
   }
 
-  const atendida = !!row.answered_at;
-  const recebida = row.direction === 'inbound';
-
-  // Desligou: a IA volta a falar. Antes de qualquer outra coisa — se a linha
+  // Desligou: a IA volta a falar. Antes de qualquer outra coisa — se o registro
   // abaixo falhar, o pior desfecho é um aviso que não nasceu, não uma conversa
   // que ficou muda.
   if (row.contact_id) {
     await devolverAVozDaIa(pool, sess.organizationId, row.contact_id);
   }
 
-  // Perdida = RECEBIDA e nunca atendida. `end_reason` do upstream não distingue
-  // "tocou e ninguém pegou" de "operador recusou" — para o inbox os dois merecem
-  // alerta igual: alguém precisa ligar de volta. Uma ligação FEITA daqui que o
-  // cliente não atendeu não é perdida: quem discou já sabe, e um aviso pedindo
-  // para "ligar de volta" a quem acabou de ligar é ruído com cara de urgência.
-  //
-  // `ref_kind = 'contact'` e não `'voice_call'`: a ficha do contato é onde mora
-  // o botão de ligar, então abrir o contexto e FAZER o que o aviso pede viram o
-  // mesmo clique (ver `POLITICAS_DE_AVISO` em `lib/ai/inbox-destino.ts`).
-  // Chamada de número que não casou com contato nenhum entra sem referência —
-  // o telefone está no título, e o aviso continua sendo aviso.
-  //
-  // Bloqueado não abre aviso (a linha continua gravada acima): ligar de volta
-  // para ele já é recusado com 403.
-  // SABOTAGEM: remover o `&& !bloqueado` abaixo = teste de bloqueado vermelho.
-  const bloqueado = row.contact_id
-    ? await contatoEstaBloqueado(pool, sess.organizationId, row.contact_id)
-    : false;
-  if (bloqueado) {
-    log.info('wacalls: call-ended de bloqueado, sem aviso', {
-      contact_id: row.contact_id,
-      answered: atendida,
-    });
-  }
-  if (!atendida && recebida && !bloqueado) {
-    await pool.query(
-      `insert into agent_inbox_items (organization_id, kind, severity, title, body, ref_kind, ref_id)
-       values ($1, 'voice_call_missed', 'warn', $2, $3, $4, $5)`,
-      [
-        sess.organizationId,
-        `Chamada perdida de ${row.peer_phone}`,
-        motivoDaChamadaEmPortugues(ev.reason),
-        row.contact_id ? 'contact' : null,
-        row.contact_id,
-      ],
-    );
-  }
-
-  // `status` EXPLÍCITO. Este é evento de REGISTRO, não comando: ninguém precisa
-  // consumi-lo, e `lib/event-log/drain.ts` só enxerga tipos com handler
-  // declarado (`.in("event_type", handledTypes)`). Nascendo `pending`, a linha
-  // ficava pendurada para sempre com cara de trabalho na fila, e o `event_log`
-  // não tem poda. Mesmo padrão de `agent.operator_turn`
-  // (`lib/agent-engine/agent/operator-turn.ts`).
-  await pool.query(
-    `insert into event_log (organization_id, event_type, entity_kind, entity_id, status, payload)
-     values ($1, 'voice_call.ended', 'voice_call', $2, 'done', $3)`,
-    [
-      sess.organizationId,
-      row.id,
-      JSON.stringify({ wacalls_call_id: ev.id, end_reason: ev.reason, answered: atendida }),
-    ],
-  );
-
-  // Bloqueado: a ligação ATENDIDA aconteceu e fica no histórico; só a
-  // perdida de bloqueado é não-interação e não carimba a timeline.
-  // SABOTAGEM: tirar o `!atendida` = `voz-atendida-de-bloqueado` vermelho;
-  // tirar a guarda inteira = caso bloqueado de `voz-recusa-bloqueado` vermelho.
-  const recusadaDeBloqueado = bloqueado && recebida && !atendida;
-  if (row.contact_id && !recusadaDeBloqueado) {
-    const result = await emitAgentActivityForContact({
-      pool,
+  // Aviso de perdida, `voice_call.ended` e linha do tempo: o mesmo rastro da
+  // ligação SIP, num lugar só (`lib/voice/fim-da-chamada.ts`). `end_reason` do
+  // upstream não distingue "tocou e ninguém pegou" de "operador recusou" — para
+  // o inbox os dois merecem o mesmo aviso: alguém precisa ligar de volta.
+  await registrarFimDaLigacao(
+    pool,
+    {
       organizationId: sess.organizationId,
-      contactId: row.contact_id,
-      // DOIS tipos, e a diferença não é cosmética: `voice_call` entra na lista
-      // positiva de `fn_update_last_activity_at` (migration 0079) e portanto
-      // quebra o silêncio do negócio; `voice_call_missed` NÃO entra. Um
-      // telefone que tocou sem ninguém atender é constatação de silêncio, não
-      // interação — carimbar `last_activity_at` ali esfriaria o Radar de Risco
-      // por um contato com quem ninguém falou.
-      // TRÊS desfechos, e o terceiro tem tipo próprio porque a linha do tempo
-      // rotula pelo TIPO (`activityLabel`): gravar a ligação FEITA sem resposta
-      // como `voice_call_missed` escrevia "Chamada de voz perdida" no negócio
-      // de quem acabou de discar — o mesmo texto falso que a Central deixou de
-      // mostrar. `voice_call_unanswered` também fica fora da lista positiva de
-      // `fn_update_last_activity_at`: ninguém falou com ninguém.
-      type: atendida ? 'voice_call' : recebida ? 'voice_call_missed' : 'voice_call_unanswered',
-      reason: atendida
-        ? 'Chamada de voz atendida'
-        : recebida
-          ? `Chamada de voz perdida — ${motivoDaChamadaEmPortugues(ev.reason)}`
-          : `Chamada de voz sem resposta — ${motivoDaChamadaEmPortugues(ev.reason)}`,
-      sourceModule: 'voice_calls',
-      sourceId: row.id,
-      // Quem atendeu assina. Sem isto a linha caía em `webhook_source` →
-      // `actor_kind='system'`, e a linha do tempo do negócio dizia "Sistema"
-      // onde havia uma pessoa.
-      usuarioId: row.owner_user_id,
-      payload: { end_reason: ev.reason, answered: atendida },
-    });
-    if (!result.routed) {
-      log.info('wacalls: call-ended sem lead aberto, sem atividade', {
-        contact_id: row.contact_id,
-        reason: result.reason,
-      });
-    }
-  }
+      ligacao: row,
+      endReason: ev.reason,
+      motivoLegivel: motivoDaChamadaEmPortugues(ev.reason),
+      payloadDoEvento: { wacalls_call_id: ev.id },
+    },
+    log,
+  );
 }
 
 /**
