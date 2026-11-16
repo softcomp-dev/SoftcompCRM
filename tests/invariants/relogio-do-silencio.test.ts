@@ -42,6 +42,8 @@ const TIPOS: Array<[tipo: string, quebraOSilencio: boolean, porque: string]> = [
   ["next_action_dismissed", false, "decidiu NÃO agir: fica sem próximo passo"],
   ["lead_cooled", false, "É A OBSERVAÇÃO DO SILÊNCIO — o caso que motivou tudo"],
   ["lead_reactivated", false, "observação de sistema, ninguém falou com ninguém"],
+  ["interaction_logged", true, "o vendedor registrou que falou com o cliente (9254)"],
+  ["interaction_attempted", false, "tentou e ninguém atendeu: constatação do silêncio"],
 ];
 
 /**
