@@ -163,7 +163,7 @@ export function KanbanCard({
   };
   const handleClick = (e: MouseEvent<HTMLDivElement>) => decidirClique(e);
   // Negócio fechado tem a cor do DESFECHO (ganho, perdido, parcial), que
-  // substitui a borda de estado — ver lib/kanban/desfecho-do-card.ts.
+  // substitui a borda de estado — a regra e as cores moram em desfecho-do-card.ts.
   const desfecho = desfechoDoCard(lead);
   const corDoDesfecho = desfecho ? CORES_DO_DESFECHO[desfecho] : null;
 
