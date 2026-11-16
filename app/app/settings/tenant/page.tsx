@@ -9,12 +9,16 @@ import { moedaServidaOu } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 import { Art15Form } from "./_art15";
 import { CatalogoDaEmpresaForm } from "./_catalogo";
+import { ClassificacaoDeClientesForm } from "./_classificacao";
 import { ZonaDePerigoDaOrganizacao } from "./_danger-zone";
 import { InboxDaEmpresaForm } from "./_inbox";
 import { TenantForm } from "./_form";
 import { InterfaceDaEmpresaForm } from "./_interface";
 import { camposDoNegocioDosFunis } from "@/lib/leads/compras-do-contato";
 import { capacidadesLigadas } from "@/lib/organizacao/capacidades";
+import { limitesDaOrganizacao, type LimitesDeClassificacao } from "@/lib/clientes/classificacao";
+
+const limitesComoForm = (l: LimitesDeClassificacao) => ({ ativoDias: l.ativoDias, preInativoDias: l.preInativoDias });
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +38,9 @@ interface OrgRow {
   interface_settings: unknown;
   /** `settings` inteiro é lido aqui; para o cliente vai SÓ o bloco `art15`. */
   settings: unknown;
+  /** Prazos da classificação de clientes (migration 9257). */
+  classificacao_ativo_dias: number;
+  classificacao_pre_inativo_dias: number;
 }
 
 export default async function TenantSettingsPage() {
@@ -48,7 +55,7 @@ export default async function TenantSettingsPage() {
   const { data } = await supabase
     .from("organizations")
     .select(
-      "display_name, legal_name, cnpj, country, timezone, locale, currency, media_retention_days, media_retention_enforced, dpo_email, privacy_policy_url, interface_settings, settings",
+      "display_name, legal_name, cnpj, country, timezone, locale, currency, media_retention_days, media_retention_enforced, dpo_email, privacy_policy_url, interface_settings, settings, classificacao_ativo_dias, classificacao_pre_inativo_dias",
     )
     .eq("id", activeOrg.orgId)
     .maybeSingle();
@@ -119,6 +126,11 @@ export default async function TenantSettingsPage() {
         />
       )}
       {row && <InboxDaEmpresaForm initial={row.interface_settings} />}
+      {row && (
+        <ClassificacaoDeClientesForm
+          inicial={limitesComoForm(limitesDaOrganizacao(row))}
+        />
+      )}
       {row && (
         <CatalogoDaEmpresaForm
           inicial={capacidadesLigadas(row.settings, []).includes("apresentacao_do_catalogo")}

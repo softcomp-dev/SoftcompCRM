@@ -56,6 +56,9 @@ export const AUDIT_ACTIONS = [
   "lead.moved",
   "lead.won",
   "lead.lost",
+  // Ganho parcial marcado num negócio que JÁ estava ganho (migration 9259).
+  // Ganhar direto como parcial continua sendo `lead.won`, com `partial` no metadata.
+  "lead.partial_win",
   "lead.bulk_action",
   // A importação de planilha (extração do PR #418). O GESTO é auditado além dos
   // N `lead.created`: "quem despejou 300 negócios neste funil, e quando" é a
@@ -1438,6 +1441,13 @@ export const AUDIT_ACTIONS = [
   // cala a cobrança da organização inteira, e "quem desligou, e quando" só tem
   // resposta na trilha — a coluna guarda só o valor de agora.
   "ai.lembrete_de_caso_configurado",
+  // Os prazos da classificação de clientes (migration 9257): até quantos dias
+  // depois da última venda ganha o cliente é ativo, e até quantos é
+  // pré-inativo. Audita porque mudar o prazo reclassifica a carteira inteira e
+  // muda quem recebe aviso e quem entra em campanha.
+  "crm.classificacao_de_clientes_configurada",
+  // A rodada do cron que avisou na Central os clientes que viraram pré-inativos.
+  "cron.classificacao_de_clientes",
   "cadencia.created", "cadencia.updated", "cadencia.deleted", "cadencia.activated", "cadencia.paused",
   "cadencia.lead_inscrito", "cadencia.lead_retirado", "cadencia.settings_updated", "cron.cadencia_worker",
   // Setores de atendimento (migration 0801): cadastro e vínculo atendente →
