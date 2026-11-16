@@ -25,8 +25,8 @@ não prova o que vai entrar. Sobreposição lista os arquivos onde o conflito va
 agora, não na hora do PR.
 
 **Conflito ao mesclar:** leia os dois lados. O delimitador que os dois compartilhavam é o ponto de
-partida; a resposta certa costuma ser a **combinação**, não um lado. Depois `pnpm typecheck` e a
-suíte — e commite a resolução: resolução de merge vive no disco até o commit.
+partida; a resposta certa costuma ser a **combinação**, não um lado. Depois `pnpm typecheck` e os
+testes dos arquivos em conflito e de quem os importa — e commite a resolução: resolução de merge vive no disco até o commit.
 
 ### Arquivo novo fora das pastas do produto
 Quase sempre é a instalação da pessoa vazando para o PR (`.env`, logo, compose editado, script

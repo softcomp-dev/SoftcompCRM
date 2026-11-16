@@ -125,21 +125,29 @@ novo (o lint só avisa), migration nova e a tripla, seção de versão escrita �
 (bloqueador — o corte de release é automático), fragmento em `.changes/`, documento de autoridade
 tocado, identidade dos commits. A leitura de cada item e o que fazer: `references/pre-voo.md`.
 
-Depois, os gates que o CI roda sozinho — rode a suíte, não os gates que você lembra:
+Depois, os testes. **Rode o recorte que a alteração precisa, não a suíte inteira** (regra do
+`CLAUDE.md` › Testes, "Escopo dos testes locais"): os testes da própria alteração, os que importam
+ou varrem os arquivos tocados, e as cercas da área.
 
 ```bash
 rm -f tsconfig*.tsbuildinfo; pnpm typecheck; echo exit=$?
 pnpm lint; echo exit=$?
-pnpm lint:channels; echo exit=$?
-pnpm test:unit > /tmp/vt.log 2>&1; echo exit=$?; grep -aE "Test Files|Tests " /tmp/vt.log | tail -2
+pnpm lint:channels; echo exit=$?       # se tocou canal/provider
+# o recorte: testes da alteração + quem importa os arquivos tocados
+F=$(git grep -l "<módulo tocado>" -- '*.test.ts' '*.test.tsx'; echo <testes novos>)
+pnpm vitest run $F > /tmp/vt.log 2>&1; echo exit=$?; grep -aE "Test Files|Tests |Errors " /tmp/vt.log
 pnpm test:shell; echo exit=$?          # se tocou hostgator-setup-kit/, Dockerfile* ou compose
 pnpm test:db; echo exit=$?             # se tocou schema/RLS/RBAC (precisa de Docker)
 pnpm build; echo exit=$?
 ```
 
-`test:unit` sem caminho: o script alcança o repositório inteiro (testes ao lado do código
-inclusive); `vitest run tests/unit` é um verde menor. Não corte a saída com `tail` — o rodapé é a
-autoridade e os nomes dos arquivos vermelhos são o único dado que permite reconciliar.
+A suíte completa (`pnpm test:unit` sem caminho, que alcança o repositório inteiro, testes ao
+lado do código inclusive) fica para mudança transversal: helper muito usado, config de
+vitest/tsconfig, mock ou setup global. Fica também para quando alguém pedir. O CI roda a suíte
+inteira em todo push. **Relate o recorte que rodou**, nunca "a suíte está verde". Não corte a
+saída com `tail`: o rodapé é a autoridade, e os nomes dos arquivos vermelhos são o único dado que
+permite reconciliar. Falha por timeout (15 s) com muitos arquivos em paralelo se confirma
+rodando o arquivo sozinho.
 
 ## Passo 5 — o teste que falta, e a sabotagem
 
@@ -216,8 +224,8 @@ ainda não entrou, não que você errou o caminho.
 
 - **Título** no imperativo, do ponto de vista de quem usa (`fix(agenda): a consulta remarcada não
   some do dia`), commits em conventional commits, PT-BR aceito.
-- **Corpo**: o que muda para quem usa; `Closes #N`; o que você mediu (comandos e saídas: o rodapé
-  do `test:unit`, a sabotagem, a prova de tela); e um bloco **"O que NÃO medi"** — é o campo que
+- **Corpo**: o que muda para quem usa; `Closes #N`; o que você mediu (comandos e saídas: o recorte
+  de testes que rodou e o rodapé dele, a sabotagem, a prova de tela); e um bloco **"O que NÃO medi"** — é o campo que
   separa medição de relato.
 - **Identidade**: `git log --format='%an <%ae>' origin/main..HEAD | sort -u` — se aparecer
   `root@…` ou um e-mail que não é da sua conta, o trabalho não aparece no seu perfil. Conserte antes

@@ -18,7 +18,7 @@ histórico dos PRs de fork (10 dos ~40 mais recentes fechados sem merge). Ordem 
 | 11 | **Vocabulário interno vazando para a tela** ou string em português fora do dicionário i18n (o guardião do espanhol é cego a `t(<variável>)`) | #631, #600 | `lib/i18n/dicionario.ts`; `docs/doctrine/separacao-fala-e-operacao.md` |
 | 12 | **Tela que oferece o que o motor ignora** (controle decorativo: a UI grava, o runtime não lê) | #295 (cinco controles) | invariante 6 do sistema vivo: todo knob tem leitor — cite o arquivo que lê |
 | 13 | **Provider nomeado fora de `lib/channels/`** | recorrente | `pnpm lint:channels` reprova arquivo novo sujo — e arquivo que ficou limpo e não saiu da lista de dívida |
-| 14 | **`vitest run tests/unit` em vez de `pnpm test:unit`** — verde menor, 178 arquivos de fora | medido em PR interno | sempre `pnpm test:unit` sem caminho; não corte a saída |
+| 14 | **Recorte relatado como suíte** — `vitest run tests/unit` (178 arquivos de fora) ou outro recorte chamado de "suíte verde" | medido em PR interno | rodar o recorte da alteração é a regra (`CLAUDE.md` › Testes); relate-o como recorte. Mudança transversal pede `pnpm test:unit` sem caminho; não corte a saída |
 
 ## O que NÃO é erro seu (e já assustou gente)
 
