@@ -56,6 +56,8 @@ vi.mock("@/components/kanban/MoveToOtherPipelineDialog", () => ({
   MoveToOtherPipelineDialog: () => null,
 }));
 vi.mock("@/components/kanban/EditLeadDialog", () => ({ EditLeadDialog: () => null }));
+vi.mock("@/components/kanban/TransferToOrganizationDialog", () => ({ TransferToOrganizationDialog: () => null }));
+vi.mock("@/hooks/kanban/usePodeTransferirEntreEmpresas", () => ({ usePodeTransferirEntreEmpresas: () => false }));
 
 const LEAD = {
   id: "l-1",

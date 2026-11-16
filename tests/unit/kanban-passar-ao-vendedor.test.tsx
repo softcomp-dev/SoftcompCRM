@@ -41,6 +41,8 @@ vi.mock("@/hooks/kanban/useAssignableAgents", () => ({ useAssignableAgents: () =
 vi.mock("@/components/kanban/LoseLeadDialog", () => ({ LoseLeadDialog: () => null }));
 vi.mock("@/components/kanban/MoveToOtherPipelineDialog", () => ({ MoveToOtherPipelineDialog: () => null }));
 vi.mock("@/components/kanban/EditLeadDialog", () => ({ EditLeadDialog: () => null }));
+vi.mock("@/components/kanban/TransferToOrganizationDialog", () => ({ TransferToOrganizationDialog: () => null }));
+vi.mock("@/hooks/kanban/usePodeTransferirEntreEmpresas", () => ({ usePodeTransferirEntreEmpresas: () => false }));
 
 const lead = (owner: string | null) =>
   ({ id: "l-1", title: "Proposta da ACME", owner_user_id: owner, owner_agent_id: null }) as unknown as Lead;

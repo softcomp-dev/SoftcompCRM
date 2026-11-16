@@ -33,6 +33,8 @@ import { usePermission } from "@/hooks/auth/AuthProvider";
 import { usePassarAoVendedor, useVendedoresDoSdr } from "@/hooks/sdr/useSdr";
 import { LoseLeadDialog } from "./LoseLeadDialog";
 import { MoveToOtherPipelineDialog } from "./MoveToOtherPipelineDialog";
+import { TransferToOrganizationDialog } from "./TransferToOrganizationDialog";
+import { usePodeTransferirEntreEmpresas } from "@/hooks/kanban/usePodeTransferirEntreEmpresas";
 import { EditLeadDialog } from "./EditLeadDialog";
 import type { Lead } from "@/lib/types/leads";
 import type { Stage } from "@/lib/kanban/types";
@@ -51,6 +53,10 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
   const t = useT();
   const [loseOpen, setLoseOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  // Só para quem tem acesso a mais de uma empresa — gerente+ nesta e
+  // atendente+ na outra, o mesmo piso que a rota cobra no servidor.
+  const podeTransferir = usePodeTransferirEntreEmpresas();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const winMutation = useWinLead(pipelineId);
@@ -260,6 +266,15 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
               {t("Levar para outro funil")}
             </DropdownMenuItem>
           )}
+          {podeTransferir && lead.status === "open" && (
+            <DropdownMenuItem
+              onSelect={() => {
+                setTransferOpen(true);
+              }}
+            >
+              {t("Transferir para outra empresa")}
+            </DropdownMenuItem>
+          )}
           {canAssign && (
             <>
               <DropdownMenuSeparator />
@@ -341,6 +356,14 @@ export function KanbanCardActions({ lead, pipelineId, etapas, onMoverPara }: Kan
         leadId={lead.id}
         pipelineId={pipelineId}
       />
+      {podeTransferir && (
+        <TransferToOrganizationDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          leadId={lead.id}
+          pipelineId={pipelineId}
+        />
+      )}
       <EditLeadDialog
         open={editOpen}
         onOpenChange={setEditOpen}

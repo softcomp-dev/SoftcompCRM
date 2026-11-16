@@ -134,6 +134,47 @@ export function useMoveLeadToPipeline(pipelineId: string) {
   });
 }
 
+interface TransferArgs {
+  leadId: string;
+  organizationId: string;
+  pipelineId: string;
+  stageId?: string | null;
+}
+
+/**
+ * Transferir o negócio para OUTRA EMPRESA —
+ * `POST /api/v1/leads/[id]/transferir-empresa`.
+ *
+ * Mesmo desenho da troca de funil: `res.data.origem` (o negócio deste quadro,
+ * agora encerrado) volta para o cache do quadro atual; `res.data.lead` vive em
+ * outra empresa e não pertence a cache nenhum desta tela.
+ */
+export function useTransferLeadToOrganization(pipelineId: string) {
+  const qc = useQueryClient();
+  const queryKey = ["board", pipelineId] as const;
+  return useMutation({
+    mutationFn: async ({ leadId, organizationId, pipelineId: destino, stageId }: TransferArgs) => {
+      marcarEcoLocal(leadId);
+      return apiClient.post<{ data: { lead: Lead; origem: Lead } }>(
+        `/api/v1/leads/${leadId}/transferir-empresa`,
+        {
+          organization_id: organizationId,
+          pipeline_id: destino,
+          ...(stageId ? { stage_id: stageId } : {}),
+        },
+      );
+    },
+    onSuccess: (res, { leadId }) => {
+      gravaLeadNoQuadro(qc, queryKey, leadId, res?.data?.origem);
+    },
+    onError: showApiError,
+    onSettled: (_data, _err, { leadId }) => {
+      liberarEcoLocal(leadId);
+      qc.invalidateQueries({ queryKey });
+    },
+  });
+}
+
 interface EditArgs {
   leadId: string;
   patch: UpdateLeadInput;

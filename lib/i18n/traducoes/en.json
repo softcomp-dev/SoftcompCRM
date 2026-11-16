@@ -9740,5 +9740,18 @@
   "A apresentação do catálogo está desligada nesta empresa.": "Catalog presentation is turned off for this company.",
   "O áudio precisa ser OGG/Opus, WebM/Opus ou M4A válido.": "The audio must be valid OGG/Opus, WebM/Opus or M4A.",
   "Apresentação do catálogo pela IA": "AI catalog presentation",
-  "Cada produto pode ter uma apresentação em texto ou áudio, com fotos e preço, que o atendente de IA envia em sequência quando o cliente pede.": "Each product can have a presentation in text or audio, with photos and price, which the AI agent sends in sequence when the customer asks."
+  "Cada produto pode ter uma apresentação em texto ou áudio, com fotos e preço, que o atendente de IA envia em sequência quando o cliente pede.": "Each product can have a presentation in text or audio, with photos and price, which the AI agent sends in sequence when the customer asks.",
+  "Transferir para outra empresa": "Transfer to another company",
+  "Empresa de destino": "Destination company",
+  "Escolha a empresa de destino": "Choose the destination company",
+  "Negócio transferido para {org}.": "Deal transferred to {org}.",
+  "O negócio é recriado na empresa escolhida, com o mesmo cliente (achado pelo telefone ou e-mail, ou cadastrado lá), e este encerra como transferido. As conversas, tarefas e anexos ficam nesta empresa.": "The deal is recreated in the chosen company, with the same customer (matched by phone or email, or registered there), and this one closes as transferred. Conversations, tasks and attachments stay in this company.",
+  "Não há outra empresa para onde você possa transferir este negócio. É preciso ter acesso de atendente ou acima na empresa de destino.": "There is no other company you can transfer this deal to. You need agent access or higher in the destination company.",
+  "Esta empresa ainda não tem funil para receber o negócio.": "This company has no pipeline to receive the deal yet.",
+  "Veio de outra empresa": "Came from another company",
+  "O negócio já está nesta empresa. Escolha outra empresa.": "The deal is already in this company. Choose another company.",
+  "Empresa de destino não encontrada.": "Destination company not found.",
+  "Você não tem permissão para criar negócios na empresa de destino.": "You are not allowed to create deals in the destination company.",
+  "Só gerentes e administradores transferem negócios para outra empresa.": "Only managers and administrators can transfer deals to another company.",
+  "Só negócios em andamento podem ser transferidos. Reabra o negócio antes.": "Only open deals can be transferred. Reopen the deal first."
 }

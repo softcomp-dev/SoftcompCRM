@@ -5,6 +5,7 @@ import {
   contatoParaODestino,
   empresasDeDestino,
   montaPayloadDaTransferencia,
+  podeTransferirEntreEmpresas,
   recusaDaTransferencia,
   type VinculoDaPessoa,
 } from "@/lib/leads/transferir-entre-empresas";
@@ -31,6 +32,34 @@ describe("empresasDeDestino", () => {
 
   it("vazio para quem tem uma empresa só", () => {
     expect(empresasDeDestino([vinculos[0]!], A)).toEqual([]);
+  });
+});
+
+describe("podeTransferirEntreEmpresas (o item do menu)", () => {
+  const empresas = vinculos.map((v) => ({ organization_id: v.organization_id, role: v.role }));
+
+  it("aparece para gerente com outra empresa onde atende", () => {
+    expect(podeTransferirEntreEmpresas({ empresaAtivaId: A, papelNaAtiva: "manager", empresas })).toBe(true);
+  });
+
+  it("some para atendente na empresa ativa", () => {
+    expect(podeTransferirEntreEmpresas({ empresaAtivaId: B, papelNaAtiva: "agent", empresas })).toBe(false);
+  });
+
+  it("some para quem tem uma empresa só", () => {
+    expect(
+      podeTransferirEntreEmpresas({ empresaAtivaId: A, papelNaAtiva: "admin", empresas: [empresas[0]!] }),
+    ).toBe(false);
+  });
+
+  it("some quando a outra empresa é só leitura", () => {
+    expect(
+      podeTransferirEntreEmpresas({
+        empresaAtivaId: A,
+        papelNaAtiva: "admin",
+        empresas: [empresas[0]!, empresas[2]!],
+      }),
+    ).toBe(false);
   });
 });
 

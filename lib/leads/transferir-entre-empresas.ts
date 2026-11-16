@@ -89,6 +89,25 @@ export function empresasDeDestino(
 }
 
 /**
+ * A TELA oferece "Transferir para outra empresa"? Só a quem o servidor
+ * aceitaria: `manager`+ na empresa ativa e alguma outra empresa com `agent`+.
+ * Quem tem uma empresa só nunca vê o item.
+ */
+export function podeTransferirEntreEmpresas(input: {
+  empresaAtivaId: string | null | undefined;
+  papelNaAtiva: string | null | undefined;
+  empresas: ReadonlyArray<{ organization_id: string; role: string }>;
+}): boolean {
+  if (!input.empresaAtivaId || !roleAtLeast(input.papelNaAtiva, PAPEL_MINIMO_NA_ORIGEM)) {
+    return false;
+  }
+  return input.empresas.some(
+    (e) =>
+      e.organization_id !== input.empresaAtivaId && roleAtLeast(e.role, PAPEL_MINIMO_NO_DESTINO),
+  );
+}
+
+/**
  * A primeira recusa que a transferência merece, ou `null`. É pergunta de
  * PRÉ-VOO: tudo aqui se responde antes da primeira escrita.
  *
