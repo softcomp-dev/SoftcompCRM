@@ -42,6 +42,7 @@ import { camposDoFunil, camposPorEscopo } from "@/lib/leads/campos-do-funil";
 import { canonicalTagsDoFunil } from "@/lib/contacts/etiquetas";
 import { ROLE_RANK, roleAtLeast } from "@/lib/auth/types";
 import { TimelineView } from "@/components/contacts/TimelineView";
+import { HistoricoDeAtendimento } from "@/components/atendimento/HistoricoDeAtendimento";
 import { EditContactDialog } from "@/components/contacts/EditContactDialog";
 import { JuntarComOutraFicha } from "@/components/contacts/JuntarComOutraFicha";
 import { CartaoDaCarteira } from "@/components/contacts/CartaoDaCarteira";
@@ -405,6 +406,7 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [], acessosMc
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{t("Visão geral")}</TabsTrigger>
+          <TabsTrigger value="atendimentos">{t("Atendimentos")}</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           {isAdmin && <TabsTrigger value="lgpd">LGPD</TabsTrigger>}
         </TabsList>
@@ -594,6 +596,13 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [], acessosMc
               />
             </div>
           ))}
+        </TabsContent>
+
+        <TabsContent value="atendimentos" className="mt-4">
+          <HistoricoDeAtendimento
+            contactId={contactId}
+            podeRegistrar={Boolean(activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent)}
+          />
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">
