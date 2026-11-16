@@ -78,7 +78,8 @@ import {
 
 const supabaseAdmin = createAdminClient();
 
-const AUDIOSOCKET_PORT = parseInt(process.env.AUDIOSOCKET_PORT ?? "9092", 10);
+// Vazia conta como ausente (o .env.example a entrega vazia). Ver docker-compose.prod.yml.
+const AUDIOSOCKET_PORT = parseInt(process.env.AUDIOSOCKET_PORT?.trim() || "9092", 10);
 
 // ---------- Stasis (só ENTRADA, só de passagem) ----------
 

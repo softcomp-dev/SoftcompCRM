@@ -492,6 +492,11 @@ services:
       ARI_URL: "http://asterisk:8088"
       ARI_WS_URL: "ws://asterisk:8088/ari/events"
       ARI_APP: "voice-agent"
+      # Contrato com asterisk/extensions.conf (`AudioSocket(..., voice-agent:9092)`).
+      # Fixa AQUI, por cima do .env: o .env.example chegou a trazer 8090, e quem
+      # o copiou tinha o worker escutando numa porta e o Asterisk ligando na
+      # outra — toda ligação caía ao entrar no AudioSocket.
+      AUDIOSOCKET_PORT: "9092"
       # Como no app e no worker: a conexão do dono do banco fica no .env só
       # para o kit no host (update.sh do cron); nenhum código de workers/ a lê.
       SUPABASE_DB_ADMIN_URL: ""
