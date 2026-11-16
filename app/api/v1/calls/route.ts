@@ -16,10 +16,11 @@
  * vez de fixo em env. `VOIP_TRUNK_ENDPOINT` continua como fallback pra quem
  * ainda não migrou pra tela (compatibilidade, não fica pra sempre).
  *
- * "mode: human" fica pra quando o atendente quer discar direto (a IA não
- * entra na ponte de áudio) — mesmo endpoint, o worker decide com base nesse
- * campo. A ponte WebRTC pro navegador do atendente não está implementada
- * neste esqueleto.
+ * "mode: human" (o atendente fala, a IA fica de fora) é recusado com 422
+ * `voice_human_mode_unavailable`: o atendente ainda não tem de onde falar —
+ * nem o celular dele cadastrado, nem o telefone no navegador (WebRTC). Antes a
+ * rota aceitava o modo e o worker abria a IA do mesmo jeito. O que falta está em
+ * docs/specs/36-spec-telefonia-sip-atendimento-humano.md.
  */
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";
@@ -167,6 +168,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     throw err;
   }
 
+  // SABOTAGEM: remover este bloco = o caso "human" de route.test.ts fica vermelho.
+  if (input.mode === "human") {
+    return fail(
+      "voice_human_mode_unavailable",
+      "Ligar com o atendente falando ainda não está disponível. Use mode \"ai\".",
+      422,
+      { requestId },
+    );
+  }
+
   const supabase = await createClient();
 
   // Ligar para pessoal é envio para fora da operação (spec 21, etapa 12): a
@@ -234,8 +245,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       peer_phone: input.toNumber,
       lead_id: input.leadId ?? null,
       contact_id: input.contactId ?? null,
-      owner_user_id: input.mode === "human" ? authUser.id : null,
-      handled_by: input.mode === "human" ? "human" : "ai",
+      owner_user_id: null,
+      handled_by: "ai",
       started_at: new Date().toISOString(),
       asterisk_channel_id: channelId,
     })
