@@ -200,6 +200,8 @@ export async function handleStasisStart(event: AriEvent) {
       peer_phone: callerNumber,
       contact_id: callerContactId,
       asterisk_channel_id: audioSocketUuid,
+      // O agente que o número aponta (Telefonia). Quem atende lê daqui.
+      ai_agent_id: routing.default_ai_agent_id,
       started_at: new Date().toISOString(),
     })
     .select()
@@ -440,7 +442,11 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
     return;
   }
 
-  const agent = await getActiveVoiceAgent(callRow.organization_id);
+  // SABOTAGEM: tirar o segundo argumento = o caso "agente do número" de fio-agente-do-numero fica vermelho.
+  const agent = await getActiveVoiceAgent(
+    callRow.organization_id,
+    (callRow.ai_agent_id as string | null | undefined) ?? null,
+  );
   if (!agent) {
     logger.error("[audiosocket] nenhum agente de voz ativo", { organization_id: callRow.organization_id });
     // SABOTAGEM: remover esta linha = o caso "sem agente" de fio-fim-da-ligacao fica vermelho.
@@ -475,7 +481,7 @@ export async function handleAudioSocketConnection(socket: net.Socket, uuid: stri
   const answeredAt = new Date().toISOString();
   const { data: atendida, error: claimErr } = await supabaseAdmin
     .from("voice_calls")
-    .update({ status: "connected", answered_at: answeredAt, handled_by: "ai" })
+    .update({ status: "connected", answered_at: answeredAt, handled_by: "ai", ai_agent_id: agent.id })
     .eq("id", callRow.id)
     .in("status", ["starting", "ringing"])
     .select("id");

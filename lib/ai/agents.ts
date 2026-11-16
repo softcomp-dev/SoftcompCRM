@@ -65,18 +65,41 @@ async function resolverChaveOpenAiDaVoz(organizationId: string): Promise<string>
   return process.env.OPENAI_API_KEY ?? "";
 }
 
-export async function getActiveVoiceAgent(organizationId: string): Promise<VoiceAgentConfig | null> {
+/**
+ * O agente de voz que atende uma ligação.
+ *
+ * `agenteEscolhidoId` é o agente que o NÚMERO discado aponta
+ * (`phone_numbers.default_ai_agent_id`, gravado em `voice_calls.ai_agent_id`).
+ * Ele vence quando ainda é um agente de voz ativo DESTA organização; senão
+ * (apagado, desativado, de outro canal) vale o primeiro agente de voz ativo,
+ * como antes de o número poder escolher. Sem isto a escolha feita na tela de
+ * Telefonia era ignorada: toda ligação caía no primeiro agente que o banco
+ * devolvesse.
+ */
+export async function getActiveVoiceAgent(
+  organizationId: string,
+  agenteEscolhidoId?: string | null,
+): Promise<VoiceAgentConfig | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("ai_agents")
-    .select("id, system_prompt, config")
-    .eq("organization_id", organizationId)
-    .eq("channel", "voice")
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
+  const base = () =>
+    supabase
+      .from("ai_agents")
+      .select("id, system_prompt, config")
+      .eq("organization_id", organizationId)
+      .eq("channel", "voice")
+      .eq("is_active", true);
 
-  if (error || !data) return null;
+  let data: { id: string; system_prompt: string; config: unknown } | null = null;
+  if (agenteEscolhidoId) {
+    const escolhido = await base().eq("id", agenteEscolhidoId).maybeSingle();
+    if (!escolhido.error) data = escolhido.data;
+  }
+  if (!data) {
+    const primeiro = await base().limit(1).maybeSingle();
+    if (primeiro.error) return null;
+    data = primeiro.data;
+  }
+  if (!data) return null;
 
   const cfgParsed = agentConfigSchema.safeParse({
     ...AGENT_CONFIG_DEFAULTS,
