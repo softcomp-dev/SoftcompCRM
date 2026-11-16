@@ -30,7 +30,7 @@ describe("empresasDeDestino", () => {
   });
 
   it("vazio para quem tem uma empresa só", () => {
-    expect(empresasDeDestino([vinculos[0]], A)).toEqual([]);
+    expect(empresasDeDestino([vinculos[0]!], A)).toEqual([]);
   });
 });
 
