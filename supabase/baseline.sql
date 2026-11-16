@@ -78698,3 +78698,66 @@ begin
   end if;
   return new;
 end$function$;
+
+-- ---- número da cotação ou do pedido do negócio (migration 9260) ----
+-- Bloco IDÊNTICO ao da migration 9260 (colunas → CHECKs → comentários →
+-- privilégio → travas). Não cria função, então pode ficar depois da varredura de anon.
+alter table public.crm_leads
+  add column if not exists sales_document_kind   text,
+  add column if not exists sales_document_number text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.crm_leads'::regclass
+       and conname  = 'crm_leads_sales_document_kind_conhecido'
+  ) then
+    alter table public.crm_leads
+      add constraint crm_leads_sales_document_kind_conhecido
+      check (sales_document_kind is null or sales_document_kind in ('quote', 'order'));
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.crm_leads'::regclass
+       and conname  = 'crm_leads_sales_document_number_tamanho'
+  ) then
+    alter table public.crm_leads
+      add constraint crm_leads_sales_document_number_tamanho
+      check (
+        sales_document_number is null
+        or (length(btrim(sales_document_number)) between 1 and 60
+            and sales_document_number = btrim(sales_document_number))
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.crm_leads'::regclass
+       and conname  = 'crm_leads_documento_de_venda_coerente'
+  ) then
+    alter table public.crm_leads
+      add constraint crm_leads_documento_de_venda_coerente
+      check ((sales_document_kind is null) = (sales_document_number is null));
+  end if;
+end
+$$;
+
+do $$
+begin
+  if to_regclass('public.crm_leads') is not null then
+    comment on column public.crm_leads.sales_document_kind is
+      'O que é o documento de venda do negócio: quote (cotação) ou order (pedido). Um ou outro, nunca os dois. Preenchido junto com sales_document_number (CHECK crm_leads_documento_de_venda_coerente). Migration 9260.';
+    comment on column public.crm_leads.sales_document_number is
+      'Número da cotação ou do pedido como o ERP o escreve (1..60 caracteres, sem espaço nas pontas). Nulo = negócio sem documento. Migration 9260.';
+  end if;
+end
+$$;
+
+-- Coluna nova herda o GRANT da tabela; restate explícito como na 9028.
+grant select, insert, update, delete on public.crm_leads to authenticated;
+grant all on public.crm_leads to service_role;
+
+-- Travas de suporte (migration 0274), DEPOIS das colunas.
+do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;

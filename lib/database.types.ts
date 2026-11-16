@@ -7042,6 +7042,8 @@ export type Database = {
           recurring_period: "monthly" | null;
           recurring_value_cents: number | null;
           retomado_de_lead_id: string | null;
+          sales_document_kind: "quote" | "order" | null;
+          sales_document_number: string | null;
           source: string;
           source_metadata: NonNullable<Json>;
           stage_changed_at: string | null;
@@ -7080,6 +7082,8 @@ export type Database = {
           recurring_period?: "monthly" | null;
           recurring_value_cents?: number | null;
           retomado_de_lead_id?: string | null;
+          sales_document_kind?: "quote" | "order" | null;
+          sales_document_number?: string | null;
           source?: string;
           source_metadata?: NonNullable<Json>;
           stage_changed_at?: string | null;
@@ -7117,6 +7121,8 @@ export type Database = {
           recurring_period?: "monthly" | null;
           recurring_value_cents?: number | null;
           retomado_de_lead_id?: string | null;
+          sales_document_kind?: "quote" | "order" | null;
+          sales_document_number?: string | null;
           source?: string;
           source_metadata?: NonNullable<Json>;
           stage_changed_at?: string | null;
