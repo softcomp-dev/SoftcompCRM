@@ -12946,8 +12946,25 @@ export const DICIONARIO: Traducoes = {
   "Nenhuma venda ganha": { es: "Ninguna venta ganada" },
   "Pré-inativo": { es: "Preinactivo" },
   "Sem compra": { es: "Sin compra" },
+  // Configurações › Organização, cartão "Classificação de clientes"
+  "Classificação de clientes": { es: "Clasificación de clientes" },
+  "A classificação conta os dias desde a última venda ganha do cliente. Quando ele passa a pré-inativo, a Central avisa para a equipe agir antes que vire inativo.": {
+    es: "La clasificación cuenta los días desde la última venta ganada del cliente. Cuando pasa a preinactivo, la Central avisa para que el equipo actúe antes de que pase a inactivo.",
+  },
+  "Ativo até (dias)": { es: "Activo hasta (días)" },
+  "Pré-inativo até (dias)": { es: "Preinactivo hasta (días)" },
+  "Depois de {n} dias sem nova venda ganha, o cliente fica inativo.": {
+    es: "Después de {n} días sin una nueva venta ganada, el cliente pasa a inactivo.",
+  },
+  "O prazo de pré-inativo precisa ser maior que o de ativo.": { es: "El plazo de preinactivo debe ser mayor que el de activo." },
+  "Prazos da classificação salvos.": { es: "Plazos de clasificación guardados." },
+  "Não foi possível salvar os prazos da classificação.": { es: "No se pudieron guardar los plazos de clasificación." },
   // ─── lib/ai/agent-inbox-copy.ts + inbox-destino.ts, `client_pre_inactive` (migration 9257) ───
   "Um cliente está esfriando — virou pré-inativo": { es: "Un cliente se está enfriando — pasó a preinactivo" },
+  // O corpo do aviso, montado pelo cron `classificacao-de-clientes`.
+  "A última venda ganha deste cliente foi em {data}, e o prazo de ativo da empresa é de {ativo} dias. Se não houver nova venda, ele vira inativo depois de {pre} dias.": {
+    es: "La última venta ganada de este cliente fue el {data}, y el plazo de activo de la empresa es de {ativo} días. Si no hay una nueva venta, pasa a inactivo después de {pre} días.",
+  },
   "Faça contato com o cliente antes que ele vire inativo: confira na ficha a última compra e ofereça uma recompra.": {
     es: "Contacta al cliente antes de que pase a inactivo: revisa en la ficha la última compra y ofrece una recompra.",
   },

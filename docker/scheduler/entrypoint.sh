@@ -161,6 +161,10 @@ CRONS="
 30 3 * * *|120|api/v1/cron/kb-conversations-batch
 15 4 * * *|60|api/v1/cron/sync-model-catalog
 40 4 * * *|120|api/v1/cron/data-retention
+# O CLIENTE QUE ESFRIOU (migration 9257): diário, às 12h UTC (9h de Brasília),
+# para o aviso de pré-inativo chegar à Central no começo do expediente. O
+# prazo é em DIAS; rodar mais vezes só acharia o mesmo nada.
+15 12 * * *|120|api/v1/cron/classificacao-de-clientes
 0 8 * * *|60|api/v1/cron/proposal-expiry
 30 8 * * *|60|api/v1/cron/proposal-promised-not-created
 0 6 * * 0|60|api/v1/cron/proposal-acceptance-rate
