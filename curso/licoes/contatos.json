@@ -1582,6 +1582,571 @@
      ]
     }
    ]
+  },
+  {
+   "id": "classificacao-do-cliente",
+   "titulo": "Quem está comprando e quem esfriou",
+   "objetivo": "Ler o selo de classificação (Ativo, Pré-inativo, Inativo, Sem compra) na lista e na ficha, e filtrar a lista por ele.",
+   "papel": "admin",
+   "busca": [
+    "classificação do cliente",
+    "cliente ativo",
+    "cliente inativo",
+    "pré-inativo",
+    "sem compra",
+    "quem parou de comprar",
+    "reativar clientes",
+    "última venda",
+    "carteira de clientes"
+   ],
+   "passos": [
+    {
+     "id": "p1",
+     "titulo": "O selo ao lado do nome",
+     "texto": "Cada cliente da lista tem um selo colorido que diz como anda a relação de compra com ele. O selo é calculado pela data da última venda ganha, isto é, o último negócio marcado como ganho no funil. \"Ativo\" (verde) comprou há pouco tempo. \"Pré-inativo\" (amarelo) está esfriando: faz tempo que não compra. \"Inativo\" (vermelho) ficou muito tempo sem comprar. \"Sem compra\" (cinza) nunca teve um negócio ganho.",
+     "dica": "Passe o mouse sobre o selo para ver a data da última venda ganha. Contatos pessoais, fornecedores e anonimizados não recebem selo, porque ficam fora da carteira de clientes.",
+     "rota": "/app/contacts",
+     "antes": [],
+     "destaques": [
+      {
+       "alvo": {
+        "testid": "classificacao-ativo",
+        "n": 0
+       },
+       "rotulo": "Comprou há pouco",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "testid": "classificacao-pre_inativo",
+        "n": 0
+       },
+       "rotulo": "Está esfriando",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "testid": "classificacao-inativo",
+        "n": 0
+       },
+       "rotulo": "Muito tempo sem comprar",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "testid": "classificacao-sem_compra",
+        "n": 0
+       },
+       "rotulo": "Nunca comprou",
+       "tipo": "caixa"
+      }
+     ],
+     "clicar": {
+      "role": "link",
+      "nome": "Roberto Almeida",
+      "exato": true
+     }
+    },
+    {
+     "id": "p2",
+     "titulo": "O mesmo selo na ficha",
+     "texto": "Ao abrir a ficha do cliente, o selo aparece de novo no topo, junto do nome. Ele é o mesmo da lista: os dois vêm do mesmo cálculo, então nunca discordam. Aqui o Roberto Almeida está \"Pré-inativo\": a última compra dele foi há mais de 90 dias, mas ainda não passou de 180.",
+     "dica": "Quando um cliente vira pré-inativo, a Central de avisos da equipe mostra um aviso, uma vez por venda, para alguém procurar o cliente antes que ele vire inativo. O aviso não leva o nome do cliente, por causa da LGPD.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "link",
+        "nome": "Roberto Almeida",
+        "exato": true
+       }
+      },
+      {
+       "acao": "aguardar",
+       "alvo": {
+        "role": "heading",
+        "nome": "Roberto Almeida",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "heading",
+        "nome": "Roberto Almeida",
+        "exato": true
+       },
+       "rotulo": "Nome do cliente",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "testid": "classificacao-pre_inativo"
+       },
+       "rotulo": "Está esfriando",
+       "tipo": "seta"
+      }
+     ]
+    },
+    {
+     "id": "p3",
+     "titulo": "Filtrar a lista por classificação",
+     "texto": "De volta à lista, o botão \"Classificação: todas\" deixa ver só uma faixa de clientes. Clique nele: o menu traz \"Todas\" e as quatro faixas, que podem ser marcadas juntas.",
+     "rota": "/app/contacts",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "testid": "filtro-classificacao"
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "testid": "filtro-classificacao"
+       },
+       "rotulo": "Filtro de classificação",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "menu"
+       },
+       "rotulo": "As quatro faixas",
+       "tipo": "caixa"
+      }
+     ],
+     "clicar": {
+      "role": "menuitemcheckbox",
+      "nome": "Pré-inativo",
+      "exato": true
+     }
+    },
+    {
+     "id": "p4",
+     "titulo": "Só quem está esfriando",
+     "texto": "Marcamos \"Pré-inativo\" e fechamos o menu. A lista agora mostra só os clientes nessa faixa, e o botão diz qual faixa está valendo. Esse é o público para reativar: gente que já comprou e que ainda dá para trazer de volta.",
+     "dica": "O botão \"Exportar\" (para gerentes e administradores) leva para o arquivo só o que a lista está mostrando, então a mesma escolha vale para exportar. Em Campanhas, o critério \"Classificação do cliente\" monta o público com essa faixa.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "menuitemcheckbox",
+        "nome": "Pré-inativo",
+        "exato": true
+       }
+      },
+      {
+       "acao": "press",
+       "tecla": "Escape"
+      },
+      {
+       "acao": "esperar",
+       "ms": 1000
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "testid": "filtro-classificacao"
+       },
+       "rotulo": "Faixa escolhida",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "css": "table tbody"
+       },
+       "rotulo": "Só quem está pré-inativo",
+       "tipo": "caixa"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "historico-de-atendimento",
+   "titulo": "O histórico de atendimento do cliente",
+   "objetivo": "Ler a aba Atendimentos da ficha e registrar uma interação que aconteceu fora do CRM, como uma ligação do celular ou uma reunião.",
+   "papel": "admin",
+   "busca": [
+    "histórico de atendimento",
+    "aba atendimentos",
+    "registrar interação",
+    "ligação do celular",
+    "reunião com cliente",
+    "visita ao cliente",
+    "o que já falamos com o cliente",
+    "interações da equipe"
+   ],
+   "passos": [
+    {
+     "id": "p1",
+     "titulo": "Abrir a ficha da cliente",
+     "texto": "O histórico de atendimento fica na ficha de cada cliente. Clique no nome da Fernanda Oliveira para abrir a ficha dela.",
+     "rota": "/app/contacts",
+     "antes": [],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "link",
+        "nome": "Fernanda Oliveira",
+        "exato": true
+       },
+       "rotulo": "Abre a ficha",
+       "tipo": "seta"
+      }
+     ],
+     "clicar": {
+      "role": "link",
+      "nome": "Fernanda Oliveira",
+      "exato": true
+     }
+    },
+    {
+     "id": "p2",
+     "titulo": "A aba Atendimentos",
+     "texto": "A ficha tem abas: \"Visão geral\", \"Atendimentos\", \"Timeline\" e, para administradores, \"LGPD\". A aba \"Atendimentos\" junta, numa lista só, tudo o que a equipe já fez com esta cliente. Clique nela.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "link",
+        "nome": "Fernanda Oliveira",
+        "exato": true
+       }
+      },
+      {
+       "acao": "aguardar",
+       "alvo": {
+        "role": "heading",
+        "nome": "Fernanda Oliveira",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "tab",
+        "nome": "Atendimentos",
+        "exato": true
+       },
+       "rotulo": "Histórico de atendimento",
+       "tipo": "seta"
+      }
+     ],
+     "clicar": {
+      "role": "tab",
+      "nome": "Atendimentos",
+      "exato": true
+     }
+    },
+    {
+     "id": "p3",
+     "titulo": "A lista, do mais recente para o mais antigo",
+     "texto": "Cada linha é um atendimento. As conversas de WhatsApp entram sozinhas: o sistema junta as mensagens de uma conversa num mesmo dia numa linha só, e conta quantas vieram do cliente, da equipe e da IA. As ligações feitas pelo CRM, pelo VoIP ou pelo WhatsApp também entram sozinhas, com a duração e se o cliente atendeu. Os botões de cima deixam ver só um tipo: \"Conversas\", \"Ligações\" ou \"Registrados pela equipe\".",
+     "dica": "Nada é copiado: cada linha é lida da própria conversa ou ligação. Se uma mensagem for apagada pela LGPD, ela some do histórico também.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "tab",
+        "nome": "Atendimentos",
+        "exato": true
+       }
+      },
+      {
+       "acao": "aguardar",
+       "alvo": {
+        "testid": "item-do-historico",
+        "n": 0
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "group",
+        "nome": "Filtrar histórico",
+        "exato": true
+       },
+       "rotulo": "Filtrar por tipo",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "css": "li[data-source='chat']",
+        "n": 0
+       },
+       "rotulo": "Conversa do dia",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "css": "li[data-source='record']",
+        "n": 0
+       },
+       "rotulo": "Registrado pela equipe",
+       "tipo": "caixa"
+      }
+     ]
+    },
+    {
+     "id": "p4",
+     "titulo": "Registrar o que aconteceu fora do CRM",
+     "texto": "A ligação do celular, a reunião, a visita e o e-mail acontecem fora do CRM, então só entram no histórico se alguém contar. É para isso o botão \"Registrar interação\". Clique nele.",
+     "dica": "Quem só pode ler (papel de leitura) não vê este botão.",
+     "antes": [],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "button",
+        "nome": "Registrar interação",
+        "exato": true
+       },
+       "rotulo": "Contar o que aconteceu",
+       "tipo": "seta"
+      }
+     ],
+     "clicar": {
+      "role": "button",
+      "nome": "Registrar interação",
+      "exato": true
+     }
+    },
+    {
+     "id": "p5",
+     "titulo": "A janela de registro",
+     "texto": "A janela pede, de cima para baixo: o \"Negócio\" em que a interação entra (já vem marcado o negócio aberto mais recente da cliente), \"Como foi\", \"Quem procurou\" e \"Resultado\". Embaixo ficam \"Quando\", \"Duração em minutos (opcional)\" e \"O que foi conversado\". Cada cliente precisa de pelo menos um negócio no funil para receber um registro.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "button",
+        "nome": "Registrar interação",
+        "exato": true
+       }
+      },
+      {
+       "acao": "aguardar",
+       "alvo": {
+        "role": "dialog",
+        "nome": "Registrar interação",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Negócio",
+        "exato": true
+       },
+       "rotulo": "Em qual negócio",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Como foi",
+        "exato": true
+       },
+       "rotulo": "Ligação, reunião, visita…",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Quem procurou",
+        "exato": true
+       },
+       "rotulo": "Quem procurou quem",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Resultado",
+        "exato": true
+       },
+       "rotulo": "Falou ou não",
+       "tipo": "caixa"
+      }
+     ],
+     "clicar": {
+      "role": "combobox",
+      "nome": "Como foi",
+      "exato": true
+     }
+    },
+    {
+     "id": "p6",
+     "titulo": "Como foi o contato",
+     "texto": "\"Como foi\" lista só o que acontece fora do CRM: ligação do celular ou fixo, WhatsApp pelo celular, e-mail, reunião, visita ou outro. Conversas e ligações pelo CRM não estão aqui porque já entram sozinhas. Vamos escolher \"Reunião (presencial ou on-line)\".",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "combobox",
+        "nome": "Como foi",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "listbox"
+       },
+       "rotulo": "Tipos de contato",
+       "tipo": "caixa"
+      }
+     ],
+     "clicar": {
+      "role": "option",
+      "nome": "Reunião (presencial ou on-line)",
+      "exato": true
+     }
+    },
+    {
+     "id": "p7",
+     "titulo": "Quem procurou e o resultado",
+     "texto": "\"Quem procurou\" diz se a equipe procurou o cliente ou o contrário. \"Resultado\" diz se você falou com o cliente (\"Falei com o cliente\") ou se tentou e não conseguiu (\"Tentei, mas não consegui falar\"). Só a conversa de verdade conta como movimento do negócio; a tentativa sem resposta fica registrada, mas não conta.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "option",
+        "nome": "Reunião (presencial ou on-line)",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Como foi",
+        "exato": true
+       },
+       "rotulo": "Reunião escolhida",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Quem procurou",
+        "exato": true
+       },
+       "rotulo": "Quem procurou",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "combobox",
+        "nome": "Resultado",
+        "exato": true
+       },
+       "rotulo": "Falei ou tentei",
+       "tipo": "caixa"
+      }
+     ]
+    },
+    {
+     "id": "p8",
+     "titulo": "Quando, quanto tempo e o que foi dito",
+     "texto": "\"Quando\" já vem com a data e a hora de agora, e não pode ficar no futuro. Troque se o contato foi antes. \"Duração em minutos (opcional)\" aceita até 24 horas. Em \"O que foi conversado\", escreva o que foi dito ou combinado: sem esse texto o botão \"Registrar\" continua desligado.",
+     "dica": "Uma interação registrada não pode ser editada nem apagada pela tela. Se errou, registre outra com a correção.",
+     "antes": [
+      {
+       "acao": "fill",
+       "alvo": {
+        "rotulo": "Duração em minutos (opcional)",
+        "exato": true
+       },
+       "valor": "20"
+      },
+      {
+       "acao": "fill",
+       "alvo": {
+        "rotulo": "O que foi conversado",
+        "exato": true
+       },
+       "valor": "Reunião rápida com a Fernanda para combinar o retorno de quinta. Ela vai levar o laudo da cirurgia."
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "rotulo": "Quando",
+        "exato": true
+       },
+       "rotulo": "Data e hora",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "rotulo": "Duração em minutos (opcional)",
+        "exato": true
+       },
+       "rotulo": "Duração",
+       "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "rotulo": "O que foi conversado",
+        "exato": true
+       },
+       "rotulo": "O que foi dito",
+       "tipo": "caixa"
+      }
+     ],
+     "clicar": {
+      "role": "button",
+      "nome": "Registrar",
+      "exato": true
+     }
+    },
+    {
+     "id": "p9",
+     "titulo": "A interação no histórico",
+     "texto": "Ao clicar em \"Registrar\", a janela fecha e a interação aparece no topo da lista, com o nome de quem registrou. Ela também entra na linha do tempo do negócio. Como a conversa foi de verdade, conta como movimento do negócio, do mesmo jeito que uma ligação atendida pelo CRM.",
+     "antes": [
+      {
+       "acao": "click",
+       "alvo": {
+        "role": "button",
+        "nome": "Registrar",
+        "exato": true
+       }
+      },
+      {
+       "acao": "aguardar",
+       "alvo": {
+        "texto": "Interação registrada no histórico."
+       }
+      },
+      {
+       "acao": "esperar",
+       "ms": 1000
+      }
+     ],
+     "destaques": [
+      {
+       "alvo": {
+        "css": "li[data-source='record']",
+        "n": 0
+       },
+       "rotulo": "A interação registrada",
+       "tipo": "caixa"
+      }
+     ]
+    }
+   ]
   }
  ]
 }

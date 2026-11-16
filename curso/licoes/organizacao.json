@@ -658,6 +658,100 @@
           ]
         }
       ]
+    },
+    {
+      "id": "classificacao-de-clientes",
+      "titulo": "Quando um cliente vira pré-inativo ou inativo",
+      "objetivo": "Entender os dois prazos que decidem se um cliente é Ativo, Pré-inativo ou Inativo, e onde mudá-los.",
+      "papel": "admin",
+      "busca": [
+        "classificação de clientes",
+        "prazo de cliente ativo",
+        "pré-inativo",
+        "cliente inativo",
+        "dias sem comprar",
+        "quando o cliente esfria"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O quadro Classificação de clientes",
+          "texto": "Mais abaixo na tela fica o quadro \"Classificação de clientes\". Ele conta os dias desde a última venda ganha de cada cliente e, com isso, decide o selo que aparece em Contatos: \"Ativo\", \"Pré-inativo\" ou \"Inativo\". Quem nunca comprou fica como \"Sem compra\".",
+          "rota": "/app/settings/tenant",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "testid": "classificacao-de-clientes"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "classificacao-de-clientes"
+              },
+              "rotulo": "Prazos da classificação",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Os dois prazos",
+          "texto": "\"Ativo até (dias)\" é o tempo, desde a última compra, em que o cliente ainda é ativo. \"Pré-inativo até (dias)\" é até quando ele é pré-inativo; depois disso vira inativo. Os valores de fábrica são 90 e 180 dias. O prazo de pré-inativo precisa ser maior que o de ativo, e cada um aceita de 1 a 3650 dias. Quando um cliente passa para pré-inativo, a Central avisa a equipe.",
+          "dica": "Uma clínica de retorno anual pode usar prazos mais longos. Uma loja de compra semanal, prazos mais curtos. Se a Central estiver avisando demais ou de menos, ajuste aqui.",
+          "antes": [
+            {
+              "acao": "fill",
+              "alvo": {
+                "testid": "classificacao-ativo-dias"
+              },
+              "valor": "60"
+            },
+            {
+              "acao": "fill",
+              "alvo": {
+                "testid": "classificacao-pre-inativo-dias"
+              },
+              "valor": "150"
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "classificacao-ativo-dias"
+              },
+              "rotulo": "Dias como ativo",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "classificacao-pre-inativo-dias"
+              },
+              "rotulo": "Dias como pré-inativo",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "titulo": "Salvar os prazos",
+          "texto": "A mudança só vale depois de clicar em \"Salvar prazos\". Ela é registrada na auditoria e todos os clientes são reclassificados na próxima vez que alguém abrir a lista. O botão fica desligado enquanto o prazo de pré-inativo não for maior que o de ativo.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Salvar prazos",
+                "exato": true
+              },
+              "rotulo": "Guardar os prazos",
+              "tipo": "seta"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

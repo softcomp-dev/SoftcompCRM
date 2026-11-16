@@ -19,18 +19,22 @@
  * campanha ainda não concluída". A Juliana não está em nenhuma viva.
  *
  * Contatos são os da base (ids fixos de `contatoId`), só referenciados: a semente
- * nunca altera contato, conversa ou negócio. Idempotente: apaga as próprias
+ * nunca altera contato nem conversa. A ÚNICA exceção é um negócio ganho da
+ * Juliana (`d1020400…`, 130 dias atrás), que a deixa PRÉ-INATIVO com os prazos
+ * de fábrica (90 e 180 dias) para a lição do público por classificação — o
+ * gatilho `trg_crm_lead_ultima_venda` calcula `contacts.last_won_at` sozinho. Idempotente: apaga as próprias
  * linhas (ids fixos + nomes que as lições criam pela tela) e recria.
  */
 import { createHash } from "node:crypto";
 
-import { type Contexto, contatoId, ha, semErro } from "../semear-demonstracao";
+import { type Contexto, contatoId, exigir, ha, semErro } from "../semear-demonstracao";
 import { textoDaDemonstracao as demo } from "../espanhol-demonstracao";
 
 const campanhaId = (n: number) => `d1020000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const destinatarioId = (n: number) => `d1020100-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const exclusaoId = (n: number) => `d1020200-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const textoId = (n: number) => `d1020300-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const vendaId = (n: number) => `d1020400-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 const HORA = 60;
 const DIA = 24 * HORA;
@@ -80,7 +84,22 @@ type Destinatario = {
 };
 
 export async function semear(c: Contexto) {
-  const { db, org, pessoa, sessao } = c;
+  const { db, org, pessoa, sessao, funil } = c;
+
+  // ---------- a venda que deixa a Juliana pré-inativa ----------
+  semErro(await db.from("crm_leads").delete().eq("organization_id", org).eq("id", vendaId(1)), "limpar venda da Juliana");
+  const etapaGanha = exigir(
+    await db.from("crm_stages").select("id").eq("pipeline_id", funil.id).eq("is_won", true).limit(1).single(),
+    "etapa de ganho",
+  ) as { id: string };
+  semErro(
+    await db.from("crm_leads").insert({
+      id: vendaId(1), organization_id: org, pipeline_id: funil.id, stage_id: etapaGanha.id,
+      title: demo("Pacote de consultas"), contact_id: contatoId(3), value_cents: 90000, currency: "BRL",
+      status: "won", closed_at: ha(130 * DIA), created_at: ha(137 * DIA), position_in_stage: 9000,
+    }),
+    "venda ganha da Juliana",
+  );
 
   // ---------- limpeza: só as linhas deste módulo ----------
   const meusIds = [1, 2, 3, 4, 5].map(campanhaId);

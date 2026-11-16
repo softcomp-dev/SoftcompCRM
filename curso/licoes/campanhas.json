@@ -1290,6 +1290,103 @@
           ]
         }
       ]
+    },
+    {
+      "id": "campanhas-publico-por-classificacao",
+      "titulo": "Campanha para clientes que esfriaram",
+      "objetivo": "Montar o público de uma campanha pela classificação do cliente, para reativar quem está pré-inativo.",
+      "papel": "admin",
+      "busca": [
+        "campanha para pré-inativos",
+        "reativar clientes",
+        "classificação do cliente",
+        "clientes que pararam de comprar",
+        "público da campanha",
+        "cliente inativo"
+      ],
+      "passos": [
+        {
+          "id": "p1",
+          "titulo": "O critério Classificação do cliente",
+          "texto": "No quadro \"Público\" de uma campanha nova, entre os critérios, está \"Classificação do cliente\". Ele usa a mesma classificação do selo da lista de Contatos (Ativo, Pré-inativo, Inativo, Sem compra). Por padrão fica em \"Qualquer uma\", sem filtrar.",
+          "rota": "/app/campaigns/new",
+          "antes": [
+            {
+              "acao": "rolar",
+              "alvo": {
+                "rotulo": "Classificação do cliente",
+                "exato": true
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "rotulo": "Classificação do cliente",
+                "exato": true
+              },
+              "rotulo": "Critério de classificação",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "titulo": "Escolher Pré-inativo",
+          "texto": "Escolha \"Pré-inativo\" na lista e clique em \"Ver quantas pessoas\". A conta mostra quantos clientes dessa faixa podem receber a campanha, e quantos ficam de fora e por quê. Aqui, 1 pode receber: a Juliana Castro, cuja última compra foi há mais de 90 dias.",
+          "dica": "Esta é a campanha típica para reativar: clientes que já compraram e que ainda dá para trazer de volta, antes que virem inativos. Dá para combinar com outros critérios, como as etiquetas.",
+          "antes": [
+            {
+              "acao": "selecionar",
+              "alvo": {
+                "rotulo": "Classificação do cliente",
+                "exato": true
+              },
+              "opcao": "Pré-inativo"
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "role": "button",
+                "nome": "Ver quantas pessoas",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "texto": "podem receber"
+              }
+            }
+          ],
+          "destaques": [
+            {
+              "alvo": {
+                "rotulo": "Classificação do cliente",
+                "exato": true
+              },
+              "rotulo": "Só pré-inativos",
+              "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "role": "button",
+                "nome": "Ver quantas pessoas",
+                "exato": true
+              },
+              "rotulo": "Contar",
+              "tipo": "numero"
+            },
+            {
+              "alvo": {
+                "css": "p:has(> strong)"
+              },
+              "rotulo": "Quem recebe",
+              "tipo": "caixa"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
