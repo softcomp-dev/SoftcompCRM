@@ -32,3 +32,12 @@ export type CallHandledBy = "human" | "ai" | "ai_then_human";
 export type PhoneNumberRoutingMode = "ai" | "human" | "ai_then_human";
 
 export type AiAgentChannel = "whatsapp" | "voice";
+
+/**
+ * `voip_trunk_status.state` (migration 9256) — o que o worker de voz sabe do
+ * tronco da organização: `pendente` (salvo, ainda não aplicado), `erro` (a
+ * aplicação falhou — o motivo vai em `error`), `online`/`offline` (aplicado; a
+ * operadora responde ou não), `desligado` (o tronco foi desativado na tela).
+ */
+export const TRUNK_STATES = ["pendente", "erro", "online", "offline", "desligado"] as const;
+export type TrunkState = (typeof TRUNK_STATES)[number];

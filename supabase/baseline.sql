@@ -73499,6 +73499,40 @@ revoke execute on function public.fn_resolve_inbound_number(text) from public, a
 grant execute on function public.fn_resolve_inbound_number(text) to service_role;
 
 
+-- ---- voip_trunk_status: o que o worker fez com o tronco (migration 9256) ----
+-- O porquê está no cabeçalho da migration. Antes da varredura de anon, como os
+-- demais apêndices.
+create table if not exists public.voip_trunk_status (
+  organization_id uuid primary key references public.organizations(id) on delete cascade,
+  -- SHA-256 da configuração aplicada (inclui a senha CIFRADA, nunca a clara).
+  applied_config_hash text,
+  applied_at timestamptz,
+  state text not null default 'pendente',
+  error text,
+  checked_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.voip_trunk_status
+  drop constraint if exists voip_trunk_status_state_check;
+alter table public.voip_trunk_status
+  add constraint voip_trunk_status_state_check
+  check (state = any (array['pendente', 'erro', 'online', 'offline', 'desligado']));
+
+comment on table public.voip_trunk_status is
+  'O que o worker de voz fez com o tronco SIP da organização (aplicação pela ARI e resposta da operadora). Escrito só por service_role.';
+
+alter table public.voip_trunk_status enable row level security;
+
+drop policy if exists voip_trunk_status_select on public.voip_trunk_status;
+create policy voip_trunk_status_select on public.voip_trunk_status
+  for select using (organization_id in (select public.fn_user_org_ids()));
+
+revoke all on public.voip_trunk_status from anon, authenticated, service_role;
+grant select on public.voip_trunk_status to authenticated;
+grant select, insert, update, delete on public.voip_trunk_status to service_role;
+
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria

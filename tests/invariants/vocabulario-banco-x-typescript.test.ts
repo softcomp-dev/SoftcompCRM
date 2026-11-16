@@ -313,6 +313,13 @@ const PARES: Array<{
     simbolo: "PhoneNumberRoutingMode",
   },
   {
+    tabela: "voip_trunk_status",
+    coluna: "state",
+    // lib/voip/call-vocabulary.ts -> TRUNK_STATES (migration 9256)
+    arquivo: "lib/voip/call-vocabulary.ts",
+    simbolo: "TRUNK_STATES",
+  },
+  {
     tabela: "ai_agents",
     coluna: "channel",
     // lib/voip/call-vocabulary.ts -> AiAgentChannel

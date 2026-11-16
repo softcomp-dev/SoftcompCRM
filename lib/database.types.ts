@@ -14086,6 +14086,45 @@ export type Database = {
           },
         ];
       };
+      voip_trunk_status: {
+        Row: {
+          applied_at: string | null;
+          applied_config_hash: string | null;
+          checked_at: string | null;
+          error: string | null;
+          organization_id: string;
+          state: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          applied_at?: string | null;
+          applied_config_hash?: string | null;
+          checked_at?: string | null;
+          error?: string | null;
+          organization_id: string;
+          state?: string;
+          updated_at?: string;
+        };
+        Update: {
+          applied_at?: string | null;
+          applied_config_hash?: string | null;
+          checked_at?: string | null;
+          error?: string | null;
+          organization_id?: string;
+          state?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "voip_trunk_status_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       watchdog_cursors: {
         Row: {
           consumer: string;
