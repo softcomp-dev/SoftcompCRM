@@ -20178,6 +20178,24 @@ export const DICIONARIO: Traducoes = {
   "Integrar outro sistema": {
     es: "Integrar otro sistema",
   },
+  "Curso": {
+    es: "Curso",
+  },
+  "Abrir em nova aba": {
+    es: "Abrir en una pestaña nueva",
+  },
+  "Aulas com a foto de cada tela, passo a passo, e um simulador para praticar clicando.": {
+    es: "Clases con la foto de cada pantalla, paso a paso, y un simulador para practicar haciendo clic.",
+  },
+  "O curso não está disponível nesta instalação.": {
+    es: "El curso no está disponible en esta instalación.",
+  },
+  "Aprender pelo curso": {
+    es: "Aprender con el curso",
+  },
+  "Quando quer ver cada tela explicada com foto e praticar antes de usar de verdade.": {
+    es: "Cuando quieres ver cada pantalla explicada con foto y practicar antes de usarla de verdad.",
+  },
   "Quando um ERP, uma loja ou uma automação precisa ler ou gravar no CRM pela API.": {
     es: "Cuando un ERP, una tienda o una automatización necesita leer o escribir en el CRM por la API.",
   },

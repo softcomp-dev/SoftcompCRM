@@ -1310,6 +1310,18 @@ export const NAV_CATALOG = [
     modulo: "banco_externo",
   },
   {
+    // O curso ilustrado (aulas com a foto de cada tela e simulador), publicado
+    // FORA da imagem e aberto num quadro (app/app/curso, lib/curso/endereco.ts).
+    // Sem `sidebar`: o rodapé fixo do menu é da Ajuda. A porta é a seção Ajuda
+    // do hub de Configurações, o ⌘K e o atalho no topo da própria Ajuda.
+    href: "/app/curso",
+    label: "Curso",
+    description: "Aulas com a foto de cada tela, passo a passo, e um simulador para praticar clicando.",
+    icon: "GraduationCap",
+    group: "organizacao",
+    section: "Ajuda",
+  },
+  {
     // A porta da ajuda dentro do produto (issue #3567, fatia F1). Fica por
     // ÚLTIMO, e isso é a decisão e não a sobra: é o que se procura quando o
     // resto não respondeu.

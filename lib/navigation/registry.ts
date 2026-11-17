@@ -4,6 +4,7 @@ import { type Role } from "@/lib/auth/types";
 import {
   Bell,
   BookOpen,
+  GraduationCap,
   Brain,
   Buildings,
   CalendarBlank,
@@ -61,6 +62,7 @@ export type { NavGroup, NavGroupId } from "./catalogo";
 const ICONS = {
   Bell,
   BookOpen,
+  GraduationCap,
   Brain,
   Buildings,
   CalendarBlank,

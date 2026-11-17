@@ -148,6 +148,7 @@ export {
   // navegação agrupada (registro em lib/navigation/registry.ts)
   Funnel,
   BookOpen,
+  GraduationCap,
   Key,
   UserCircle,
   ClockCounterClockwise,

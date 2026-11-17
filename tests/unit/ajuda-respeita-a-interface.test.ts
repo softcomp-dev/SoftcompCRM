@@ -4,7 +4,7 @@ import { blocosVisiveis } from "@/lib/ajuda/hub";
 import type { Role } from "@/lib/auth/types";
 import { combinarInterfaces, destinosDaInterface } from "@/lib/navigation/interface";
 
-const basicos = ["/app/inbox", "/app/kanban", "/app/contacts", "/app/consolidado"];
+const basicos = ["/app/inbox", "/app/kanban", "/app/contacts", "/app/consolidado", "/app/curso"];
 const equipe = "/app/team";
 const casos = "/app/ai/cases";
 const montagem = ["/app/ai/agents", "/app/ai/knowledge/sources"];

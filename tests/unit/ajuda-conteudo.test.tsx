@@ -72,7 +72,7 @@ describe("conteúdo da Ajuda acompanha o contexto do menu", () => {
     const filtro = vi.spyOn(navegacao, "destinosDaInterface");
     render(<AjudaConteudo />);
     expect(filtro).toHaveBeenLastCalledWith(undefined, false, "viewer", [], []);
-    expect(urls()).toEqual(["/app/consolidado", "/app/contacts", "/app/inbox", "/app/kanban", "/app/settings/atualizacao", "/app/team"]);
+    expect(urls()).toEqual(["/app/consolidado", "/app/contacts", "/app/curso", "/app/inbox", "/app/kanban", "/app/settings/atualizacao", "/app/team"]);
   });
 
   it("o idioma do provider muda o conteúdo antes de mudar user.idioma", () => {

@@ -98,6 +98,6 @@ describe("a ajuda dentro do produto", () => {
     // Guarda contra o hub esvaziar: um `soParaQuemInstala` mal copiado em todos
     // os blocos deixaria a tela vazia para atendente, gerente e admin.
     const destinos = destinosDaInterface(undefined, false, "admin", [], []);
-    expect(blocosVisiveis(false, destinos).flatMap((b) => b.itens).length).toBe(11);
+    expect(blocosVisiveis(false, destinos).flatMap((b) => b.itens).length).toBe(12);
   });
 });

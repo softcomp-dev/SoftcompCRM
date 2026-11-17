@@ -283,6 +283,29 @@ const schema = z.object({
       return "";
     }),
 
+  // ─── Curso ilustrado (tela /app/curso) — OPCIONAL, COM PADRÃO ───────────
+  //
+  // Onde o curso montado está publicado: o português na raiz, o espanhol em
+  // `es/` (lib/curso/endereco.ts). Sem valor, a aba diz que o curso não está
+  // disponível. O endereço NÃO tem padrão no código: host de quem publica não
+  // viaja na imagem que todo cliente instala (catraca em tests/unit/branding).
+  // Fora de http(s) também desliga, com aviso no log, pelo mesmo motivo do
+  // JITSI_SERVER_URL: validação que derruba roda no import do Next.
+  CURSO_URL: z
+    .string()
+    .optional()
+    .default("")
+    .refine((v) => v.trim() === "" || /^https?:\/\/\S+$/i.test(v.trim()), {
+      message: "precisa ser uma URL http(s)",
+    })
+    .catch(({ error }) => {
+      console.warn(
+        `[env] CURSO_URL inválida (${JSON.stringify(process.env.CURSO_URL)}) — a aba Curso fica DESLIGADA. ` +
+          `(${error.issues[0]?.message ?? "valor recusado"})`,
+      );
+      return "";
+    }),
+
   // ─── Canal Datafy (recorte do #1130) — OPCIONAL, DESLIGADO POR PADRÃO ───
   //
   // Só `true` liga (decisão do dono, doc 54). Vazio = a instalação não oferece o

@@ -52,6 +52,11 @@ export const BLOCOS_DE_AJUDA: readonly BlocoDeAjuda[] = [
     titulo: "Começar a usar",
     itens: [
       {
+        texto: "Aprender pelo curso",
+        href: "/app/curso",
+        detalhe: "Quando quer ver cada tela explicada com foto e praticar antes de usar de verdade.",
+      },
+      {
         texto: "Abrir as conversas",
         href: "/app/inbox",
         detalhe: "As conversas de todos os canais num lugar só, e quem está esperando você.",
