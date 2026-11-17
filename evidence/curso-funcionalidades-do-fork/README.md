@@ -1,5 +1,23 @@
 # Curso: aulas das funcionalidades do fork (16/11/2026)
 
+## Situação em 17/11/2026: capturado e publicado (só português)
+
+A captura foi feita numa bancada descartável no servidor 10.0.0.10 (Supabase local
+próprio, app da imagem publicada, worker parado), apagada depois. Resultado:
+
+- **Curso inteiro em português:** 89 módulos e as jornadas dos 10 nichos, 1.650 fotos.
+  As fotos são da v1.104.14; a aula de Atualização é da v1.104.19, porque precisa da
+  seção da versão no CHANGELOG, que o fork só passou a escrever na v1.104.17.
+- **Espanhol fora**, por decisão do dono do fork; o catálogo continua no repositório.
+- **Publicado** na Release `curso-2026-11-17` (não-latest) e no GitHub Pages do fork,
+  aberto pela aba Curso do CRM (ver [`docs/features/curso-no-crm.md`](../../docs/features/curso-no-crm.md)).
+- **Aulas corrigidas pela captura:** as do fork e as antigas que as telas de hoje não
+  acompanhavam (funil, etapas, inbox, contatos, organização, aviso no WhatsApp,
+  distribuição, marca, memória, respostas rápidas, tags, tarefas), mais o capturador
+  das jornadas, que não achava card de negócio ganho.
+
+O texto abaixo é o roteiro escrito antes da captura, mantido como registro.
+
 Aulas escritas a partir do código, **sem captura**. A máquina onde foram escritas
 não tem Docker, e o runbook proíbe fotografar o CRM de um cliente. Este arquivo é o
 roteiro para quem tiver a bancada ([`docs/runbooks/atualizar-curso.md`](../../docs/runbooks/atualizar-curso.md)).
