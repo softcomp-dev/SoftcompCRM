@@ -92,6 +92,9 @@ button { font: inherit; color: inherit; }
 .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--tinta); padding-inline: 6px; }
 .marca-d { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: var(--oliva); color: var(--sobre-oliva); font-weight: 700; }
 .marca-nome { font-weight: 700; font-size: var(--t-3); }
+.marca-logo { display: block; height: 30px; width: auto; max-width: 150px; object-fit: contain; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .marca-logo { filter: brightness(0) invert(0.88); } }
+:root[data-theme="dark"] .marca-logo { filter: brightness(0) invert(0.88); }
 .marca-selo { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--oliva); background: var(--oliva-suave); padding: 2px 7px; border-radius: 99px; }
 #menu-grupos { display: flex; flex-direction: column; gap: 16px; }
 .grupo-titulo { font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); padding-inline: 8px; margin-bottom: 4px; }

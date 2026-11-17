@@ -2,6 +2,7 @@
 window.criarDemonstracoes = function (opcoes) {
   "use strict";
   var D = opcoes.dados, esc = opcoes.esc, vista = opcoes.vista;
+  var ACAO = (D.marca || 'Deskcomm') + ' em ação';
   var nichos = D.nichos || [], atual = null;
   function reconhecer(hash) {
     var p = hash.replace(/^#/, "").split(".");
@@ -17,12 +18,12 @@ window.criarDemonstracoes = function (opcoes) {
   function rota(n, j, i) { return "#demo." + n.id + "." + j.id + "." + j.cenas[i].id; }
   function tipo(j) { return j.tipo === "execucao-observada" ? "Execução observada" : "Roteiro demonstrativo"; }
   function trilha(n) {
-    return '<nav class="trilha" aria-label="Caminho"><a href="#inicio">Curso</a><span>›</span><a href="#acao">Deskcomm em ação</a>' +
+    return '<nav class="trilha" aria-label="Caminho"><a href="#inicio">Curso</a><span>›</span><a href="#acao">' + esc(ACAO) + '</a>' +
       (n ? '<span>›</span><a href="#acao.' + n.id + '">' + esc(n.titulo) + '</a>' : '') + '</nav>';
   }
   function catalogo(n) {
     return '<div class="coluna jornada-catalogo">' + trilha(n) +
-      '<header class="coluna-texto"><span class="rotulo-mono">Do primeiro contato à continuidade</span><h1 class="titulo-pagina" id="demo-titulo-pagina">' + esc(n ? n.titulo : 'Deskcomm em ação') +
+      '<header class="coluna-texto"><span class="rotulo-mono">Do primeiro contato à continuidade</span><h1 class="titulo-pagina" id="demo-titulo-pagina">' + esc(n ? n.titulo : ACAO) +
       '</h1><p class="subtitulo">' + esc(n ? n.resumo : 'Escolha um negócio e acompanhe uma história na tela. Depois, veja quais recursos fazem essa operação acontecer.') + '</p></header>' +
       (n ? '<div class="cartoes">' + n.jornadas.map(function (j, i) {
         return '<article class="cartao jornada-cartao"><span class="rotulo-mono">História ' + String(i + 1).padStart(2, '0') + ' · ' + tipo(j) + '</span><h2>' + esc(j.titulo) + '</h2><p>' + esc(j.contexto) + '</p><p><strong>O caminho:</strong> ' + esc(j.resultado) + '</p><div class="acoes"><a class="botao botao-primario" href="' + rota(n, j, 0) + '">Apresentar ao cliente</a><a href="#montagem.' + n.id + '.' + j.id + '">Entender a montagem</a></div></article>';
@@ -109,13 +110,13 @@ window.criarDemonstracoes = function (opcoes) {
   function entradasBusca() {
     var entradas = [];
     nichos.forEach(function (n) {
-      entradas.push({ onde: 'Deskcomm em ação', titulo: n.titulo, trecho: n.resumo, href: '#acao.' + n.id, campos: [[n.titulo, 6], [n.resumo, 2]] });
+      entradas.push({ onde: ACAO, titulo: n.titulo, trecho: n.resumo, href: '#acao.' + n.id, campos: [[n.titulo, 6], [n.resumo, 2]] });
       n.jornadas.forEach(function (j) {
-        entradas.push({ onde: 'Deskcomm em ação › ' + n.titulo, titulo: j.titulo, trecho: j.contexto, href: rota(n, j, 0), campos: [[j.titulo, 6], [n.titulo, 5], [j.contexto + ' ' + j.resultado, 2]] });
+        entradas.push({ onde: ACAO + ' › ' + n.titulo, titulo: j.titulo, trecho: j.contexto, href: rota(n, j, 0), campos: [[j.titulo, 6], [n.titulo, 5], [j.contexto + ' ' + j.resultado, 2]] });
       });
     });
     return entradas;
   }
   return { reconhecer: reconhecer, render: render, posRender: posRender, entradasBusca: entradasBusca,
-    titulo: function (r) { return r.tipo === 'demo' ? 'Cena ' + (r.indice + 1) + ' de ' + r.jornada.cenas.length + ': ' + r.jornada.cenas[r.indice].titulo + ' · ' + r.jornada.titulo : r.jornada ? r.jornada.titulo : r.nicho ? r.nicho.titulo : 'Deskcomm em ação'; } };
+    titulo: function (r) { return r.tipo === 'demo' ? 'Cena ' + (r.indice + 1) + ' de ' + r.jornada.cenas.length + ': ' + r.jornada.cenas[r.indice].titulo + ' · ' + r.jornada.titulo : r.jornada ? r.jornada.titulo : r.nicho ? r.nicho.titulo : ACAO; } };
 };

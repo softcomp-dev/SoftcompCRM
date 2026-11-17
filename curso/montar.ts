@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 
 import { GRUPO_NO_RODAPE, NAV_CATALOG, NAV_GROUPS } from "../lib/navigation/catalogo";
 import { Modulo, chaveDoPasso } from "./licao";
+import { aplicarMarcaNaPagina, cssDaMarca, lerMarca } from "./marca";
 import { Nicho, validarJornadas } from "./jornada";
 import { menuDoAdmin } from "./menu-do-admin";
 import { pastaDaSaida } from "./configuracao";
@@ -207,17 +208,23 @@ const dados = {
   menu,
 };
 
+// Nome, cor e logo do site (curso/marca.ts); sem CURSO_MARCA*, o site de sempre.
+const marca = lerMarca(process.env, (caminho) => readFileSync(caminho));
+
 // "<" escapado: o JSON vai dentro de <script>, e um "</script>" num texto de lição fecharia a tag
-const json = JSON.stringify(dados).replace(/</g, "\\u003c");
-const html = ler("site/pagina.html")
-  .replace("/*ESTILO*/", () => ler("site/estilo.css") + "\n" + ler("site/demonstracoes.css"))
+const json = JSON.stringify({ ...dados, marca: marca.nome }).replace(/</g, "\\u003c");
+const html = aplicarMarcaNaPagina(ler("site/pagina.html"), marca)
+  .replace(
+    "/*ESTILO*/",
+    () => ler("site/estilo.css") + "\n" + ler("site/demonstracoes.css") + "\n" + cssDaMarca(marca.cor),
+  )
   .replace("/*DADOS*/", () => json)
   .replace("/*APP*/", () => ler("site/demonstracoes.js") + "\n" + ler("site/app.js"));
 const DOCUMENTO = `<!doctype html>
 <html lang="pt-BR">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Curso em imagens do DeskComm: cada tela do sistema com fotos reais, setas e um simulador para treinar.">
+<meta name="description" content="Curso em imagens do ${(marca.nome ?? "DeskComm").replace(/"/g, "&quot;")}: cada tela do sistema com fotos reais, setas e um simulador para treinar.">
 `;
 writeFileSync(path.join(SAIDA, "index.html"), BASE ? DOCUMENTO + html : html);
 console.info(

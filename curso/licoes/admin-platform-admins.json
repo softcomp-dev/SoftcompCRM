@@ -294,7 +294,7 @@
         {
           "id": "p2",
           "titulo": "Quem precisa do código do celular",
-          "texto": "A coluna \"MFA\" fala da verificação em duas etapas: além da senha, um código de 6 números do aplicativo autenticador do celular. \"Sim\" quer dizer que a pessoa é obrigada: enquanto ela não cadastrar o código, o sistema não a deixa seguir, nem no Admin nem no resto do DeskComm. \"Não\" quer dizer que não é obrigada. Esse \"Sim\" ou \"Não\" também só muda direto no banco, como o resto desta tela.",
+          "texto": "A coluna \"MFA\" fala da verificação em duas etapas: além da senha, um código de 6 números do aplicativo autenticador do celular. \"Sim\" quer dizer que a pessoa é obrigada: enquanto ela não cadastrar o código, o sistema não a deixa seguir, nem no Admin nem no resto do sistema. \"Não\" quer dizer que não é obrigada. Esse \"Sim\" ou \"Não\" também só muda direto no banco, como o resto desta tela.",
           "dica": "Mesmo com \"Não\", quem cadastrou a verificação por conta própria precisa digitar o código ao entrar.",
           "antes": [],
           "destaques": [

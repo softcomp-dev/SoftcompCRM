@@ -5,6 +5,8 @@
   var W = D.largura, H = D.altura;
   var vista = document.getElementById("vista");
   var CHAVE_FEITOS = "curso-deskcomm:feitos";
+  // A marca do curso vem do montador (CURSO_MARCA); sem ela, a grafia de sempre.
+  var MARCA = D.marca || "DeskComm", MARCA_ACAO = (D.marca || "Deskcomm") + " em ação";
 
   // ---------- utilidades ----------
   function esc(s) {
@@ -117,7 +119,7 @@
   // ---------- menu lateral ----------
   function desenharMenu(rota) {
     var f = feitos();
-    document.getElementById("menu-grupos").innerHTML = '<div><div class="grupo-titulo">Histórias na tela</div><ul class="grupo-itens"><li><a class="item-menu" href="#acao"' + (rota.demo ? ' aria-current="page"' : '') + '>Deskcomm em ação</a></li></ul></div>' + D.menu.map(function (g) {
+    document.getElementById("menu-grupos").innerHTML = '<div><div class="grupo-titulo">Histórias na tela</div><ul class="grupo-itens"><li><a class="item-menu" href="#acao"' + (rota.demo ? ' aria-current="page"' : '') + '>' + esc(MARCA_ACAO) + '</a></li></ul></div>' + D.menu.map(function (g) {
       return '<div><div class="grupo-titulo">' + esc(g.grupo) + '</div><ul class="grupo-itens">' + g.itens.map(function (it) {
         var m = it.modulo && modulo(it.modulo);
         var ativo = m ? rota.mod === m.id : rota.tela === it.href;
@@ -141,14 +143,14 @@
     return '<div class="coluna">' +
       '<section class="abertura"><div class="coluna-texto" style="display:flex;flex-direction:column;gap:16px">' +
       '<span class="rotulo-mono">Curso em imagens · versão ' + esc(D.versao) + "</span>" +
-      '<h1 class="titulo-pagina">Aprenda o DeskComm tela por tela.</h1>' +
+      '<h1 class="titulo-pagina">Aprenda o ' + esc(MARCA) + ' tela por tela.</h1>' +
       '<p class="subtitulo">Cada lição mostra o sistema de verdade, com setas apontando onde clicar e o que acontece depois. Leia no seu ritmo ou treine no simulador antes de atender um cliente.</p>' +
       '<div class="acoes"><a class="botao botao-primario" href="#l.' + m0.id + "." + l0.id + '">Começar pela ' + esc(m0.titulo) + '</a>' +
       '<a class="botao botao-secundario" href="#s.' + m0.id + "." + l0.id + '">Abrir o simulador</a></div></div>' +
-      '<div class="abertura-figura">' + figura(cap0, { ansioso: true, alt: "Tela da " + m0.titulo + " do DeskComm" }) + "</div></section>" +
-      '<section class="jornada-convite"><a class="cartao" href="#acao"><span class="rotulo-mono">Histórias na tela</span><h2>Deskcomm em ação</h2><p>Mostre a um cliente como um atendimento caminha pela operação. Escolha um negócio, apresente a história e aprenda a montar.</p><span>Escolher uma história →</span></a></section>' +
+      '<div class="abertura-figura">' + figura(cap0, { ansioso: true, alt: "Tela da " + m0.titulo + " do " + MARCA }) + "</div></section>" +
+      '<section class="jornada-convite"><a class="cartao" href="#acao"><span class="rotulo-mono">Histórias na tela</span><h2>' + esc(MARCA_ACAO) + '</h2><p>Mostre a um cliente como um atendimento caminha pela operação. Escolha um negócio, apresente a história e aprenda a montar.</p><span>Escolher uma história →</span></a></section>' +
       '<section class="como">' +
-      "<div><strong>O menu é o do sistema</strong><span>À esquerda estão os mesmos grupos e nomes que você vê no DeskComm. Clique numa tela para aprender sobre ela.</span></div>" +
+      "<div><strong>O menu é o do sistema</strong><span>À esquerda estão os mesmos grupos e nomes que você vê no " + esc(MARCA) + ". Clique numa tela para aprender sobre ela.</span></div>" +
       "<div><strong>Ler ou simular</strong><span>No modo Ler, cada passo tem a foto da tela e a explicação. No Simulador, você clica no lugar certo para avançar.</span></div>" +
       "<div><strong>Busque qualquer dúvida</strong><span>Digite na busca o que você quer fazer, como “transferir conversa” ou “nota interna”.</span></div></section>" +
       '<section style="display:flex;flex-direction:column;gap:14px"><h2 class="secao-titulo">Módulos</h2><div class="cartoes">' +
@@ -387,7 +389,7 @@
     var foco = r.passo && document.getElementById("passo-" + r.passo);
     if (foco) foco.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
     var t = r.demo ? demos.titulo(r.demo) : l ? l.titulo : m ? m.titulo : "";
-    document.title = t ? t + " · Curso DeskComm" : "Curso DeskComm";
+    document.title = t ? t + " · Curso " + MARCA : "Curso " + MARCA;
   }
   var ampliada = document.getElementById("ampliada");
   ampliada.addEventListener("click", function (e) { if (e.target === ampliada || e.target.closest("[data-fechar]")) ampliada.close(); });
