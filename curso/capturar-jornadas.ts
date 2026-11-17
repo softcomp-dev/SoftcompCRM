@@ -34,6 +34,11 @@ export { abrirManifestoDaRodada } from "./manifesto";
 
 type Estado = Awaited<ReturnType<typeof semearCena>>;
 
+/** Título de negócio como trecho literal de expressão regular (traço, parêntese e afins). */
+function escaparRegex(texto: string): string {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function mostrar(
   page: Page,
   base: string,
@@ -170,10 +175,10 @@ async function mostrar(
       .locator("a[data-testid^='abrir-']")
       .filter({ hasText: `${estado.empresa} · ${textoDaDemonstracao("oportunidades")}` })
       .click();
-    const cartao = page.getByRole("group", {
-      name: `${textoDaInterface("Negócio")}: ${estado.titulo}`,
-      exact: true,
-    });
+    // O card fechado leva o desfecho no nome ("… (Ganho)", cor do desfecho):
+    // o nome exato só achava card aberto, e a jornada põe negócio na etapa de ganho.
+    const nomeDoCartao = `^${escaparRegex(`${textoDaInterface("Negócio")}: ${estado.titulo}`)}( \\(.+\\))?$`;
+    const cartao = page.getByRole("group", { name: new RegExp(nomeDoCartao) });
     await cartao.waitFor({ state: "visible" });
     if (indice >= 3) {
       await cartao.getByRole("button", { name: estado.titulo, exact: true }).click();
@@ -187,7 +192,7 @@ async function mostrar(
         .waitFor({ state: "visible", timeout: 15_000 });
       return { role: "dialog" };
     }
-    return { role: "group", nome: `${textoDaInterface("Negócio")}: ${estado.titulo}`, exato: true };
+    return { role: "group", nome: nomeDoCartao, regex: true };
   }
   if (superficie === "caso") {
     await page.goto(`${base}/app/ai/cases`);
