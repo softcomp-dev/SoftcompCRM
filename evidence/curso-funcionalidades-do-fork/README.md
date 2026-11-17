@@ -16,6 +16,21 @@ próprio, app da imagem publicada, worker parado), apagada depois. Resultado:
   distribuição, marca, memória, respostas rápidas, tags, tarefas), mais o capturador
   das jornadas, que não achava card de negócio ganho.
 
+### Recaptura com a marca SoftcompCRM (17/11/2026, à tarde)
+
+O curso foi fotografado de novo, inteiro, com a marca da Softcomp aplicada como marca
+da instalação (`CURSO_MARCA*` na semente; ver `curso/marca.ts`):
+
+- **Fotos:** v1.104.20, 89 módulos e as jornadas dos 10 nichos, 1.650 fotos, com o logo
+  da Softcomp no menu e o nome SoftcompCRM.
+- **Site:** título "Curso SoftcompCRM", logo no cabeçalho e dourado `#c9982f` no lugar
+  do verde.
+- **Publicado** na Release `curso-2026-11-17-b` (não-latest), que substitui a
+  `curso-2026-11-17` no GitHub Pages. Cópia das fotos fora do repositório, em
+  `C:\projetos\SoftcompCRM-curso-fotos`.
+- **Aulas ajustadas:** Marca (o menu mostra o logo, não o nome em texto) e Memória
+  (o quadro é remontado depois de carregar).
+
 O texto abaixo é o roteiro escrito antes da captura, mantido como registro.
 
 Aulas escritas a partir do código, **sem captura**. A máquina onde foram escritas
