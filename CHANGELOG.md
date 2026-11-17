@@ -8,6 +8,10 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+## [1.104.21] — 2026-11-17
+
+Esta versão não trouxe fragmento em `.changes/`: as mudanças não foram descritas para quem opera.
+
 ## [1.104.20] — 2026-11-17
 
 Esta versão não trouxe fragmento em `.changes/`: as mudanças não foram descritas para quem opera.
@@ -15296,7 +15300,8 @@ Primeira versão marcada do DeskcommCRM. O projeto vinha sendo desenvolvido publ
 
 - **Node 22 é obrigatório para desenvolvimento.** A suíte de invariantes instancia o cliente do Supabase, que exige o `WebSocket` global — nativo apenas a partir do Node 22. Isso não afeta quem apenas hospeda: a VPS roda a imagem pronta.
 
-[Não lançado]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.20...HEAD
+[Não lançado]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.21...HEAD
+[1.104.21]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.20...v1.104.21
 [1.104.20]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.19...v1.104.20
 [1.104.19]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.18...v1.104.19
 [1.104.18]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.17...v1.104.18
