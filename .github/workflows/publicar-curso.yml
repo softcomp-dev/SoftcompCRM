@@ -1,0 +1,68 @@
+name: Publicar o curso
+
+# O CURSO ILUSTRADO NO GITHUB PAGES — EXCLUSIVO DO FORK softcomp-dev/SoftcompCRM.
+#
+# O curso (aulas com a foto de cada tela, setas e simulador) é montado na
+# bancada de captura e empacotado por `curso/empacotar-publicacao.sh`. As fotos
+# dos dois idiomas passam de 100 MB, então nada disso entra no git nem na
+# imagem do app: o pacote vira anexo `curso.tar.gz` de uma Release
+# `curso-AAAA-MM-DD`, criada como NÃO-latest — o "Atualizar" do servidor
+# procura a Release mais recente, e a do curso não pode passar por versão do
+# app (a tag também não casa com o `v*` que o agent.sh lê).
+#
+# Este workflow baixa o anexo e o entrega ao Pages. A aba Curso do CRM
+# (app/app/curso) abre o endereço que a instalação declara em CURSO_URL.
+# Passo a passo e decisões: docs/features/curso-no-crm.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release do curso (curso-AAAA-MM-DD)"
+        required: true
+
+concurrency:
+  group: publicar-curso
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    # Só no fork, e só para Release de curso: Release de versão do app (vX.Y.Z)
+    # dispara este evento também e não pode publicar nada aqui.
+    if: github.repository == 'softcomp-dev/SoftcompCRM' && (github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'curso-'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # contents: ler o anexo da Release.
+    # pages + id-token: o deploy do Pages exige os dois (OIDC do actions/deploy-pages).
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Baixar o curso montado da Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          case "${TAG}" in curso-*) ;; *) echo "::error::${TAG} não é uma Release de curso (curso-*)"; exit 1 ;; esac
+          gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --pattern 'curso.tar.gz' --dir .
+          mkdir site
+          tar -xzf curso.tar.gz -C site
+          # Os dois idiomas, ou nada: publicar um só deixaria a aba em espanhol
+          # abrindo uma página que não existe.
+          test -f site/index.html
+          test -f site/es/index.html
+          echo "fotos: $(find site -name '*.jpg' | wc -l)"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -279,6 +279,16 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
       "faz o servidor parar de receber versão nova, sem erro em lugar nenhum. A condição de " +
       "repositório existe para o workflow nunca cortar versão no produto original.",
   },
+  "publicar-curso.yml::publicar": {
+    condicao:
+      "github.repository == 'softcomp-dev/SoftcompCRM' && " +
+      "(github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'curso-'))",
+    efeito:
+      "Este job publica no GitHub Pages do FORK o curso ilustrado que a aba Curso do CRM abre. " +
+      "Desligá-lo deixa o curso publicado parado na última versão, sem erro em lugar nenhum. A " +
+      "condição de repositório impede publicar no produto original, e a de tag impede que a " +
+      "Release de versão do app (vX.Y.Z), que dispara o mesmo evento, publique algo aqui.",
+  },
   "telefonia.yml::ligacao": {
     condicao: null,
     efeito:

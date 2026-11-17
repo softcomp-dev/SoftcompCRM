@@ -56,6 +56,12 @@ const ESCRITA_JUSTIFICADA: Record<string, string> = {
     "só no fork softcomp-dev (o job tem `if: github.repository`): grava na main o commit " +
     "chore(release) com a seção do CHANGELOG, empurra a tag vX.Y.Z dele e cria a Release " +
     "que o botão Atualizar do servidor procura",
+  "publicar-curso.yml::pages: write":
+    "só no fork softcomp-dev e só para Release curso-*: entrega ao GitHub Pages o curso " +
+    "montado, que a aba Curso do CRM abre",
+  "publicar-curso.yml::id-token: write":
+    "exigido pelo actions/deploy-pages, que se autentica no Pages por OIDC; mesmo job e mesma " +
+    "condição do pages: write",
   "versao-automatica-do-fork.yml::actions: write":
     "só no fork softcomp-dev: dispara o publish-image.yml na tag nova (tag empurrada com o " +
     "GITHUB_TOKEN não dispara workflow) e acompanha a execução até as imagens existirem",

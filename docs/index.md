@@ -59,6 +59,7 @@ de menor precedência e registre.
 | [`features/multiempresa.md`](features/multiempresa.md) | **Multiempresa** — Vínculos no painel do dono (quais empresas cada conta acessa), Visão consolidada (funil, conversas e contatos de várias empresas) e "Transferir para outra empresa" no card |
 | [`features/desfecho-e-documento-do-negocio.md`](features/desfecho-e-documento-do-negocio.md) | **Desfecho e documento do negócio** — ganho parcial (valor fechado menor que o previsto, conta como venda), cor do card pelo desfecho e número da cotação ou do pedido |
 | [`features/historico-de-atendimento.md`](features/historico-de-atendimento.md) | **Histórico de atendimento** — aba Atendimentos na ficha do contato (chat por dia, ligações, interações registradas) e o botão "Registrar interação" |
+| [`features/curso-no-crm.md`](features/curso-no-crm.md) | **Curso dentro do CRM** — a aba Curso (`/app/curso`), por que o curso mora fora da imagem, e como empacotar e publicar uma versão nova no GitHub Pages do fork |
 | [`features/classificacao-de-clientes.md`](features/classificacao-de-clientes.md) | **Classificação de clientes** (ativo, pré-inativo, inativo, sem compra) pela última venda ganha — selo, filtro, prazos da organização, público de campanha e aviso diário na Central |
 | [`presentation/pitch-deck.md`](presentation/pitch-deck.md) | Pitch |
 
