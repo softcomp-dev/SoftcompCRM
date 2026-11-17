@@ -160,6 +160,7 @@
           "rota": "/app/ai/memory",
           "texto": "Tudo o que está neste quadro vai junto em cada resposta do agente. Por isso, guarde aqui só regras curtas que valem para qualquer atendimento: endereço, horário, o que nunca prometer. Uma regra por linha, em frases diretas. Material longo, como perguntas frequentes ou o preparo de exames, fica melhor em \"Conhecimento\", onde o agente procura o trecho que tem a ver com a pergunta.",
           "dica": "Só o administrador publica. Um gerente também abre esta tela e consegue escrever no quadro, mas o botão \"Publicar versão\" fica apagado, com o aviso \"Somente admins podem publicar uma nova versão.\".",
+          "antes": [{ "acao": "esperar", "ms": 1500 }],
           "destaques": [
             {
               "alvo": {
@@ -345,6 +346,7 @@
           "rota": "/app/ai/memory",
           "texto": "Um aprendizado é um fato ou uma correção pontual, como \"o retorno em até 30 dias não é cobrado\". Ao contrário do documento, ele não tem versão nem precisa ser publicado. Para ensinar um, clique em \"Novo aprendizado\", no quadro \"Aprendizados\".",
           "dica": "Gerente também cria, arquiva e reativa aprendizados.",
+          "antes": [{ "acao": "esperar", "ms": 1500 }],
           "destaques": [
             {
               "alvo": { "role": "button", "nome": "Novo aprendizado", "exato": true },

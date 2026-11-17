@@ -298,7 +298,7 @@
             {
               "acao": "aguardar",
               "alvo": {
-                "css": "aside span[title='Clínica Bem Viver']"
+                "css": "aside :is(img[alt='Clínica Bem Viver'], span[title='Clínica Bem Viver']):visible"
               }
             },
             {
@@ -309,9 +309,9 @@
           "destaques": [
             {
               "alvo": {
-                "css": "aside span[title='Clínica Bem Viver']"
+                "css": "aside :is(img[alt='Clínica Bem Viver'], span[title='Clínica Bem Viver']):visible"
               },
-              "rotulo": "Nome no menu",
+              "rotulo": "Marca no menu",
               "tipo": "seta"
             },
             {
