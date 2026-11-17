@@ -32959,6 +32959,11 @@ create trigger trg_phone_numbers_audit
 
 -- Resolve org + config de roteamento a partir do número discado (DNIS).
 -- Usado pelo worker (service-role, ignora RLS).
+-- O `drop` vem antes porque o apêndice (telefone do time) troca o retorno desta
+-- função, e `create or replace` não troca tipo de retorno: reaplicado num banco
+-- que já tem a versão nova (o update.sh), o bloco parava com "cannot change
+-- return type of existing function". O apêndice recria a versão nova logo depois.
+drop function if exists public.fn_resolve_inbound_number(text);
 create or replace function public.fn_resolve_inbound_number(p_number text)
 returns table (
   organization_id uuid,
