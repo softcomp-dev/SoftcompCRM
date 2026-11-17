@@ -8,6 +8,499 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+## [1.104.17] — 2026-11-17
+
+### Adicionado
+
+- **A Agenda mostra as datas dos negócios** Quem trabalha com data — evento, obra, entrega, viagem — tinha as datas dos negócios
+  só na aba **Calendário** de cada funil. Agora a **Agenda** tem a camada
+  **Datas dos negócios**: escolha o funil e o campo de data (e, se quiser, um segundo
+  campo) e os negócios aparecem no dia de cada data, com o rótulo do próprio campo, o
+  funil e a etapa. Os dias entre as duas datas não aparecem.
+
+  A camada **nasce desligada**, e desligada a Agenda fica exatamente como era: nada
+  de item, nada de consulta. A escolha vale na tela de cada pessoa e
+  **não fica gravada**. Ela é **só leitura**: não ocupa horário livre, não entra nos
+  horários sugeridos e não manda lembrete de compromisso — clicar num item abre o
+  negócio no funil, que é onde a data muda. Quem não enxerga o funil não enxerga a
+  data: a leitura passa pela mesma regra de visibilidade do CRM.
+
+  Os parâmetros da consulta são validados antes de chegar ao banco, e a resposta diz
+  **por que** não veio lista: período com data que não existe no calendário (31 de
+  fevereiro, mês 13) volta como `data_de_calendario_invalida`, em vez de uma grade
+  vazia que pareceria "nenhum negócio neste período".
+
+  Nada a fazer na VPS: sem migration, sem variável nova.
+
+- ****A agenda convida a equipe e leva o negócio para dentro do evento do Google**** O compromisso passa a aceitar **convidados da equipe** (`calendar_appointments.team_guest_user_ids`), além do responsável e do e-mail digitado à mão: cada pessoa recebe o convite no Google e vê o compromisso na própria agenda — inclusive no recorte "minha agenda" do CRM, que agora traz o que a pessoa vai atender E aquilo a que foi chamada. Quem não é da organização é recusado com mensagem na tela, e não descartado em silêncio; e-mail inválido ou vazio simplesmente não vai para o Google, porque um endereço malformado faz o Google recusar o evento INTEIRO. Tipo de **serviço** fica de fora: ali a tela não oferece convidados e a rota recusa a lista. A descrição do evento pode passar a levar, depois do texto que a pessoa escreveu, o **contexto do negócio**: negócio, etapa, produtos da proposta vigente, cliente, telefone e link do CRM. **Vem desligado**: liga-se por tipo de atendimento, em Configurações › Agenda, na chave "Levar os dados do negócio para o Google" — quando a ficha do cliente tem e-mail, ele também é convidado e lê a descrição, então atualizar não manda dado do cliente para fora sem alguém decidir. Compromisso sem negócio vinculado não ganha bloco nenhum. Editar o compromisso não duplica nem desconvida ninguém à toa: a lista publicada em `extendedProperties.private.deskcomm_guests` é o que permite tirar quem saiu, o RSVP de quem ficou é preservado, e um ajuste só de descrição não manda e-mail a ninguém.
+
+- **O agente da prospecção sabe o que a campanha vende e oferece a automação junto do site** Na campanha de prospecção, as caixinhas de **O que esta campanha vende** agora chegam ao contexto das respostas do agente e à ferramenta de auditoria, na ordem marcada. Antes, essas escolhas só chegavam se o operador as repetisse no texto da instrução. Quando a campanha vende automação, a estratégia ganha uma frase sobre ela, exibida também na auditoria do site. Essa frase não apresenta site quando a oferta está desmarcada. Campanha que só vende site continua como antes. O bloco da primeira abordagem não foi alterado nesta fatia. Não é preciso mexer em nada na VPS. Contribuição de @paulolimajr77.
+
+- **Pela API, o ERP anexa documentos, cuida das empresas e monta a proposta com os itens do pedido** Com o token de integração, um sistema externo agora consegue:
+
+  - **anexar documentos ao negócio** (nota fiscal, contrato) e listá-los e
+    baixá-los, com o mesmo limite de 50 MB e os mesmos tipos de arquivo da tela;
+  - **criar, ler e editar empresas** clientes, quando a organização usa o módulo
+    CRM B2B;
+  - **criar e editar o rascunho da proposta** com os itens do pedido. Item com
+    produto do catálogo usa o preço do catálogo, e a leitura mostra se o preço
+    mudou desde então.
+
+  Apagar anexo, empresa ou proposta e enviar a proposta ao cliente continuam só
+  pela tela.
+
+- **Pela API, o ERP configura o próprio webhook de aviso e lê as etiquetas** Quem instala a integração para vários clientes agora configura o aviso de volta
+  para o ERP sem entrar na tela de cada CRM: com um token de **administrador**, a
+  API cria, lista, edita, ativa e apaga as regras de automação
+  (`/api/v1/automation-rules`), inclusive a de "Chamar webhook". A regra criada
+  pela API nasce pausada, a URL passa pelas mesmas proteções da tela e o segredo
+  de assinatura é guardado cifrado e nunca devolvido.
+
+  O ERP também passa a ler as etiquetas em uso (`GET /api/v1/contact-tags`), para
+  filtrar contatos com a grafia exata.
+
+- **Um sistema externo cria contatos pela API REST, com token** Quem integra um ERP ao CRM agora consegue cadastrar o cliente pela API, com o
+  mesmo token usado para criar e mover cards: `POST /api/v1/contacts` com
+  `Authorization: Bearer dsk_…` (escopo de escrita). Antes, o ERP só conseguia
+  procurar contatos que já existiam, e um pedido de cliente novo chegava ao funil
+  sem cliente ligado.
+
+  Se o contato já existe (mesmo telefone, e-mail ou documento), a resposta é 409
+  com o identificador do contato existente, para o sistema usar esse em vez de
+  criar outro. O cabeçalho `Idempotency-Key` evita cadastro duplicado quando a
+  chamada é repetida. A documentação em `/docs` já descreve a rota.
+
+- **Pela API, o ERP lê e atualiza a ficha do contato e descobre os vendedores** Com o token de integração, um sistema externo agora consegue ler a ficha de um
+  contato (`GET /api/v1/contacts/{id}`) e atualizá-la (`PATCH`), com as mesmas
+  regras da tela: documento validado pela régua do país e recusa com o
+  identificador do contato existente quando o telefone, o e-mail ou o documento
+  já são de outra pessoa. O CPF nunca sai em claro, e apagar contato continua só
+  pela tela.
+
+  Também passa a ler a lista de quem pode ser responsável por um negócio
+  (`GET /api/v1/team/assignable`) com o e-mail de cada pessoa, para casar o
+  vendedor do ERP com o do CRM antes de atribuir o negócio.
+
+- **Um sistema externo (como um ERP) cria e move cards do funil pela API REST, com token** Até aqui, um sistema de fora só conseguia criar card, mudar etapa e descobrir
+  os funis pelo servidor MCP, num formato pensado para agentes de IA. Agora essas
+  operações também aceitam um token de **Configurações › API Tokens**
+  (`Authorization: Bearer dsk_…`) nas rotas REST comuns:
+
+  - `GET /api/v1/pipelines` e `GET /api/v1/pipelines/{id}/stages` listam funis e
+    etapas (permissão "Agentes de IA podem LER o CRM");
+  - `POST /api/v1/leads` cria o card e `POST /api/v1/leads/{id}/move` muda a
+    etapa, só com `stage_id` e os motivos opcionais (permissão "Agentes de IA
+    podem AGIR no CRM").
+
+  As regras são as mesmas da tela: campos obrigatórios da etapa, motivo de ganho
+  e de perda e reabertura de negócio encerrado. Cada token tem um limite de
+  30 chamadas por minuto em cada grupo de rotas (funis e etapas, cards). Nada muda
+  para quem usa o CRM pela tela, e a instalação não precisa de nenhuma ação. A
+  referência das rotas que aceitam token está em `docs/api/openapi.yaml`.
+
+- **Pela API, o ERP fecha o negócio, registra notas e cria tarefas** Com o token de integração, um sistema externo agora consegue:
+
+  - **marcar o negócio como ganho ou perdido** numa chamada só
+    (`POST /api/v1/leads/{id}/win` e `/lose`), sem precisar saber qual é a etapa
+    de fechamento de cada funil — por exemplo, quando o pedido é faturado ou
+    cancelado. Valem as mesmas regras da tela: motivo do vocabulário do funil e
+    campos obrigatórios;
+  - **registrar uma nota na linha do tempo do negócio**
+    (`POST /api/v1/leads/{id}/notes`), como "nota fiscal emitida" ou "boleto
+    vencido", para o vendedor ver;
+  - **criar e listar tarefas** (`/api/v1/tasks`) ligadas ao negócio, ao contato e
+    a um responsável.
+
+- **Pela API, o ERP lê os negócios e acha cada um pelo número do pedido** Com o token de integração, um sistema externo agora consegue:
+
+  - **criar o negócio com o número do pedido** (`external_id`). Se já existir
+    negócio com esse número na mesma origem, a resposta traz o identificador do
+    existente em vez de criar outro;
+  - **ler um negócio** pelo identificador (`GET /api/v1/leads/{id}`) ou pelo
+    número do pedido (`GET /api/v1/leads/by-external/{origem}/{número}`), com
+    etapa, situação, responsável, valor e campos;
+  - **listar o que mudou** (`GET /api/v1/leads?updated_since=…`), em ordem estável
+    e com paginação, para conferir o que um aviso por webhook possa ter perdido.
+
+  As leituras respeitam o mesmo limite de chamadas por minuto das escritas, e
+  negócios de contatos marcados como pessoais não aparecem.
+
+- **Apresentação de produtos pela IA, opcional por empresa** Cada empresa pode ligar, em Configurações › Organização › Catálogo, a apresentação de produtos pela IA. Ela vem desligada, e quem não ligar não vê nada de novo.
+
+  Com a chave ligada, cada item do catálogo ganha uma apresentação própria em texto ou áudio (OGG, WebM ou M4A), que pode reutilizar as fotos cadastradas e incluir o preço do catálogo. O agente envia os itens em sequência, na ordem pedida, e só recebe essa ferramenta quando há ao menos uma apresentação ativa na empresa.
+
+  Quando a proteção contra mensagens repetidas barra o texto fixo (o mesmo produto apresentado a vários clientes em pouco tempo), o agente responde ao cliente com as próprias palavras, e o bloqueio fica registrado com o motivo, no histórico do negócio do contato quando ele existe.
+
+  Desligar a chave esconde a seção e tira a ferramenta do agente, sem apagar o que foi cadastrado.
+
+  Contribuição de @vanksestevao (#2780, #3168).
+
+- **Respostas rápidas viajam entre organizações como blueprint** Em Respostas rápidas, quem é gerente ou administrador ganha os botões Exportar
+  e Importar. Exportar baixa as respostas compartilhadas num arquivo; Importar
+  aplica esse arquivo em outra organização que ainda não tenha nenhuma — a
+  importação nunca sobrescreve nem mescla. As respostas chegam como
+  compartilhadas, na mesma ordem e sem grupo, numa lista só; imagem e áudio
+  ficam de fora, e a tela diz quantos. A resposta que só tem áudio não entra, e o
+  resultado da importação conta quantas ficaram de fora. O arquivo leva até 200
+  respostas: acima disso a exportação avisa o limite em vez de gerar um arquivo
+  que a importação recusaria. Dois envios simultâneos do mesmo arquivo não
+  duplicam nada. Nada muda na VPS — chega pela atualização normal.
+
+- **Botão "Buscar atualização" confere na hora se saiu versão nova** Em **Configurações › Atualização**, quem administra o servidor tem agora o botão
+  **Buscar atualização**. Ele pergunta ao GitHub, na hora, qual é a última versão
+  publicada e diz se já saiu uma nova, em vez de esperar a conferência automática,
+  que continua rodando a cada 5 minutos.
+
+  O botão só traz a notícia. Quem confirma a versão instalada e quem atualiza
+  continua sendo o agente do servidor, então, quando há versão nova, o botão
+  **Atualizar agora** aparece em até 5 minutos, assim que o servidor confirmar.
+
+  O botão aparece depois da primeira atualização feita com esta versão, que é
+  quando o servidor passa a informar de onde vêm as versões. Nada precisa ser
+  configurado.
+
+- **Cadências de e-mail como módulo opcional, com inscrição manual e descadastro** Quem administra o servidor pode instalar **Cadências de e-mail** em Módulos; depois cada empresa escolhe se quer usar. Desligado por padrão: quem não instala não recebe as tabelas do módulo. O gerente monta e-mails, espera em dias úteis, tarefas e caminhos por abertura autorizada, escolhe a janela e inscreve negócios manualmente.
+
+  Os e-mails usam o transporte já configurado na instalação e incluem descadastro: abrir o link só pede a confirmação, para filtro de e-mail não descadastrar ninguém, e o cliente de e-mail pode oferecer o descadastro de um clique. O rastreio começa desligado e depende de autorização do destinatário. Desligar preserva dados e impede próximos envios; o descadastro continua funcionando. A atividade mostra envios, aberturas autorizadas e falhas. O histórico entra no export e na anonimização de LGPD.
+
+  Cliques, respostas, devoluções, caixa por vendedor, tags automáticas e WhatsApp ficam fora deste módulo. Resultado de envio incerto não é reenviado automaticamente.
+
+  Contribuição original de **Marcelo (@lmarceloc)**, PR#1738; adaptação ao módulo oficial em commits separados.
+
+- **Clientes classificados como ativo, pré-inativo ou inativo pela última venda ganha** Cada contato passa a mostrar a sua classificação, calculada pela data do último negócio **ganho**:
+  **Ativo** até 90 dias, **Pré-inativo** até 180 dias e **Inativo** depois disso.
+  Quem nunca teve negócio ganho aparece como **Sem compra**.
+  O selo aparece na lista de contatos, no lugar do antigo "Ativo", e na ficha do cliente.
+
+  A lista de contatos ganhou o filtro **Classificação**, que também vale para a exportação.
+  Uma campanha pode usar a classificação como público, por exemplo para falar só com os pré-inativos.
+  Quando um cliente vira pré-inativo, a **Central** abre um aviso diário que leva à ficha dele,
+  para a equipe agir antes que ele esfrie de vez.
+
+  Os prazos ficam em **Configurações › Organização › Classificação de clientes**.
+  A atualização calcula a última venda dos negócios ganhos que já existem; nada precisa ser feito na VPS.
+
+- **Crie o contato sem sair do negócio nem perder o vínculo** Negócios sem contato podem abrir o cadastro nativo com nome, etiquetas e identificadores rotulados já preenchidos para conferência. Telefones ambíguos exigem escolha. Criar e vincular ocorre numa transação com RLS, e o vínculo aparece na linha do tempo do negócio. Como na ficha criada à mão, a conversa abre quando há telefone e canal pronto. O vínculo com contato existente continua disponível. Crédito: @vagnerrm122.
+
+- **A documentação da API abre dentro do CRM, em /docs, com teste pelo navegador** Quem integra outro sistema (um ERP, uma loja, uma automação) agora encontra a
+  documentação da API dentro do próprio CRM: em `/docs`, ou no menu
+  **Organização › Dados e acesso › Documentação da API**. A tela de **API Tokens**
+  também tem o link.
+
+  É a referência no padrão Swagger das rotas que aceitam token. Ela aparece com o
+  nome da sua marca e já aponta para o endereço da sua instalação. Para testar uma
+  rota, cole o token no botão **Authorize**. O teste usa só o token, sem a sua
+  sessão, então o resultado é o mesmo que o seu sistema vai receber. A página
+  exige login, e o token colado fica só naquela aba.
+
+- **Conta de e-mail da empresa e conferência do domínio de envio** Em **Configurações → Marca**, a empresa pode conectar sua conta Resend com um endereço do domínio verificado. A chave fica cifrada e não é mostrada de volta. As automações usam essa conta; sem uma conta conectada, continuam usando o envio da instalação. Convites, recuperação de senha e e-mails de dados pessoais continuam pelo remetente do sistema. Uma conta ilegível ou indisponível é sinalizada como falha, sem trocar silenciosamente o remetente.
+
+  O card **Domínio de envio** consulta os registros esperados pela conta conectada e compara com o DNS, incluindo Return-Path personalizado e CNAME. O estado informado pela Resend fica separado das pendências do DNS. Falha na consulta não aparece como registro ausente, e a conferência não promete entrega na caixa de entrada.
+
+  Contribuição de @webtecnica (#3443 e #3464). Refs #3287 e #3441; campanhas, supressão e descadastro permanecem em suas próprias entregas.
+
+- **Função SDR por empresa, com os leads novos distribuídos só entre os SDRs** Cada empresa escolhe agora entre dois fluxos de atendimento: o de sempre, em que
+  os leads novos vão para a equipe inteira, ou o fluxo **SDR**, em que só quem faz a
+  pré-venda recebe os leads novos. A função vem **desligada**: quem não a ligar não
+  vê mudança nenhuma.
+
+  Em **Equipe › Membros**, o cartão "Função SDR" liga a função, e a tabela ganha uma
+  coluna SDR com uma chave por pessoa. O cartão diz para onde estão indo os leads
+  novos naquele momento. Com ao menos um SDR ativo, a distribuição automática
+  (rodízio ou por carga) entrega a conversa nova só aos SDRs. Se todos estiverem
+  ocupados ou fora do horário, o lead espera um SDR em vez de ir para outra pessoa.
+  Com a função ligada e ninguém marcado, nada para: os leads seguem para a equipe.
+  A regra dos responsáveis por número e a das filas continuam valendo junto, e o
+  destino padrão de um número continua indo para a pessoa escolhida.
+
+  SDR não é um papel novo. Ele se soma ao papel que a pessoa já tem: um Atendente,
+  um Gerente ou um Administrador pode ser SDR, e quem tem o papel Somente leitura
+  não pode. Se a função for desligada, se a pessoa passar a Somente leitura ou se o
+  acesso dela for revogado, ela deixa de receber leads como SDR na hora, sem que
+  ninguém precise desmarcá-la, e a tabela mostra o motivo na linha dela. Religar a
+  função devolve a equipe como estava.
+
+  O mesmo está na API (`/api/v1/settings/sdr`, `/api/v1/sdr/assignments` e
+  `/api/v1/sdr/permissions`, com a sessão de quem está logado). Toda mudança fica
+  registrada na auditoria. A atualização acrescenta uma coluna ao banco e não pede
+  nada a quem opera a VPS.
+
+- **Negócio ganho pela metade vira "ganho parcial", e o card mostra a cor do desfecho** No menu de cada card do funil há agora **Marcar como ganho parcial**, para o negócio que fechou com menos do que se previa.
+  Ele pede o **valor efetivamente fechado** (menor que o previsto, que aparece no próprio diálogo) e o **motivo**.
+  O parcial conta como venda em todo lugar: conversão, metas e na classificação do cliente.
+  A receita passa a usar o valor fechado, e o valor previsto fica guardado; se o negócio for reaberto, o valor previsto volta.
+  Também dá para marcar como parcial um negócio que já estava ganho.
+
+  Os cards fechados ganharam cor: **verde** para ganho, **vermelho** para perdido e **âmbar** para ganho parcial, numa faixa à esquerda com o fundo levemente tingido.
+  Cards abertos continuam como estavam.
+
+  A atualização aplica as colunas novas sozinha. Não há nada para configurar.
+
+- **Histórico de atendimento na ficha do contato** A ficha do contato ganhou a aba **Atendimentos**, com todas as interações da
+  equipe com o cliente, em ordem do mais recente para o mais antigo. As conversas
+  no WhatsApp entram sozinhas, uma linha por conversa e por dia, mostrando quantas
+  mensagens vieram do cliente, da equipe e da IA, com um link para abrir a
+  conversa. As ligações feitas pelo CRM, pelo VoIP ou pelo WhatsApp, também entram
+  sozinhas, com a duração e se o cliente atendeu. O que acontece fora do CRM, como
+  a ligação do celular, a reunião, a visita ou o e-mail, a equipe registra pelo
+  botão **Registrar interação**: escolhe o negócio, como foi, quem procurou quem,
+  se conseguiu falar, quando, quanto tempo durou e o que foi conversado. A
+  interação em que o vendedor falou com o cliente conta como movimento do negócio,
+  do mesmo jeito que uma ligação atendida pelo CRM; a tentativa sem resposta fica
+  registrada, mas não conta como movimento. A interação registrada aparece também
+  na linha do tempo do negócio.
+
+- **Vínculos de conta com várias empresas e uma visão consolidada do funil, das conversas e dos contatos** O dono da instalação ganhou a tela **Painel › Vínculos**. Ela mostra todas as
+  empresas numa lista, e ali se marca quais empresas uma conta acessa (uma,
+  algumas ou todas) e com que papel em cada uma. O vínculo vale na hora, sem
+  e-mail de convite, porque a conta já existe. Tirar o acesso por essa tela tem
+  o mesmo efeito da Equipe: as conversas abertas da pessoa voltam para a fila, e
+  o último admin de uma empresa não pode ser removido.
+
+  Quem participa de mais de uma empresa ganhou a **Visão consolidada** (no hub do
+  CRM e em "Ver todas juntas", no seletor de empresa). Ela junta numa tela só:
+
+  - o **funil** das empresas escolhidas, com as etapas de mesmo nome numa coluna
+    só e o nome da empresa em cada card;
+  - as **conversas**;
+  - os **contatos**.
+
+  Os cards podem ser arrastados entre as colunas, mas só para etapas do funil do
+  próprio card. A pessoa só move card de empresa em que ela é ao menos agente.
+  Abrir um card, uma conversa ou um contato de outra empresa troca a empresa
+  ativa antes de abrir.
+
+  Nada muda para quem tem uma empresa só, e não há variável nova nem migration.
+
+- **O negócio guarda o número da cotação ou do pedido** Quem vende por cotação e fecha por pedido no sistema de gestão não tinha onde anotar no
+  negócio qual é o documento lá fora, e o número acabava perdido na descrição. Agora a
+  edição do negócio, tanto no **Funil** quanto no dossiê da conversa, tem o campo
+  **Número da cotação ou do pedido**, com a escolha **Cotação** ou **Pedido** ao lado. O
+  negócio é um ou outro, nunca os dois: quando a cotação vira pedido, troque a escolha e o
+  número e salve.
+
+  Apagar o número limpa o documento inteiro. A mudança entra na linha do tempo do negócio
+  e na auditoria, com o antes e o depois. Pela API, o `PATCH /api/v1/leads/{id}` aceita
+  `sales_document_kind` (`quote` ou `order`) e `sales_document_number`.
+
+  A atualização aplica a migration sozinha; os negócios existentes ficam sem documento até
+  alguém preencher.
+
+- **Painel de atendimento mostra quem espera resposta, quem está em atendimento e quem já foi atendido hoje** Um recurso opcional novo, desligado por padrão: quem administra a instalação liga «Painel de atendimento» em Recursos opcionais, e a tela aparece em Análise › Ver tudo em Análise. Ela reúne o dia de quem atende num número só, em três colunas. «Aguardando atendimento» lista quem mandou a última mensagem e ainda não teve resposta, do mais antigo para o mais novo, com «esperando há» quanto tempo. A conversa que a IA passou para a equipe também fica ali até alguém assumir, como na aba Fila. «Em atendimento» traz as conversas abertas em que a última palavra foi nossa, inclusive quando quem respondeu foi a IA. «Atendidos hoje» mostra o que foi encerrado no dia, no fuso da organização. Dá para filtrar por número, e o contador de casos da IA leva direto à fila de casos. A tela mostra só o que cada pessoa já vê no Inbox e atualiza sozinha; no celular as colunas ficam uma embaixo da outra. Quem usa a API ganha o filtro `closed_since` em `GET /api/v1/conversations`.
+
+- **O SDR passa o negócio para o vendedor que escolher, pelo menu do card** Com a função SDR ligada, quem é SDR ganha no menu "⋯" do card do funil a opção
+  **Passar para vendedor**. Ela lista as pessoas da equipe que podem fechar a venda
+  (nunca outro SDR, nem quem tem o papel Somente leitura), e o SDR escolhe uma.
+
+  O negócio passa para o vendedor escolhido, e com ele o cliente (a carteira) e as
+  conversas abertas que estavam com o SDR. O vendedor é avisado como numa
+  transferência, e a passagem aparece na linha do tempo do negócio e na auditoria.
+  Se o cliente estiver na carteira de outra pessoa, ele continua lá, porque mudar a
+  carteira de um colega é tarefa do gerente. O negócio passa do mesmo jeito, e o
+  aviso na tela diz o que ficou para trás.
+
+  O SDR só passa o negócio que está com ele ou que ainda não tem dono humano. Quem
+  não é SDR não vê a opção. A automação "Atribuir a um atendente" continua valendo
+  para quem prefere fazer a passagem por regra. A atualização não muda o banco e
+  não pede nada a quem opera a VPS.
+
+- **Tela Leads sem vendedor, a fila de quem faz a pré-venda** Com a função SDR ligada, quem é SDR ganha a tela **Leads sem vendedor** (em "Ver
+  tudo em CRM" e na busca). Ela lista os negócios abertos que estão com o SDR ou
+  ainda sem dono, do mais antigo para o mais novo, e em cada linha o SDR escolhe o
+  vendedor e clica em **Passar**, sem precisar abrir o funil. Dá para filtrar por
+  "Comigo", "Na fila" e "Com a IA". Quem abre a tela sem ser SDR lê o que pedir ao
+  administrador.
+
+  Junto vêm duas correções na passagem. Se dois SDRs passarem o mesmo negócio ao
+  mesmo tempo, ou o gerente mudar o responsável no meio, a segunda passagem é
+  recusada com um aviso para atualizar a tela, em vez de trocar em silêncio o
+  vendedor que acabou de ser escolhido. E negócios de funil arquivado não ocupam
+  mais as vagas da lista. A atualização não muda o banco e não pede nada a quem
+  opera a VPS.
+
+- **A ligação pela telefonia SIP chega a uma pessoa do time** Os modos **Time humano** e **IA, depois time humano** do número de voz passaram
+  a funcionar. Antes eles podiam ser escolhidos na tela, mas toda ligação ia para
+  a IA. Agora o número tem o campo **Telefone do time**. No modo Time humano, a
+  ligação toca direto nesse telefone, discada pelo mesmo tronco SIP. No modo IA,
+  depois time humano, o agente de voz atende e transfere a ligação para o time
+  quando a pessoa pede ou o assunto exige. Se ninguém atender, a ligação vira o
+  aviso **Ligar de volta** na Central. A ligação recebida que ninguém atende, ou
+  que chega sem agente de voz ativo, também passa a virar esse aviso. A ligação
+  atendida aparece na linha do tempo do negócio. Cada ligação encaminhada ao time
+  gasta minutos de saída do tronco. O telefone direto no navegador ainda não
+  existe. A atualização reinicia o Asterisk de quem tem a telefonia ligada, para
+  ele receber as regras novas.
+
+- **Transferir um negócio para outra empresa** Quem tem acesso a mais de uma empresa agora pode passar um negócio de uma para
+  outra pelo menu do card: **Transferir para outra empresa**. Você escolhe a
+  empresa, o funil e, se quiser, a etapa de entrada. O negócio é recriado lá com o
+  mesmo título, valor, etiquetas e campos, e com o mesmo cliente: se a outra
+  empresa já tem o contato (pelo telefone ou pelo e-mail), ele é reaproveitado; se
+  não tem, o contato é cadastrado lá. O negócio de origem é encerrado como
+  transferido, e isso não conta como perda nas métricas. A linha do tempo dos dois
+  lados registra de onde veio e para onde foi.
+
+  O item aparece só para gerentes e administradores da empresa do negócio, e só
+  quando a pessoa também atende na empresa de destino. As conversas, tarefas,
+  anexos e propostas ficam na empresa de origem.
+
+- **O tronco SIP salvo na tela passa a valer no servidor sozinho** Salvar o tronco da operadora em Configurações › Trunk SIP agora basta. O
+  servidor aplica a configuração em até 30 segundos, sem editar arquivo nem
+  reiniciar nada. A tela mostra se a operadora está respondendo, se a aplicação
+  deu erro (e por quê) ou se ainda está esperando o servidor. Cada empresa da
+  instalação pode ter o próprio tronco, inclusive de número único. Antes, só uma
+  empresa por servidor conseguia receber ligação por esse tipo de tronco. Quem já
+  colou o bloco no `asterisk/pjsip.conf` continua funcionando como antes. O bloco
+  segue disponível depois de salvar, para quem prefere o arquivo.
+
+### Alterado
+
+- **A API de cards por token evita card duplicado e explica melhor as recusas** Quem integra um sistema externo (como um ERP) pela API REST ganha quatro coisas
+  na criação e na mudança de etapa de cards:
+
+  - **Card não duplica mais em caso de repetição.** `POST /api/v1/leads` aceita o
+    cabeçalho `Idempotency-Key`: se a chamada der timeout e o sistema repetir com a
+    mesma chave, recebe o mesmo card de volta em vez de criar outro.
+  - **Etapa arquivada é recusada com instrução.** Antes, um sistema que guardou o
+    id de uma etapa seguia criando e movendo cards para ela depois de arquivada,
+    sem aviso. Agora a resposta é 422 e diz para ler as etapas de novo. Criar card
+    direto em etapa de ganho ou de perda também é recusado, como a documentação já
+    dizia.
+  - **Erro interno não mostra mais texto do banco de dados.** A resposta traz uma
+    mensagem genérica e o `X-Request-Id`, e o detalhe fica no log da instalação.
+  - **A recusa por campo obrigatório diz quais campos faltam** também na criação
+    (`details.faltando`), como já acontecia ao mudar de etapa.
+
+  Na tela **Documentação da API**, o botão de testar passa a chamar o endereço em
+  que a página está aberta. Antes ele usava o endereço configurado na instalação e
+  falhava para quem acessava por outro domínio. A documentação também ganhou o que
+  faltava: os limites de uso contados por recurso e os códigos de recusa novos.
+
+  Para quem já integra: a única mudança que pode exigir ajuste é a recusa de etapa
+  arquivada e de etapa de fechamento na criação. A atualização não muda o banco e
+  não pede nada a quem opera a VPS.
+
+- **Ao desmarcar um SDR, a tela avisa quantos negócios continuam com ele** Desmarcar alguém como SDR em **Equipe › Membros** tira só a marca: os negócios
+  abertos que estavam com a pessoa continuam com ela, para o cliente não perder o
+  atendente que já conhece. Antes isso acontecia em silêncio, e os negócios
+  podiam ficar parados sem ninguém perceber. Agora, logo depois de desmarcar, a
+  tela avisa quantos negócios abertos ficaram com a pessoa e lembra de
+  reatribuí-los pelo campo Responsável no funil.
+
+### Corrigido
+
+- **A tela de Casos diz que a chave do agente está desligada, em vez de ficar muda** Quem abria **Agente de IA › Casos** para acompanhar os pedidos que a IA faz à
+  equipe encontrava a tela sempre vazia e nenhuma pista do motivo: `cases_enabled`
+  vem **desligada de fábrica** (`AgentForm.tsx`), então a fila estava vazia por
+  configuração, não por falta de caso.
+
+  Agora o estado vazio pergunta primeiro *por que* está vazio: se nenhum agente da
+  organização consegue abrir caso, a tela diz que o recurso está desligado, por que
+  a lista está vazia e onde se liga — com link para o cartão do agente. Quem não
+  pode editar vê a explicação sem o link (não mandamos ninguém para um 403).
+
+  Nada muda para quem já usa o recurso: com a chave ligada, vazio continua sendo
+  "nenhum caso ainda". O default **não** foi tocado.
+
+- **Cadências: o descadastro vale pelo endereço e pelo contato, e a inscrição respeita quem vê o negócio** No módulo opcional de **Cadências de e-mail**, o pedido de descadastro passa a ser
+  guardado pelo endereço de e-mail e pelo contato, e não só na inscrição: apagar o
+  negócio, a cadência ou o contato, trocar o e-mail do contato ou fundir contatos não
+  devolve a pessoa à fila, e uma nova inscrição é recusada. O link de descadastro
+  funciona mesmo depois de o negócio ser apagado, e não leva o e-mail na URL; o
+  endereço é guardado só como hash. Descadastros já registrados são convertidos na
+  atualização.
+
+  Inscrever e retirar um negócio da cadência segue a mesma visibilidade do funil: no
+  modo "Só os seus", cada pessoa só alcança os próprios negócios, e a lista de
+  inscrições e a atividade mostram só o que ela vê.
+
+  O módulo vem desligado por padrão. Nada a fazer na instalação.
+
+  Crédito do módulo: **Marcelo (@lmarceloc)**.
+
+- **Na Visão consolidada, mover para Ganho pede o que falta, e nenhuma etapa some** Arrastar um negócio na **Visão consolidada** para uma etapa que exige dados (o
+  motivo do ganho, ou campos que o funil marca como obrigatórios) só mostrava uma
+  mensagem de erro, e era preciso abrir o negócio na empresa dele para terminar.
+  Agora abre a mesma janela do funil de cada empresa: a pessoa preenche o que
+  falta e o negócio é movido na hora. Quando a etapa pede um arquivo anexado, a
+  tela oferece o botão **Abrir o negócio**, que troca para a empresa certa.
+
+  Em funis muito grandes, a tela mostrava os 500 primeiros negócios do funil
+  inteiro, numa ordem que podia deixar etapas inteiras de fora. Agora cada etapa
+  mostra os seus 100 primeiros, e a coluna que tem mais do que isso avisa.
+
+- **O contato criado pela tela volta a abrir a conversa** Ao cadastrar um contato com telefone pela tela, com um canal pronto para envio, a conversa com ele passa a abrir junto, como já acontecia pela API com token. Antes o contato era gravado e a conversa não abria.
+
+  Nada a fazer na instalação.
+
+- **A empresa não fica mais sem administrador quando dois são removidos ao mesmo tempo** Rebaixar ou remover administradores já era recusado quando sobrava um só, mas a
+  conferência acontecia antes da gravação: se duas pessoas tirassem dois
+  administradores ao mesmo tempo, as duas passavam e a empresa ficava sem nenhum.
+  Agora o próprio banco confere no momento da gravação, e a segunda remoção é
+  recusada com o aviso de sempre.
+
+  Um convite de administrador ainda não aceito também deixou de contar como
+  "outro administrador". Antes, ele permitia tirar o último administrador de
+  verdade enquanto o convite esperava resposta. A atualização aplica a mudança no
+  banco sozinha e não pede nada a quem opera a VPS.
+
+- **Vínculos mostram convite pendente, e o card da Visão consolidada não fica preso** Na tela **Vínculos** do painel do dono, uma empresa em que a conta só tinha um
+  convite ainda não aceito aparecia como "Vinculada", e a pessoa continuava sem
+  acesso. Agora ela aparece como **Convite pendente**; marcar a empresa e salvar
+  dá o acesso na hora, com o papel escolhido. Remarcar uma empresa revogada também
+  passa a usar o papel do seletor, em vez de devolver o papel antigo (um
+  ex-administrador voltava administrador sem ninguém ter escolhido isso).
+
+  Na **Visão consolidada**, um card arrastado ficava preso na coluna de destino
+  mesmo depois que outra pessoa ou a IA o movia, até recarregar a página. Agora a
+  tela volta a mostrar o que está gravado assim que o movimento termina. O seletor
+  de empresas deixou de mostrar uma contagem errada quando o link trazia uma
+  empresa que não é da pessoa, e a tela faz menos consultas simultâneas para quem
+  tem muitas empresas.
+
+- **Uma falha isolada da verificação não derruba mais o número, e a mensagem que esperou a conexão voltar não fica parada em silêncio** A verificação de saúde das conexões, que roda de 5 em 5 minutos, marcava o
+  número como fora do ar na primeira pergunta que falhava — e uma oscilação de
+  rede de um minuto bastava para isso. Nesse intervalo, o que o operador mandava
+  ficava "aguardando conexão" e, quando a conexão voltava, ninguém mandava de
+  novo. Agora a queda só vale depois de duas verificações ruins seguidas, e a
+  volta vale na primeira boa. E a mensagem que segue aguardando numa conexão que
+  já voltou abre um aviso na Central, com a conversa, para quem escreveu decidir o
+  que fazer: 15 minutos depois quando esperava a conexão, 50 quando ainda podia ter
+  nova tentativa agendada. Nada é reenviado sozinho, mensagem com mais de 24 horas
+  não entra, e o aviso resolvido só volta por mensagem nova. Crédito: @jmpo.
+
+- **A resposta segue os números que estão na ficha** Na ficha com mais de um telefone, a resposta volta pelo número da última mensagem recebida quando esse número está na ficha; caso contrário, sai pelo número principal. A regra vale para a resposta do atendente, a do agente, o reenvio automático e o "digitando…".
+
+  Nada a fazer na instalação.
+
+- **Receba no WhatsApp a informação solicitada ao cliente no mesmo caso** Quando o cliente responde à pergunta da equipe, o mesmo caso recebe uma atualização no WhatsApp configurado. Cada atualização conserva seu recibo e os comandos identificam o ciclo correto, sem repetir a abertura. Crédito: @vitorlacerdadigital.
+
+- **Telefonia SIP usa o agente e o tronco escolhidos na tela** A ligação recebida passa a ser atendida pelo agente de voz escolhido para o
+  número, e não pelo primeiro agente de voz ativo. A ligação feita pelo CRM passa
+  a sair pelo tronco salvo em Configurações › Trunk SIP. Antes ela falhava no
+  Asterisk para quem tinha cadastrado o tronco por essa tela. Pedir uma ligação
+  com o atendente falando (`mode: "human"` na API) agora é recusado com uma
+  explicação. Antes a IA atendia no lugar do atendente sem avisar.
+
+- **O teto de tamanho dos uploads vale também para envio sem tamanho declarado** As rotas que recebem arquivo (mídia de conversa e de nota, fotos e áudio do
+  catálogo, mídia de resposta rápida, sons dos avisos, logo, anexo de negócio,
+  material do agente e as importações de planilha, skill, fluxo, modelo de
+  proposta e respostas rápidas) passam a ler o corpo por um único caminho, que
+  conta os bytes enquanto lê e para no primeiro byte além do teto (413). Envio
+  sem `Content-Length` (em partes, atrás de proxy, HTTP/2) segue aceito, com o
+  teto garantido pela contagem; `Content-Length` inválido responde 400.
+
+  Nada muda para quem usa pelas telas: navegador e `curl -F` sempre declaram o
+  tamanho. A importação de planilha da prospecção passa a responder 413, em vez
+  de 422, quando o envio declarado passa do teto.
+
+- **As ligações atendidas pelo agente de voz entram no gasto de IA** O custo das ligações atendidas pelo agente de voz passou a aparecer em Uso de IA
+  e a contar para o teto de orçamento. Antes, a ligação mostrava só os tokens, e o
+  gasto ficava marcado como incompleto. O custo segue a tabela de preços da
+  OpenAI para cada tipo de token: texto, áudio e cache. Os modelos de voz que
+  saíram dessa tabela, como o `gpt-4o-realtime-preview`, continuam com o gasto
+  marcado como incompleto.
+
 ## [1.104.0] — 2026-11-07
 
 ### ⚠️ Requer atenção
@@ -14791,7 +15284,8 @@ Primeira versão marcada do DeskcommCRM. O projeto vinha sendo desenvolvido publ
 
 - **Node 22 é obrigatório para desenvolvimento.** A suíte de invariantes instancia o cliente do Supabase, que exige o `WebSocket` global — nativo apenas a partir do Node 22. Isso não afeta quem apenas hospeda: a VPS roda a imagem pronta.
 
-[Não lançado]: https://github.com/melgarafael/DeskcommCRM/compare/v1.104.0...HEAD
+[Não lançado]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.17...HEAD
+[1.104.17]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.0...v1.104.17
 [1.104.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.103.0...v1.104.0
 [1.103.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.102.0...v1.103.0
 [1.102.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.101.0...v1.102.0
