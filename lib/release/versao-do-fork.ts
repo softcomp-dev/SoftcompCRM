@@ -79,3 +79,23 @@ export function notasDaRelease(secao: SecaoMontada, compararUrl: string): string
   const corpo = secao.texto.split("\n").slice(1).join("\n").trim();
   return `${corpo}\n\n**Comparar:** ${compararUrl}\n`;
 }
+
+/**
+ * A seção que JÁ está no CHANGELOG para esta versão — o caso da execução que
+ * gravou a seção na `main` e depois falhou na publicação das imagens (a tag é
+ * apagada, a seção fica). A execução seguinte pede o MESMO número: em vez de
+ * recusar e travar o fork, reaproveita a seção escrita para montar as notas.
+ */
+export function secaoJaEscrita(changelog: string, versao: string): SecaoMontada | null {
+  const linhas = changelog.split("\n");
+  const inicio = linhas.findIndex((l) => l.startsWith(`## [${versao}]`));
+  if (inicio < 0) return null;
+  let fim = linhas.length;
+  for (let i = inicio + 1; i < linhas.length; i++) {
+    if (/^##\s+\[/.test(linhas[i]!) || /^\[[^\]]+\]:\s+\S+$/.test(linhas[i]!)) {
+      fim = i;
+      break;
+    }
+  }
+  return { versao, texto: linhas.slice(inicio, fim).join("\n").trimEnd() };
+}

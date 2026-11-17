@@ -9,6 +9,7 @@ import {
   conferirVersaoNova,
   notasDaRelease,
   secaoDaVersaoDoFork,
+  secaoJaEscrita,
   ultimaVersaoDoChangelog,
 } from "./versao-do-fork";
 
@@ -93,5 +94,14 @@ describe("versão do fork no CHANGELOG", () => {
     expect(notas).not.toContain("## [1.104.15]");
     expect(notas).toContain("Histórico de atendimento");
     expect(notas.trimEnd().endsWith("https://exemplo.test/compare/v1.104.14...v1.104.15")).toBe(true);
+  });
+
+  it("reaproveita a seção já escrita quando a execução anterior falhou depois de gravá-la", () => {
+    const secao = secaoDaVersaoDoFork([frag("Vínculos")], "1.104.15", "2026-11-17");
+    const gravado = aplicarNoChangelog(CHANGELOG, secao, "1.104.0", comparar);
+    expect(secaoJaEscrita(gravado, "1.104.15")).toEqual(secao);
+    expect(secaoJaEscrita(gravado, "1.104.16")).toBeNull();
+    // A última seção do arquivo termina antes do rodapé de links, não nele.
+    expect(secaoJaEscrita(gravado, "1.104.0")?.texto).not.toContain("https://exemplo.test");
   });
 });
