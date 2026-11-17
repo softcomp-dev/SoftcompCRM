@@ -1777,10 +1777,23 @@
         {
           "id": "p1",
           "titulo": "Calar o robô numa conversa sua",
-          "texto": "Esta conversa já está no seu nome, mas o atendimento automático (o robô) ainda pode responder nela. O seu nome aparece logo abaixo do nome do cliente (nesta demonstração, Helena Prado). \"Pausar o automático\" faz o robô parar de responder nesta conversa, e o responsável continua o mesmo. O botão \"Liberar\", logo à esquerda, faz outra coisa: solta a conversa, que fica sem responsável.",
+          "texto": "Esta conversa já está no seu nome, mas o atendimento automático (o robô) ainda pode responder nela. O seu nome aparece logo abaixo do nome do cliente (nesta demonstração, Helena Prado). No menu \"⋯\" (Mais ações), no alto da conversa, \"Pausar o automático\" faz o robô parar de responder nesta conversa, e o responsável continua o mesmo. O botão \"Liberar\", logo à esquerda, faz outra coisa: solta a conversa, que fica sem responsável.",
           "dica": "Numa conversa sem responsável, o botão que cala o robô é o \"Assumir\".",
           "rota": "/app/inbox?id=be100000-0000-4000-8000-000000000007",
-          "antes": [],
+          "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "menu-de-acoes"
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "testid": "pausar-o-automatico"
+              }
+            }
+          ],
           "destaques": [
             {
               "alvo": {
@@ -1794,15 +1807,6 @@
                 "testid": "comando-da-conversa"
               },
               "rotulo": "Responsável: você (aqui, Helena Prado)",
-              "tipo": "caixa"
-            },
-            {
-              "alvo": {
-                "role": "button",
-                "nome": "Liberar",
-                "exato": true
-              },
-              "rotulo": "Soltar a conversa (é outra coisa)",
               "tipo": "caixa"
             }
           ],
@@ -1940,15 +1944,37 @@
         {
           "id": "p4",
           "titulo": "Pedir um lembrete",
-          "texto": "\"Lembrar\" serve para quando você está esperando o cliente responder. Escolha o prazo: se ele não responder até lá, a conversa sobe para o topo da lista e aparece um aviso na Central dizendo que o cliente não respondeu no prazo. Nada é enviado ao cliente. Nesta conversa o robô já estava pausado. O balão vermelho é uma mensagem que não saiu, e o quadro bege é um recado interno da equipe: nada disso tem a ver com o lembrete.",
+          "texto": "No menu \"⋯\", \"Lembrar\" serve para quando você está esperando o cliente responder. Escolha o prazo: se ele não responder até lá, a conversa sobe para o topo da lista e aparece um aviso na Central dizendo que o cliente não respondeu no prazo. Nada é enviado ao cliente. Nesta conversa o robô já estava pausado. O balão vermelho é uma mensagem que não saiu, e o quadro bege é um recado interno da equipe: nada disso tem a ver com o lembrete.",
           "dica": "Com um lembrete ligado, o botão passa a dizer \"Lembrete ativo\", e é por ele que você cancela.",
           "rota": "/app/inbox?id=be100000-0000-4000-8000-000000000005",
           "antes": [
             {
               "acao": "click",
               "alvo": {
-                "role": "button",
+                "testid": "menu-de-acoes"
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "role": "menuitem",
                 "nome": "Lembrar",
+                "exato": true
+              }
+            },
+            {
+              "acao": "aguardar",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Em 1 hora",
+                "exato": true
+              }
+            },
+            {
+              "acao": "hover",
+              "alvo": {
+                "role": "menuitem",
+                "nome": "Em 1 hora",
                 "exato": true
               }
             }
@@ -1956,7 +1982,9 @@
           "destaques": [
             {
               "alvo": {
-                "css": "button[aria-haspopup=\"menu\"][data-state=\"open\"]"
+                "role": "menuitem",
+                "nome": "Lembrar",
+                "exato": true
               },
               "rotulo": "Botão Lembrar",
               "tipo": "caixa"
@@ -1992,12 +2020,8 @@
               }
             },
             {
-              "acao": "aguardar",
-              "alvo": {
-                "role": "button",
-                "nome": "Lembrete ativo",
-                "exato": true
-              }
+              "acao": "esperar",
+              "ms": 1500
             },
             {
               "acao": "click",
@@ -2104,7 +2128,7 @@
         {
           "id": "p7",
           "titulo": "Arquivar sem apagar",
-          "texto": "\"Arquivar\" tira a conversa da Fila e da aba Minhas e a guarda na aba Arquivadas (é o \"histórico\" de que a confirmação fala). Nada é apagado. Se a conversa ainda estava aberta, o atendimento é encerrado; se o cliente escrever de novo, ela volta, sem responsável.",
+          "texto": "\"Arquivar\", no menu \"⋯\", tira a conversa da Fila e da aba Minhas e a guarda na aba Arquivadas (é o \"histórico\" de que a confirmação fala). Nada é apagado. Se a conversa ainda estava aberta, o atendimento é encerrado; se o cliente escrever de novo, ela volta, sem responsável.",
           "dica": "O lembrete marcado antes continua ligado. Depois de reabrir, o botão no topo da conversa diz \"Lembrete ativo\", e é por ele que você cancela.",
           "antes": [
             {
@@ -2126,9 +2150,13 @@
             {
               "acao": "click",
               "alvo": {
-                "role": "button",
-                "nome": "Arquivar",
-                "exato": true
+                "testid": "menu-de-acoes"
+              }
+            },
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "acao-arquivar"
               }
             }
           ],
@@ -2635,7 +2663,10 @@
           "clicar": {
             "role": "button",
             "nome": "Mais ações",
-            "exato": true
+            "exato": true,
+            "dentro": {
+              "testid": "barra-de-acoes-em-lote"
+            }
           }
         },
         {
@@ -2649,7 +2680,10 @@
               "alvo": {
                 "role": "button",
                 "nome": "Mais ações",
-                "exato": true
+                "exato": true,
+                "dentro": {
+                  "testid": "barra-de-acoes-em-lote"
+                }
               }
             },
             {

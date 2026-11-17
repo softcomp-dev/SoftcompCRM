@@ -78,7 +78,7 @@
         {
           "id": "p3",
           "titulo": "Os outros quadros",
-          "texto": "Rolando a tela aparecem mais três quadros. \"Menu lateral\" escolhe quais áreas a empresa mostra no menu. \"Inbox\" guarda uma regra de atendimento que vale para todos. \"Zona de perigo\" apaga os dados de teste. O cadastro, o menu e a regra da Inbox têm cada um o seu botão de gravar: salvar um não salva os outros.",
+          "texto": "Rolando a tela aparecem mais quadros. \"Menu lateral\" escolhe quais áreas a empresa mostra no menu, e \"Inbox\" guarda uma regra de atendimento que vale para todos.",
           "antes": [
             {
               "acao": "rolar",
@@ -100,6 +100,21 @@
                 "css": "div.shadow-xs:has(> h2:text-is('Inbox'))"
               },
               "rotulo": "Regra de atendimento",
+              "tipo": "caixa"
+            }
+          ]
+        },
+        {
+          "id": "p3-mais-abaixo",
+          "titulo": "Mais abaixo",
+          "texto": "Seguindo a rolagem: \"Classificação de clientes\" define quantos dias valem Ativo e Pré-inativo (a lição \"Classificação de clientes\" mostra como), \"Catálogo\" liga a apresentação de produtos pela IA e \"Zona de perigo\" apaga os dados de teste. O cadastro, o menu, a regra da Inbox, os prazos e o catálogo têm cada um o seu botão de gravar: salvar um não salva os outros.",
+          "antes": [],
+          "destaques": [
+            {
+              "alvo": {
+                "testid": "classificacao-de-clientes"
+              },
+              "rotulo": "Prazos da classificação",
               "tipo": "caixa"
             },
             {

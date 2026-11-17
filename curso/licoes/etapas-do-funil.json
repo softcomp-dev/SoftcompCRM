@@ -56,7 +56,7 @@
           "id": "p2",
           "titulo": "Um cartão para cada funil",
           "rota": "/app/settings/tenant/pipelines",
-          "texto": "Um funil é o caminho que o cliente faz até fechar, dividido em etapas. Cada etapa vira uma coluna no quadro do funil. Esta tela mostra um cartão para cada funil ativo da empresa. A Clínica Bem Viver tem dois: \"Pacientes\", aqui no alto, e \"Pilates\", que aparece quando você rola a tela. Nas próximas lições você mexe no \"Pilates\", para não mudar o funil principal.",
+          "texto": "Um funil é o caminho que o cliente faz até fechar, dividido em etapas. Cada etapa vira uma coluna no quadro do funil. Esta tela mostra um cartão para cada funil ativo da empresa. A Clínica Bem Viver tem dois: \"Pacientes\" e \"Pilates\". Com mais de um funil, os cartões aparecem recolhidos e só um fica aberto por vez: clique no nome do funil para ver as etapas dele. Nas próximas lições você mexe no \"Pilates\", para não mudar o funil principal.",
           "dica": "Funil arquivado não aparece aqui. Para criar ou arquivar um funil inteiro, use a tela Funis, no menu CRM.",
           "antes": [],
           "destaques": [
@@ -78,14 +78,30 @@
               },
               "rotulo": "Um funil da empresa",
               "tipo": "caixa"
+            },
+            {
+              "alvo": {
+                "testid": "abrir-funil-d1110000-0000-4000-8000-000000000001"
+              },
+              "rotulo": "Abrir o funil",
+              "tipo": "seta"
             }
-          ]
+          ],
+          "clicar": {
+            "testid": "abrir-funil-d1110000-0000-4000-8000-000000000001"
+          }
         },
         {
           "id": "p3",
           "titulo": "Cada linha é uma coluna do quadro",
           "texto": "Em \"Etapas deste funil\", cada linha é uma coluna do quadro, na ordem em que o cliente avança: a linha 1 é a primeira coluna, à esquerda. Em cada linha você vê o nome da coluna, a chance de fechamento, as setas de ordem, o papel da coluna e o botão \"Arquivar\".",
           "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "abrir-funil-d1110000-0000-4000-8000-000000000001"
+              }
+            },
             {
               "acao": "rolar",
               "alvo": {
@@ -269,6 +285,12 @@
           "rota": "/app/settings/tenant/pipelines",
           "texto": "O funil Pilates começa com uma coluna chamada \"Novo\". Para trocar o nome, clique no nome, apague e escreva o novo. Aqui escrevemos \"Pediu informação\".",
           "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "abrir-funil-d1110000-0000-4000-8000-000000000001"
+              }
+            },
             {
               "acao": "rolar",
               "alvo": {
@@ -519,6 +541,12 @@
           "rota": "/app/settings/tenant/pipelines",
           "texto": "O seletor \"O que acontece nesta coluna\" tem três escolhas: \"Nada especial\", \"Aqui o cliente fecha\" (a coluna de fechamento) e \"Aqui o cliente desiste\" (a coluna de perda). Veja o que acontece quando você abre o seletor de \"Aula experimental feita\" e escolhe \"Aqui o cliente fecha\".",
           "antes": [
+            {
+              "acao": "click",
+              "alvo": {
+                "testid": "abrir-funil-d1110000-0000-4000-8000-000000000001"
+              }
+            },
             {
               "acao": "rolar",
               "alvo": {

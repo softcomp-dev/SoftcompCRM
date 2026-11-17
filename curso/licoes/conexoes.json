@@ -1327,9 +1327,11 @@
             }
           ],
           "clicar": {
-            "role": "button",
-            "nome": "Novo número",
-            "exato": true
+            "role": "combobox",
+            "n": 0,
+            "dentro": {
+              "role": "dialog"
+            }
           }
         },
         {

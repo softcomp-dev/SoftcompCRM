@@ -41,7 +41,7 @@
         {
           "id": "p2",
           "titulo": "A lista de rotas",
-          "texto": "A tela lista as rotas que um sistema de fora pode chamar com um token, agrupadas por assunto: Contatos, Funis, Leads e assim por diante. O título já leva o nome da sua marca, e as rotas já apontam para o endereço desta instalação. A frase do alto lembra o caminho: crie o token em API Tokens e cole no botão \"Authorize\".",
+          "texto": "A tela lista as rotas que um sistema de fora pode chamar com um token, agrupadas por assunto: Contatos, Funis, Leads e assim por diante. O título já leva o nome da sua marca, e as rotas já apontam para o endereço desta instalação. A frase do alto lembra o caminho (crie o token em API Tokens e cole no botão \"Authorize\") e tem o link \"Baixar a especificação (JSON)\", para quem prefere o arquivo.",
           "dica": "O texto das rotas vem escrito em português, mesmo com o sistema em outro idioma. Os botões do Swagger, como \"Authorize\" e \"Try it out\", ficam em inglês.",
           "antes": [
             {
@@ -71,15 +71,6 @@
               },
               "rotulo": "Onde colar o token",
               "tipo": "seta"
-            },
-            {
-              "alvo": {
-                "role": "link",
-                "nome": "Baixar a especificação (JSON)",
-                "exato": true
-              },
-              "rotulo": "A especificação em arquivo",
-              "tipo": "caixa"
             }
           ]
         },
@@ -162,7 +153,7 @@
         {
           "id": "p5",
           "titulo": "Testar a rota",
-          "texto": "Com a janela fechada e a rota aberta, clique em \"Try it out\" para liberar os campos. Preencha o que quiser e clique em \"Execute\": o Swagger chama a rota e mostra a resposta logo abaixo. O teste usa só o token, e não a sua sessão, então o resultado é o mesmo que o seu sistema vai receber.",
+          "texto": "Com a janela fechada e a rota aberta, clique em \"Try it out\" para liberar os campos. Preencha o que quiser e clique em \"Execute\": o Swagger chama a rota e mostra a resposta logo abaixo. Para desistir, o botão \"Cancel\", no alto da rota, fecha os campos. O teste usa só o token, e não a sua sessão, então o resultado é o mesmo que o seu sistema vai receber.",
           "dica": "Teste primeiro as rotas que só leem (GET). As que criam, mudam ou apagam dados fazem isso de verdade na sua operação.",
           "antes": [
             {
@@ -197,13 +188,6 @@
               },
               "rotulo": "Execute chama a rota",
               "tipo": "seta"
-            },
-            {
-              "alvo": {
-                "css": "#operations-Contatos-listarContatos .try-out__btn"
-              },
-              "rotulo": "Cancelar o teste",
-              "tipo": "caixa"
             }
           ]
         }

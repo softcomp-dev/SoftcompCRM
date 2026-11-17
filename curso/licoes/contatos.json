@@ -533,7 +533,7 @@
     {
      "id": "p2",
      "titulo": "Preencher o cadastro",
-     "texto": "Preencha o nome e pelo menos o e-mail ou o telefone. O telefone vai com DDD; não precisa digitar o +55. Em \"Tags\", escolha as etiquetas sugeridas ou digite uma por vez e aperte Enter. Se abrir a escolha de cor, confira e clique em \"Adicionar tag\" para confirmar. O CPF é opcional. Para cadastrar e já falar com a pessoa, use \"Salvar e iniciar conversa\": o contato é salvo e a conversa com ele abre em seguida.",
+     "texto": "Preencha o nome e pelo menos o e-mail ou o telefone. O telefone vai com DDD; não precisa digitar o +55. Em \"Tags\", escolha as etiquetas sugeridas ou digite uma por vez e aperte Enter. Se abrir a escolha de cor, confira e clique em \"Adicionar tag\" para confirmar. O CPF é opcional.",
      "dica": "Se o telefone, o e-mail ou o CPF já pertencer a outro contato, o cadastro é recusado com um aviso.",
      "antes": [
       {
@@ -648,7 +648,9 @@
      "destaques": [
       {
        "alvo": {
-        "role": "dialog"
+        "role": "heading",
+        "nome": "Novo contato",
+        "exato": true
        },
        "rotulo": "Novo contato",
        "tipo": "caixa"
@@ -660,7 +662,24 @@
        },
        "rotulo": "E-mail ou telefone é obrigatório",
        "tipo": "seta"
-      },
+      }
+     ]
+    },
+    {
+     "id": "p2-gravar",
+     "titulo": "Gravar",
+     "texto": "No fim da janela ficam os botões de gravar. \"Criar contato\" salva e volta para a lista. Para cadastrar e já falar com a pessoa, use \"Salvar e iniciar conversa\": o contato é salvo e a conversa com ele abre em seguida.",
+     "antes": [
+      {
+       "acao": "rolar",
+       "alvo": {
+        "role": "button",
+        "nome": "Criar contato",
+        "exato": true
+       }
+      }
+     ],
+     "destaques": [
       {
        "alvo": {
         "role": "button",
@@ -669,6 +688,15 @@
        },
        "rotulo": "Salvar e já abrir a conversa",
        "tipo": "caixa"
+      },
+      {
+       "alvo": {
+        "role": "button",
+        "nome": "Criar contato",
+        "exato": true
+       },
+       "rotulo": "Salvar",
+       "tipo": "seta"
       }
      ],
      "clicar": {
@@ -1030,7 +1058,8 @@
        "alvo": {
         "role": "button",
         "nome": "Editar",
-        "exato": true
+        "exato": true,
+        "n": 0
        },
        "rotulo": "Editar o cadastro",
        "tipo": "seta"
@@ -2126,7 +2155,8 @@
       {
        "acao": "aguardar",
        "alvo": {
-        "texto": "Interação registrada no histórico."
+        "texto": "Reunião rápida com a Fernanda para combinar o retorno de quinta. Ela vai levar o laudo da cirurgia.",
+        "exato": true
        }
       },
       {
