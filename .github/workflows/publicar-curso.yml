@@ -3,8 +3,8 @@ name: Publicar o curso
 # O CURSO ILUSTRADO NO GITHUB PAGES — EXCLUSIVO DO FORK softcomp-dev/SoftcompCRM.
 #
 # O curso (aulas com a foto de cada tela, setas e simulador) é montado na
-# bancada de captura e empacotado por `curso/empacotar-publicacao.sh`. As fotos
-# dos dois idiomas passam de 100 MB, então nada disso entra no git nem na
+# bancada de captura e empacotado por `curso/empacotar-publicacao.sh`, só em
+# português. As fotos passam de 50 MB, então nada disso entra no git nem na
 # imagem do app: o pacote vira anexo `curso.tar.gz` de uma Release
 # `curso-AAAA-MM-DD`, criada como NÃO-latest — o "Atualizar" do servidor
 # procura a Release mais recente, e a do curso não pode passar por versão do
@@ -54,10 +54,7 @@ jobs:
           gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --pattern 'curso.tar.gz' --dir .
           mkdir site
           tar -xzf curso.tar.gz -C site
-          # Os dois idiomas, ou nada: publicar um só deixaria a aba em espanhol
-          # abrindo uma página que não existe.
           test -f site/index.html
-          test -f site/es/index.html
           echo "fotos: $(find site -name '*.jpg' | wc -l)"
 
       - uses: actions/upload-pages-artifact@v3

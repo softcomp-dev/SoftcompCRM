@@ -1,15 +1,14 @@
 "use client";
 
 import { useT } from "@/hooks/i18n/useT";
-import { enderecoDoCurso, idiomaDoCurso } from "@/lib/curso/endereco";
-import { useIdioma } from "@/lib/i18n/IdiomaProvider";
+import { enderecoDoCurso } from "@/lib/curso/endereco";
 import { ArrowSquareOut } from "@/lib/ui/icons";
 
 export function CursoConteudo({ base }: { base: string }) {
   const t = useT();
-  // O idioma do PROVIDER, e não o salvo no perfil: a troca pelo seletor do
-  // cabeçalho é instantânea, e o curso acompanha sem recarregar a página.
-  const endereco = enderecoDoCurso(base, idiomaDoCurso(useIdioma()));
+  // O curso é só em português (lib/curso/endereco.ts): o mesmo endereço para
+  // qualquer idioma da interface.
+  const endereco = enderecoDoCurso(base);
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">

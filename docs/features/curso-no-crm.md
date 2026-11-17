@@ -4,13 +4,16 @@
 curso" no topo da Ajuda e a busca ⌘K.
 
 A tela abre o curso ilustrado (aulas com a foto de cada tela, setas, caixas e o
-simulador) num quadro, no idioma da interface: espanhol para quem usa o CRM em
-espanhol, português para o resto. O link "Abrir em nova aba" abre a mesma página fora
-do CRM.
+simulador) num quadro. O link "Abrir em nova aba" abre a mesma página fora do CRM.
+
+O curso é só em **português**, por decisão do dono do fork (17/11/2026): a interface em
+espanhol abre o mesmo curso. O catálogo de espanhol do curso (`curso/espanhol-*.json`)
+continua no repositório; publicar em espanhol é uma rodada de captura em
+`curso/saida/es` e um segundo `montar.ts` com a base `<base>es/`.
 
 ## Por que o curso mora fora da imagem
 
-As fotos dos dois idiomas passam de 100 MB. Na imagem do app, cada recaptura engordaria
+As fotos passam de 50 MB. Na imagem do app, cada recaptura engordaria
 a imagem que todo servidor baixa; no git, engordaria todo clone. Por isso:
 
 - o curso montado vira o anexo `curso.tar.gz` de uma Release `curso-AAAA-MM-DD`;
@@ -25,7 +28,7 @@ servidor do fork, o `.env` declara `CURSO_URL=https://softcomp-dev.github.io/Sof
 
 ## Publicar uma versão nova do curso
 
-1. **Fotografar** na bancada, nos dois idiomas
+1. **Fotografar** na bancada, em português
    ([`docs/runbooks/atualizar-curso.md`](../runbooks/atualizar-curso.md)).
 2. **Empacotar** na bancada:
 
@@ -33,8 +36,8 @@ servidor do fork, o `.env` declara `CURSO_URL=https://softcomp-dev.github.io/Sof
    bash curso/empacotar-publicacao.sh /SoftcompCRM/ /tmp/curso.tar.gz
    ```
 
-   O script monta o português (`/SoftcompCRM/`) e o espanhol (`/SoftcompCRM/es/`) e
-   recusa o pacote se ele levar algo que não é do site: `contas.json` (as senhas das
+   O script monta o curso com a base `/SoftcompCRM/` e recusa o pacote se ele levar
+   algo que não é do site: `contas.json` (as senhas das
    contas de demonstração), manifesto ou foto de falha.
 3. **Criar a Release, sempre como não-latest:**
 
@@ -54,7 +57,7 @@ servidor do fork, o `.env` declara `CURSO_URL=https://softcomp-dev.github.io/Sof
 | Peça | Artefato |
 |---|---|
 | Tela | `app/app/curso/` |
-| Endereço por idioma (puro) | `lib/curso/endereco.ts` |
+| Endereço (puro) | `lib/curso/endereco.ts` |
 | Variável | `CURSO_URL` em `lib/env.ts` e `.env.example` |
 | Menu | `lib/navigation/catalogo.ts` (seção Ajuda), atalho em `lib/ajuda/hub.ts` |
 | Empacotamento | `curso/empacotar-publicacao.sh` |
@@ -64,7 +67,7 @@ servidor do fork, o `.env` declara `CURSO_URL=https://softcomp-dev.github.io/Sof
 
 - Endereço errado ou vazio: a tela diz que o curso não está disponível, e o log avisa
   quando o valor não é http(s).
-- Pacote incompleto: o workflow recusa publicar sem os dois idiomas.
+- Pacote sem a página: o workflow recusa publicar sem o `index.html`.
 - Curso desatualizado: o roteiro de captura em
   [`evidence/curso-funcionalidades-do-fork/`](../../evidence/curso-funcionalidades-do-fork/README.md)
   diz o que recapturar.
