@@ -53,8 +53,9 @@ const DIR = join(process.cwd(), ".github/workflows");
  */
 const ESCRITA_JUSTIFICADA: Record<string, string> = {
   "versao-automatica-do-fork.yml::contents: write":
-    "só no fork softcomp-dev (o job tem `if: github.repository`): empurra a tag vX.Y.Z do " +
-    "commit da main e cria a Release que o botão Atualizar do servidor procura",
+    "só no fork softcomp-dev (o job tem `if: github.repository`): grava na main o commit " +
+    "chore(release) com a seção do CHANGELOG, empurra a tag vX.Y.Z dele e cria a Release " +
+    "que o botão Atualizar do servidor procura",
   "versao-automatica-do-fork.yml::actions: write":
     "só no fork softcomp-dev: dispara o publish-image.yml na tag nova (tag empurrada com o " +
     "GITHUB_TOKEN não dispara workflow) e acompanha a execução até as imagens existirem",

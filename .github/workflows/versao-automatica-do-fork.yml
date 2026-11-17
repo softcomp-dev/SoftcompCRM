@@ -18,6 +18,12 @@ name: Versão automática do fork
 # Só o canal `stable` não se move (`promover-stable` exige push de tag) — e o
 # atualizador do fork usa o número, não o canal.
 #
+# Antes da tag, a versão ganha a sua seção no CHANGELOG, montada dos fragmentos
+# de `.changes/` (scripts/cortar-release-do-fork.ts), num commit
+# "chore(release)" que este job grava na `main` — é dele o quadro "o que muda
+# ao atualizar" da tela do servidor, e o texto das notas da Release. Quem
+# trabalha na `main` local faz `git pull` antes do próximo push.
+#
 # A Release só nasce DEPOIS das imagens publicadas: o servidor nunca é
 # convidado a instalar uma versão cuja imagem não existe. Se a publicação
 # falhar, a tag é apagada, porque o `agent.sh` oferece a MAIOR tag `v*`.
@@ -75,13 +81,48 @@ jobs:
           echo "última ${ultima} → nova ${nova}"
           echo "tag=${nova}" >> "$GITHUB_OUTPUT"
 
-      - name: Criar e enviar a tag
+      # A SEÇÃO DO CHANGELOG ANTES DA TAG. O agente do servidor tira do
+      # CHANGELOG da tag o quadro "o que muda ao atualizar" (agent.sh); sem a
+      # seção, quem atualiza não vê nada, e os fragmentos de `.changes/` nunca
+      # viram nota. O script (scripts/cortar-release-do-fork.ts) escreve a seção
+      # com o número decidido acima e consome os fragmentos; o commit vai para
+      # a `main` e é ELE que recebe a tag. Push do GITHUB_TOKEN não dispara
+      # workflow, e o commit só mexe em `.md` — não há laço.
+      - uses: ./.github/actions/preparar-node
+        if: steps.versao.outputs.tag != ''
+        timeout-minutes: 10
+
+      - name: Escrever a seção do CHANGELOG e gravar na main
+        id: release
         if: steps.versao.outputs.tag != ''
         env:
           TAG: ${{ steps.versao.outputs.tag }}
         run: |
           set -euo pipefail
-          git tag "${TAG}" "${GITHUB_SHA}"
+          pnpm exec tsx scripts/cortar-release-do-fork.ts --versao "${TAG#v}" --escrever --notas "${RUNNER_TEMP}/notas.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A CHANGELOG.md .changes
+          if git diff --cached --quiet; then
+            # A seção já estava na main (execução anterior que falhou depois de
+            # gravá-la): a tag vai no commit que disparou esta execução.
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -q -m "chore(release): ${TAG}" -m "Seção do CHANGELOG e fragmentos consumidos pela versão automática do fork."
+          # Se a main andou durante esta execução, o push é recusado e nada é
+          # publicado: o próximo push corta a versão com tudo junto.
+          git push origin "HEAD:refs/heads/main"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Criar e enviar a tag
+        if: steps.versao.outputs.tag != ''
+        env:
+          TAG: ${{ steps.versao.outputs.tag }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git tag "${TAG}" "${SHA}"
           git push origin "refs/tags/${TAG}"
 
       - name: Publicar as imagens da tag e esperar
@@ -90,6 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.versao.outputs.tag }}
+          SHA: ${{ steps.release.outputs.sha }}
         run: |
           set -euo pipefail
           gh workflow run publish-image.yml --ref "${TAG}"
@@ -97,7 +139,7 @@ jobs:
           for _ in $(seq 1 30); do
             sleep 10
             execucao=$(gh run list --workflow publish-image.yml --event workflow_dispatch \
-              --commit "${GITHUB_SHA}" --json databaseId --jq '.[0].databaseId // empty')
+              --commit "${SHA}" --json databaseId --jq '.[0].databaseId // empty')
             [ -n "${execucao}" ] && break
           done
           if [ -z "${execucao}" ]; then
@@ -122,7 +164,7 @@ jobs:
             if gh release view "${TAG}" >/dev/null 2>&1; then
               echo "a Release ${TAG} existe"; exit 0
             fi
-            if gh release create "${TAG}" --title "${TAG}" --generate-notes --latest; then
+            if gh release create "${TAG}" --title "${TAG}" --notes-file "${RUNNER_TEMP}/notas.md" --latest; then
               exit 0
             fi
             echo "::warning::tentativa ${tentativa} de criar a Release ${TAG} falhou"
