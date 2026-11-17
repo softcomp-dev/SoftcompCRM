@@ -37,7 +37,7 @@ export function tipoDoLogo(bytes: Uint8Array): "image/png" | "image/jpeg" | null
 }
 
 export function lerMarca(
-  env: { CURSO_MARCA?: string; CURSO_MARCA_COR?: string; CURSO_MARCA_LOGO?: string },
+  env: Readonly<Record<string, string | undefined>>,
   lerArquivo: (caminho: string) => Uint8Array,
 ): MarcaDoCurso {
   const nome = env.CURSO_MARCA?.trim() || null;

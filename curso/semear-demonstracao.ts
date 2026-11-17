@@ -24,9 +24,11 @@ import { fileURLToPath } from "node:url";
 import { type User, createClient } from "@supabase/supabase-js";
 import pg from "pg";
 
+import { BUCKET_DE_LOGOS, PREFIXO_DA_INSTALACAO } from "../lib/branding/logo";
 import { exigirBancoLocal, exigirHttpLocal, validarOrganizacoesExtras } from "./seguranca";
 import { commitDaFoto, idiomaDaCaptura } from "./configuracao";
 import { textoDaDemonstracao as demo } from "./espanhol-demonstracao";
+import { lerMarca, tipoDoLogo } from "./marca";
 
 const SENHA = process.env.CURSO_SENHA ?? "Curso!Demo2026";
 let db: ReturnType<typeof criarBanco>;
@@ -380,6 +382,51 @@ const DA_ORGANIZACAO = [
 ] as const;
 type Linha = Record<string, unknown>;
 
+/**
+ * A MARCA DA INSTALAÇÃO FOTOGRAFADA — para o curso de quem instala com outra marca.
+ *
+ * Com `CURSO_MARCA` (nome), `CURSO_MARCA_COR`, `CURSO_MARCA_LOGO` e
+ * `CURSO_MARCA_ICONE`, a instalação da bancada passa a ter essa marca, como se
+ * alguém a tivesse posto em Admin › Marca: o logo e o ícone vão para o bucket
+ * da marca, no prefixo da instalação, e nome, cor e caminhos para
+ * `platform_branding`. Roda logo depois do estado de fábrica, antes de cada
+ * aula — o estado de fábrica devolve a marca padrão, e as fotos não podem
+ * misturar as duas. Sem as variáveis, nada muda.
+ *
+ * Os caminhos são fixos (o banco exige `platform/<uuid>.png|jpg`): cada aula
+ * sobrescreve o mesmo arquivo em vez de acumular cópias.
+ */
+const ARQUIVO_DA_MARCA = {
+  logo_path: "c0b50000-0000-4000-8000-000000000001",
+  favicon_path: "c0b50000-0000-4000-8000-000000000002",
+} as const;
+
+async function aplicarMarcaDaBancada() {
+  const env = process.env;
+  if (!env.CURSO_MARCA && !env.CURSO_MARCA_COR && !env.CURSO_MARCA_LOGO && !env.CURSO_MARCA_ICONE) return;
+  // A mesma régua do site do curso: cor #RRGGBB, imagem PNG/JPEG pelos bytes, até 512 KB.
+  const marca = lerMarca(env, (caminho) => readFileSync(caminho));
+  lerMarca({ CURSO_MARCA_LOGO: env.CURSO_MARCA_ICONE }, (caminho) => readFileSync(caminho));
+  const valores: Record<string, unknown> = { id: 1, seeded_from_env: false };
+  if (marca.nome) valores.app_name = marca.nome;
+  if (marca.cor) valores.accent_hex = marca.cor;
+  for (const [campo, origem] of [
+    ["logo_path", env.CURSO_MARCA_LOGO],
+    ["favicon_path", env.CURSO_MARCA_ICONE],
+  ] as const) {
+    if (!origem?.trim()) continue;
+    const bytes = readFileSync(origem.trim());
+    const tipo = tipoDoLogo(bytes)!;
+    const destino = `${PREFIXO_DA_INSTALACAO}${ARQUIVO_DA_MARCA[campo]}.${tipo === "image/png" ? "png" : "jpg"}`;
+    semErro(
+      await db.storage.from(BUCKET_DE_LOGOS).upload(destino, bytes, { contentType: tipo, upsert: true }),
+      `subir ${campo} da marca`,
+    );
+    valores[campo] = destino;
+  }
+  semErro(await db.from("platform_branding").upsert(valores, { onConflict: "id" }), "marca da bancada");
+}
+
 async function voltarAoEstadoDeFabrica(org: string, saida: string) {
   const arquivo = path.join(saida, ".fabrica.json");
   if (!existsSync(arquivo)) {
@@ -589,6 +636,7 @@ export async function semearBase(): Promise<Contexto> {
   }
   const saida = path.join(path.dirname(fileURLToPath(import.meta.url)), "saida");
   await voltarAoEstadoDeFabrica(org, saida);
+  await aplicarMarcaDaBancada();
   await confirmarVersaoDaInstalacao();
   semErro(
     await db
