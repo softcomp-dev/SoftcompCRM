@@ -973,13 +973,13 @@
         {
           "id": "p1",
           "titulo": "Quem não é cliente",
-          "texto": "No mesmo WhatsApp também escrevem pessoas que não são clientes: equipe, sócio, família, fornecedor. No fim da tela fica o quadro \"Etiquetas de contato interno\". O contato marcado com uma dessas etiquetas não vira negócio no funil e não recebe resposta da IA. A conversa continua normal na Inbox, e você pode responder à mão. Numa instalação nova o campo vem vazio: \"interno\", \"equipe\" e \"familia\" em cinza são só um exemplo.",
+          "texto": "No mesmo WhatsApp também escrevem pessoas que não são clientes: equipe, sócio, família, fornecedor. Mais abaixo fica o quadro \"Etiquetas de contato interno\". Perto dele há outro, \"Etiquetas de contato da equipe\", para quem a IA continua atendendo, como o sócio que testa o agente. O contato marcado com uma dessas etiquetas não vira negócio no funil e não recebe resposta da IA. A conversa continua normal na Inbox, e você pode responder à mão. Numa instalação nova o campo vem vazio: \"interno\", \"equipe\" e \"familia\" em cinza são só um exemplo.",
           "rota": "/app/settings/tags",
           "antes": [],
           "destaques": [
             {
               "alvo": {
-                "css": "div.rounded-lg:has(> form textarea)"
+                "css": "div.rounded-lg:has(> form textarea[aria-label='Etiquetas de contato interno'])"
               },
               "rotulo": "Etiquetas de contato interno",
               "tipo": "caixa"
@@ -1016,7 +1016,10 @@
               "alvo": {
                 "role": "button",
                 "nome": "Salvar",
-                "exato": true
+                "exato": true,
+                "dentro": {
+                  "css": "div.rounded-lg:has(> form textarea[aria-label='Etiquetas de contato interno'])"
+                }
               },
               "rotulo": "Salvar",
               "tipo": "seta"
@@ -1025,7 +1028,10 @@
           "clicar": {
             "role": "button",
             "nome": "Salvar",
-            "exato": true
+            "exato": true,
+            "dentro": {
+              "css": "div.rounded-lg:has(> form textarea[aria-label='Etiquetas de contato interno'])"
+            }
           }
         },
         {
@@ -1047,7 +1053,10 @@
               "alvo": {
                 "role": "button",
                 "nome": "Salvar",
-                "exato": true
+                "exato": true,
+                "dentro": {
+                  "css": "div.rounded-lg:has(> form textarea[aria-label='Etiquetas de contato interno'])"
+                }
               }
             },
             {

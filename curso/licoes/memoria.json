@@ -174,7 +174,7 @@
         {
           "id": "p2",
           "titulo": "Escrever a regra nova",
-          "texto": "Clique no quadro e escreva. Aqui, a clínica acrescentou no fim uma regra sobre remarcação. Embaixo, o contador mostra quantos caracteres o texto tem. Enquanto você escreve, nada muda para os agentes. O botão \"Publicar versão\" só acende quando o texto está diferente da versão ativa e não está vazio.",
+          "texto": "Clique no quadro e escreva. Aqui, a clínica acrescentou no fim uma regra sobre remarcação. Embaixo, o contador mostra quantos caracteres o texto tem e quantos tokens isso dá, mais ou menos. Enquanto você escreve, nada muda para os agentes. O botão \"Publicar versão\" só acende quando o texto está diferente da versão ativa e não está vazio.",
           "dica": "O texto só fica guardado quando você publica. Se sair da tela antes, o que escreveu se perde.",
           "antes": [
             {
@@ -196,7 +196,7 @@
               "tipo": "caixa"
             },
             {
-              "alvo": { "texto": "^\\d+ caracteres$", "regex": true },
+              "alvo": { "texto": "^\\d+ caracteres", "regex": true },
               "rotulo": "Tamanho do texto",
               "tipo": "numero"
             },

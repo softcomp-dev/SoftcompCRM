@@ -598,14 +598,6 @@
                 "css": "#org_email_reply_to"
               },
               "valor": "recepcao@clinicabemviver"
-            },
-            {
-              "acao": "rolar",
-              "alvo": {
-                "role": "button",
-                "nome": "Salvar",
-                "exato": true
-              }
             }
           ],
           "destaques": [
@@ -616,15 +608,6 @@
               },
               "rotulo": "Endereço incompleto",
               "tipo": "caixa"
-            },
-            {
-              "alvo": {
-                "role": "button",
-                "nome": "Salvar",
-                "exato": true
-              },
-              "rotulo": "Salvar apagado",
-              "tipo": "seta"
             }
           ]
         }

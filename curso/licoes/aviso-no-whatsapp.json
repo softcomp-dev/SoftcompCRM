@@ -201,7 +201,7 @@
           "id": "p1",
           "titulo": "A lista dos últimos avisos",
           "rota": "/app/ai/cases/avisos",
-          "texto": "Mais abaixo fica \"Últimos avisos enviados\". Cada linha é um aviso que o sistema tentou mandar, do mais novo para o mais antigo: o dia e a hora, a situação, o número que recebeu (só com os 4 últimos dígitos, para proteger o celular de quem está de plantão) e o link \"Abrir o atendimento\", que abre o caso na tela Casos. Esta lista não some quando alguém resolve um alerta: ela é o registro do que saiu.",
+          "texto": "Mais abaixo fica \"Últimos avisos de casos\". Ela registra os avisos de casos; o resultado de um aviso de transferência para atendimento humano aparece no próprio item da Central de alertas. Cada linha é um aviso que o sistema tentou mandar, do mais novo para o mais antigo: o dia e a hora, a situação, o número que recebeu (só com os 4 últimos dígitos, para proteger o celular de quem está de plantão) e o link \"Abrir o atendimento\", que abre o caso na tela Casos. Esta lista não some quando alguém resolve um alerta: ela é o registro do que saiu.",
           "antes": [
             {
               "acao": "aguardar",
@@ -220,7 +220,7 @@
             {
               "alvo": {
                 "role": "heading",
-                "nome": "Últimos avisos enviados",
+                "nome": "Últimos avisos de casos",
                 "exato": true
               },
               "rotulo": "Últimos avisos",
