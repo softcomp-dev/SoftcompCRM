@@ -7,7 +7,9 @@ import type { ProposalItemInput } from "./tipos";
  * desconto exceder o subtotal — nunca deixa um item negativo puxar o total
  * pra baixo do que os outros itens somam sozinhos.
  */
-export function calcularTotal(itens: readonly ProposalItemInput[]): number {
+export function calcularTotal(
+  itens: readonly Pick<ProposalItemInput, "quantidade" | "preco_unitario_cents" | "desconto_cents">[],
+): number {
   return itens.reduce((acc, it) => {
     if (it.preco_unitario_cents === null) return acc;
     const subtotal = Math.round(it.quantidade * it.preco_unitario_cents);
