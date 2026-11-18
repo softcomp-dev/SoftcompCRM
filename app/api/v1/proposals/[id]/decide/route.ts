@@ -3,12 +3,9 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ok, fail } from "@/lib/api/wrappers";
-import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
-import { emitLeadActivity } from "@/lib/leads/activity-emitter";
-import { cancelaRetornoNoCrm } from "@/lib/followup/retorno-crm";
-import { logger } from "@/lib/logger";
+import { aplicarEfeitosDaDecisao } from "@/lib/propostas/efeitos-da-decisao";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { sePropostasDesligadas } from "@/lib/propostas/porta";
@@ -54,55 +51,14 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
     return fail("proposal_context_stale", t("Só é possível decidir sobre uma proposta enviada."), 409, { requestId });
   }
 
-  // value_cents do lead NÃO muda aqui (spec §16.2 — negócio perdido guarda
-  // quanto valia; zerar apagaria o histórico de quanto se deixou na mesa).
-  // D10: proposta órfã (negócio apagado, `lead_id` nulo) decide normalmente —
-  // só não há negócio para registrar atividade nele.
-  if (proposta.lead_id) {
-    await emitLeadActivity(supabase, {
-      organizationId: authz.org.orgId,
-      leadId: proposta.lead_id,
-      contactId: proposta.contact_id,
-      type: parsed.data.decisao === "aceita" ? "proposal_accepted" : "proposal_declined",
-      sourceModule: "proposals",
-      sourceId: id,
-      actor: { type: "user", id: authz.user.id },
-      reason:
-        parsed.data.decisao === "aceita"
-          ? "Proposta aceita pelo cliente"
-          : `Proposta recusada${parsed.data.motivo ? `: ${parsed.data.motivo}` : ""}`,
-    });
-  }
-
-  // N2 — a decisão resolve a proposta: o retorno automático agendado no envio
-  // não é mais necessário. Best-effort de verdade (achado Importante da
-  // revisão final da C3b+E1): a decisão JÁ foi gravada no UPDATE acima — um erro
-  // de banco aqui (instabilidade ao cancelar) não pode virar 500 nem comer a
-  // auditoria abaixo, senão a tela mostra erro para uma decisão que já vale,
-  // e um retry recebe 409 (status já não é mais 'enviada').
-  if ((proposta as { retorno_id: string | null }).retorno_id) {
-    try {
-      await cancelaRetornoNoCrm(
-        { admin: supabase, orgId: authz.org.orgId, actor: { type: "user", id: authz.user.id } },
-        (proposta as { retorno_id: string }).retorno_id,
-        { motivo: `Proposta ${parsed.data.decisao} — retorno automático não é mais necessário` },
-      );
-    } catch (erro) {
-      logger.warn("proposal.decide: cancelamento do retorno automático falhou sem bloquear a decisão", {
-        propostaId: id,
-        organizationId: authz.org.orgId,
-        erro: erro instanceof Error ? erro.message : String(erro),
-      });
-    }
-  }
-
-  void audit({
-    action: parsed.data.decisao === "aceita" ? "proposal.aceita" : "proposal.recusada",
-    actorUserId: authz.user.id,
+  await aplicarEfeitosDaDecisao({
+    db: supabase,
     organizationId: authz.org.orgId,
-    resourceType: "crm_proposals",
-    resourceId: id,
+    userId: authz.user.id,
     requestId,
+    proposta: proposta as { id: string; lead_id: string | null; contact_id: string | null; retorno_id: string | null },
+    decisao: parsed.data.decisao,
+    motivo: parsed.data.motivo,
   });
 
   return ok({ id, status: parsed.data.decisao }, { requestId });
