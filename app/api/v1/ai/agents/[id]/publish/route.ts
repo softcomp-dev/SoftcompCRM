@@ -18,7 +18,7 @@ import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { publishSchema, PUBLISH_ERROR_CODES } from "@/lib/ai/agents/validation";
+import { publishSchema, PUBLISH_ERROR_CODES, type PublishErrorCode } from "@/lib/ai/agents/validation";
 import { toolIdAceito } from "@/lib/mcp/servidor-externo/ids";
 import { VALID_TOOL_IDS } from "@/lib/mcp/tools";
 import { publishAgentVersion } from "@/lib/ai/agents/publish";
@@ -34,6 +34,36 @@ export const dynamic = "force-dynamic";
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Ctx = { params: Promise<{ id: string }> };
+
+/**
+ * O que dizer a quem tentou publicar, por motivo. O código vai junto; o texto
+ * é o que um integrador lê para saber o que corrigir — antes era um
+ * "Validação de publish falhou." igual para todos os motivos. `Record`
+ * exaustivo: código novo sem texto não compila. Cada `t()` recebe a frase
+ * literal, para a cerca de tradução enxergá-la.
+ */
+function motivoDaRecusa(t: (texto: string) => string): Record<PublishErrorCode, string> {
+  return {
+    agent_not_found: t("Agente não encontrado nesta organização."),
+    agent_archived: t("O agente está arquivado. Desarquive-o antes de publicar."),
+    version_not_found: t("Versão não encontrada nesta organização."),
+    existing_version_requires_review: t("Este agente já tem outras versões. Revise e publique pela tela do agente."),
+    version_invalid_state: t("Só uma versão em rascunho (ou substituída) pode ser publicada."),
+    credential_missing: t(
+      "A versão usa a chave da instalação, e esta instalação não tem chave desse provedor. Informe credential_id com uma credencial cadastrada.",
+    ),
+    credential_not_found: t("A credencial da versão não existe nesta organização."),
+    credential_inactive: t("A credencial da versão está desativada."),
+    credential_not_validated: t("A credencial da versão ainda não foi validada. Teste-a em IA › Credenciais."),
+    credential_provider_mismatch: t("A credencial da versão é de outro provedor de IA."),
+    channel_session_not_found: t(
+      "A versão não tem canal. Informe channel_session_id com um canal desta organização, ou ponha o agente num roteador.",
+    ),
+    channel_session_offline: t("O canal da versão não está conectado. Conecte-o em Conexões antes de publicar."),
+    model_not_found: t("O modelo da versão não existe para esse provedor."),
+    tool_id_invalid: t("tool_ids contém ids inexistentes no catálogo MCP."),
+  };
+}
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   const supportDenied = await requireSupportWrite();
@@ -113,7 +143,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       const status = result.code === "agent_not_found" || result.code === "version_not_found"
         ? 404
         : 422;
-      return fail(result.code, t("Validação de publish falhou."), status, { requestId });
+      const motivo = motivoDaRecusa(t)[result.code as PublishErrorCode];
+      return fail(result.code, motivo, status, { requestId });
     }
     return fail("internal_error", "Erro ao publicar.", 500, { requestId });
   }
