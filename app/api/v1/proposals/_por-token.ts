@@ -2,10 +2,14 @@
  * Propostas (com os itens do pedido) chamadas por Bearer `dsk_…` — a porta do ERP.
  *
  * Os itens do pedido moram em `crm_proposal_items`, presos à proposta (doutrina
- * DIRC: não há tabela de item no negócio). Por token só se lê, cria e edita o
- * RASCUNHO e seus itens; o que tem efeito fora do CRM continua só pela tela:
- * enviar ao cliente (`/send`), PDF/documento (`/documento`, `/previa`),
- * decisão/aceite (`/decide`), revisão, modelo, assistente e descartar (DELETE).
+ * DIRC: não há tabela de item no negócio). Por token se lê, cria e edita o
+ * RASCUNHO e seus itens, e se muda o STATUS de cada item (migration 9261:
+ * aceito/recusado na cotação, em produção/entregue no pedido —
+ * `mudarStatusDosItensPorToken`, para o ERP devolver ao CRM o que o cliente
+ * fechou e o que já foi produzido). O que tem efeito fora do CRM continua só
+ * pela tela: enviar ao cliente (`/send`), PDF/documento (`/documento`,
+ * `/previa`), a decisão da proposta inteira (`/decide`), revisão, modelo,
+ * assistente e descartar (DELETE).
  *
  * Mesmas regras da tela (`route.ts`, `[id]/route.ts`):
  *  - organização da LINHA DO TOKEN; o client é o de serviço (ignora a RLS), então
@@ -36,16 +40,19 @@ import { emitLeadActivity } from "@/lib/leads/activity-emitter";
 import { resolverAvisoDeRevisaoSeProntaOuEncerrada } from "@/lib/propostas/aviso-de-revisao";
 import { fusoDaOrganizacao, somarDiasNoFuso } from "@/lib/propostas/data-no-fuso";
 import { resolverItensDaProposta } from "@/lib/propostas/itens";
+import { mudarStatusDosItens } from "@/lib/propostas/mudar-status-dos-itens";
 import { resolverPadroesDaProposta } from "@/lib/propostas/padroes-da-organizacao";
 import { sePropostasDesligadas } from "@/lib/propostas/porta";
-import { propostaCreateSchema, propostaItemSchema } from "@/lib/schemas/propostas";
+import { faseDoItem } from "@/lib/propostas/status-do-item";
+import { propostaCreateSchema, propostaItemSchema, statusDosItensSchema } from "@/lib/schemas/propostas";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const COLUNAS_DA_PROPOSTA =
   "id, lead_id, contact_id, status, titulo, condicoes, total_cents, moeda, valid_until, numero, ano, versao, substitui_id, revision, pricing_status, prazo_dias_uteis, pagamento, sent_at, decided_at, decision_reason, created_at, updated_at";
 const COLUNAS_DA_LISTA = "id, lead_id, contact_id, titulo, status, total_cents, moeda, numero, ano, versao, valid_until, created_at";
-const COLUNAS_DO_ITEM = "id, proposal_id, product_id, descricao, quantidade, preco_unitario_cents, desconto_cents, position";
+const COLUNAS_DO_ITEM =
+  "id, proposal_id, product_id, descricao, quantidade, preco_unitario_cents, desconto_cents, position, status, status_changed_at";
 
 const patchSchema = z.object({
   revision: z.number().int().positive(),
@@ -201,7 +208,62 @@ export async function lerPorToken(req: NextRequest, id: string): Promise<Respons
     preco_catalogo_atual_cents: it.product_id ? (precoAtual.get(it.product_id) ?? null) : null,
   }));
 
-  return ok({ ...(proposta as unknown as Record<string, unknown>), itens: itensComDrift }, { requestId });
+  // 9261 — em que fase o status dos itens pode mudar (cotação, pedido ou nenhuma).
+  const linha = proposta as unknown as { status: string; lead_id: string | null } & Record<string, unknown>;
+  let tipoDoDocumento: string | null = null;
+  if (linha.lead_id) {
+    const { data: lead } = await authz.supabase
+      .from("crm_leads")
+      .select("sales_document_kind")
+      .eq("organization_id", authz.organizationId)
+      .eq("id", linha.lead_id)
+      .maybeSingle();
+    tipoDoDocumento = (lead as { sales_document_kind: string | null } | null)?.sales_document_kind ?? null;
+  }
+
+  return ok(
+    { ...linha, itens: itensComDrift, fase_dos_itens: faseDoItem(linha.status, tipoDoDocumento) },
+    { requestId },
+  );
+}
+
+/**
+ * `PATCH /api/v1/proposals/{id}/itens` por Bearer — o status de um ou mais
+ * itens (migration 9261). A regra é a MESMA da tela
+ * (`lib/propostas/mudar-status-dos-itens.ts`): organização da linha do token,
+ * fase pela proposta e pelo documento do negócio, só as colunas de status
+ * escritas. `decided_by_user_id` fica nulo quando o último item resolve a
+ * proposta — quem decidiu foi a integração, e a auditoria guarda o token.
+ */
+export async function mudarStatusDosItensPorToken(req: NextRequest, id: string): Promise<Response> {
+  const requestId = requestIdDe(req);
+  const entrada = await entrar(req, requestId, "escrita");
+  if (!entrada.ok) return entrada.response;
+  const { authz } = entrada;
+  const teto = await tetoDeEscritaDoToken(authz, "proposals", requestId);
+  if (teto) return teto;
+
+  if (!UUID.test(id)) return fail("validation_failed", "Campos inválidos.", 422, { requestId });
+  const parsed = statusDosItensSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return corpoInvalido(parsed.error, requestId);
+
+  const saida = await mudarStatusDosItens({
+    db: authz.supabase,
+    organizationId: authz.organizationId,
+    actor: authz.actor,
+    apiTokenId: authz.apiTokenId ?? null,
+    requestId,
+    propostaId: id,
+    itens: parsed.data.itens,
+    via: "token",
+  });
+  if (!saida.ok) {
+    return fail(saida.code, saida.message, saida.httpStatus, {
+      requestId,
+      ...(saida.details ? { details: saida.details } : {}),
+    });
+  }
+  return ok(saida.resultado, { requestId });
 }
 
 export async function criarPorToken(req: NextRequest): Promise<Response> {

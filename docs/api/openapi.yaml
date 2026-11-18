@@ -660,7 +660,10 @@ paths:
       tags: [Propostas]
       operationId: lerProposta
       summary: Ler proposta com os itens do pedido
-      description: Cada item traz `preco_catalogo_atual_cents` (o preço de hoje no catálogo, para ver se mudou).
+      description: |
+        Cada item traz `preco_catalogo_atual_cents` (o preço de hoje no catálogo, para ver
+        se mudou) e o seu `status`. `fase_dos_itens` diz o que dá para mudar agora em
+        `PATCH /api/v1/proposals/{id}/itens`: `cotacao`, `pedido` ou `null`.
       x-escopos: [mcp:read]
       x-papel-minimo-do-token: viewer
       parameters: [{ $ref: "#/components/parameters/IdUuid" }]
@@ -702,6 +705,79 @@ paths:
                       id: { type: string, format: uuid }
                       revision: { type: integer }
                       total_cents: { type: integer }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflito" }
+        "422": { $ref: "#/components/responses/Validacao" }
+        "429": { $ref: "#/components/responses/LimiteExcedido" }
+  /api/v1/proposals/{id}/itens:
+    patch:
+      tags: [Propostas]
+      operationId: mudarStatusDosItensDaProposta
+      summary: Mudar o status dos itens (aceite parcial, produção e entrega)
+      description: |
+        Devolve ao CRM a resposta do cliente item a item e o andamento do pedido. Só o
+        status muda; descrição, quantidade e preço do item enviado ficam como estão.
+
+        - **Cotação** (proposta `enviada`): `pendente`, `aceito` ou `recusado`. Quando
+          nenhum item fica pendente, a proposta se resolve: `aceita` se algum item foi
+          aceito, `recusada` se todos foram recusados. No aceite, o valor do negócio
+          passa a ser a soma dos itens aceitos.
+        - **Pedido** (proposta `aceita` e negócio com `sales_document_kind = order`): o
+          item aceito vai para `em_producao` e `entregue`. Item recusado não entra no
+          pedido.
+
+        Proposta fora dessas fases, ou item mudado por outra chamada no meio, responde
+        409 `proposal_context_stale`. Item que não é da proposta, ou status que a fase
+        não aceita, responde 422 com os ids em `details.itens`.
+      x-escopos: [mcp:write]
+      x-papel-minimo-do-token: agent
+      parameters: [{ $ref: "#/components/parameters/IdUuid" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itens]
+              properties:
+                itens:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: object
+                    required: [id, status]
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { $ref: "#/components/schemas/StatusDoItemDaProposta" }
+            example:
+              itens:
+                - { id: "9a9a9a9a-9a9a-49a9-89a9-9a9a9a9a9a9a", status: aceito }
+                - { id: "9b9b9b9b-9b9b-49b9-89b9-9b9b9b9b9b9b", status: recusado }
+      responses:
+        "200":
+          description: Status gravado. `status` é o da proposta depois da mudança.
+          headers: { X-Request-Id: { $ref: "#/components/headers/XRequestId" } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { type: string }
+                      fase: { type: [string, "null"], enum: [cotacao, pedido, null] }
+                      itens:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            status: { $ref: "#/components/schemas/StatusDoItemDaProposta" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/Proibido" }
         "404": { $ref: "#/components/responses/NaoEncontrado" }
@@ -3223,6 +3299,10 @@ components:
             condicoes: { type: [string, "null"] }
             prazo_dias_uteis: { type: [integer, "null"] }
             pagamento: { type: [string, "null"] }
+            fase_dos_itens:
+              type: [string, "null"]
+              enum: [cotacao, pedido, null]
+              description: O que `PATCH /api/v1/proposals/{id}/itens` aceita agora.
             itens:
               type: array
               items:
@@ -3232,6 +3312,12 @@ components:
                     properties:
                       id: { type: string, format: uuid }
                       preco_catalogo_atual_cents: { type: [integer, "null"] }
+                      status: { $ref: "#/components/schemas/StatusDoItemDaProposta" }
+                      status_changed_at: { type: [string, "null"], format: date-time }
+    StatusDoItemDaProposta:
+      type: string
+      enum: [pendente, aceito, recusado, em_producao, entregue]
+      description: Cotação usa pendente/aceito/recusado; o pedido, aceito/em_producao/entregue.
     RegraDeAutomacaoNova:
       type: object
       required: [name, trigger_event, actions]

@@ -395,3 +395,97 @@ describe("DELETE /api/v1/proposals/{id} — Bearer", () => {
     expect(requireRole).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /api/v1/proposals/{id}/itens — Bearer (9261)", () => {
+  const ITEM_A = "9a9a9a9a-9a9a-49a9-89a9-9a9a9a9a9a9a";
+  const ITEM_B = "9b9b9b9b-9b9b-49b9-89b9-9b9b9b9b9b9b";
+  const ITEM_ALHEIO = "9c9c9c9c-9c9c-49c9-89c9-9c9c9c9c9c9c";
+
+  function enviada(statusDaProposta = "enviada", documento: "quote" | "order" | null = "quote") {
+    const proposta = banco.tabelas.crm_proposals!.find((p) => p.id === PROPOSTA)!;
+    proposta.status = statusDaProposta;
+    proposta.contact_id = CONTATO;
+    proposta.retorno_id = null;
+    const lead = banco.tabelas.crm_leads!.find((l) => l.id === LEAD)!;
+    lead.sales_document_kind = documento;
+    lead.value_cents = 2000;
+    banco.tabelas.crm_proposal_items = [
+      { id: ITEM_A, organization_id: ORG, proposal_id: PROPOSTA, descricao: "1020 REDONDO", status: "pendente", quantidade: 1, preco_unitario_cents: 1200, desconto_cents: 0, position: 1 },
+      { id: ITEM_B, organization_id: ORG, proposal_id: PROPOSTA, descricao: "1045 REDONDO", status: "pendente", quantidade: 1, preco_unitario_cents: 800, desconto_cents: 0, position: 2 },
+      { id: ITEM_ALHEIO, organization_id: OUTRA_ORG, proposal_id: PROPOSTA_ALHEIA, descricao: "Alheio", status: "pendente", quantidade: 1, preco_unitario_cents: 9, desconto_cents: 0, position: 1 },
+    ];
+  }
+  const item = (id: string) => banco.tabelas.crm_proposal_items!.find((l) => l.id === id)!;
+  const proposta = () => banco.tabelas.crm_proposals!.find((p) => p.id === PROPOSTA)!;
+
+  async function patchItens(id: string, itens: unknown, headers: Record<string, string> = AUTH) {
+    const { PATCH } = await import("./[id]/itens/route");
+    return PATCH(pedido("PATCH", `/api/v1/proposals/${id}/itens`, { itens }, headers), ctxId(id));
+  }
+
+  it("aceite parcial pelo ERP: resolve a proposta, o negócio vale o aceito, decided_by fica nulo e a auditoria leva o token", async () => {
+    enviada();
+    const res = await patchItens(PROPOSTA, [
+      { id: ITEM_A, status: "aceito" },
+      { id: ITEM_B, status: "recusado" },
+    ]);
+    expect(res.status).toBe(200);
+    expect(requireRole).not.toHaveBeenCalled();
+    expect(((await res.json()) as { data: { status: string } }).data.status).toBe("aceita");
+    expect(item(ITEM_A).status).toBe("aceito");
+    expect(proposta().status).toBe("aceita");
+    expect(proposta().decided_by_user_id).toBeNull();
+    expect(banco.tabelas.crm_leads!.find((l) => l.id === LEAD)!.value_cents).toBe(1200);
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "proposal.item_status_changed", actorApiTokenId: "tok-1", actorUserId: null }),
+    );
+  });
+
+  it("pedido: o ERP marca o item aceito como entregue", async () => {
+    enviada("aceita", "order");
+    item(ITEM_A).status = "aceito";
+    item(ITEM_B).status = "recusado";
+    const res = await patchItens(PROPOSTA, [{ id: ITEM_A, status: "entregue" }]);
+    expect(res.status).toBe(200);
+    expect(item(ITEM_A).status).toBe("entregue");
+  });
+
+  it("item de OUTRA organização → 422 nomeando o item, nada muda", async () => {
+    enviada();
+    const res = await patchItens(PROPOSTA, [{ id: ITEM_ALHEIO, status: "aceito" }]);
+    expect(res.status).toBe(422);
+    expect(item(ITEM_ALHEIO).status).toBe("pendente");
+  });
+
+  it("proposta de OUTRA organização → 404", async () => {
+    enviada();
+    const res = await patchItens(PROPOSTA_ALHEIA, [{ id: ITEM_ALHEIO, status: "aceito" }]);
+    expect(res.status).toBe(404);
+  });
+
+  it("proposta em rascunho → 409", async () => {
+    enviada("rascunho");
+    const res = await patchItens(PROPOSTA, [{ id: ITEM_A, status: "aceito" }]);
+    expect(res.status).toBe(409);
+  });
+
+  it("sem mcp:write → 403; acima do teto → 429; nada muda", async () => {
+    enviada();
+    tokenOk(["mcp:read"]);
+    expect((await patchItens(PROPOSTA, [{ id: ITEM_A, status: "aceito" }])).status).toBe(403);
+    tokenOk();
+    vi.mocked(checkRateLimit).mockResolvedValueOnce({ allowed: false, retryAfterSeconds: 30 } as never);
+    expect((await patchItens(PROPOSTA, [{ id: ITEM_A, status: "aceito" }])).status).toBe(429);
+    expect(item(ITEM_A).status).toBe("pendente");
+  });
+
+  it("GET por token devolve o status de cada item e a fase", async () => {
+    enviada();
+    const { GET } = await import("./[id]/route");
+    const res = await GET(pedido("GET", `/api/v1/proposals/${PROPOSTA}`), ctxId(PROPOSTA));
+    expect(res.status).toBe(200);
+    const corpo = (await res.json()) as { data: { fase_dos_itens: string; itens: Array<{ status: string }> } };
+    expect(corpo.data.fase_dos_itens).toBe("cotacao");
+    expect(corpo.data.itens.map((i) => i.status)).toEqual(["pendente", "pendente"]);
+  });
+});

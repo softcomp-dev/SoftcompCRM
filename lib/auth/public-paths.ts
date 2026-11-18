@@ -160,6 +160,10 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/companies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   /^\/api\/v1\/proposals$/,
   /^\/api\/v1\/proposals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  // Status dos itens da proposta (migration 9261): o ERP devolve ao CRM o que o
+  // cliente fechou e o que já foi produzido/entregue. Âncora `$`: as demais ações
+  // da proposta (`send`, `decide`...) seguem só pela tela.
+  /^\/api\/v1\/proposals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/itens$/i,
   // ── fim das rotas do ERP ──
   // ENVIO SERVER-TO-SERVER. Mesma dualidade de `/api/v1/contacts` acima, com
   // `mcp:write` em vez de `mcp:read`: sessão de navegador OU Bearer `dsk_…`,

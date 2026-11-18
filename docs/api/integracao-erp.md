@@ -59,6 +59,7 @@ de criação aceita `Idempotency-Key`. O contrato de cada uma está em `/docs`.
 | Registrar fato para o vendedor | `POST /api/v1/leads/{id}/notes` | `mcp:write` · agent |
 | Anexar NF, contrato | `GET`/`POST /api/v1/leads/{id}/attachments`, `GET …/{anexo}/media` | read · viewer / write · agent |
 | Itens do pedido | `GET`/`POST /api/v1/proposals`, `GET`/`PATCH /api/v1/proposals/{id}` (rascunho) | read · viewer / write · agent |
+| O que o cliente fechou, item a item, e o andamento do pedido | `PATCH /api/v1/proposals/{id}/itens` (cotação: `aceito`/`recusado`, e o último item decidido resolve a proposta; pedido: `em_producao`/`entregue`). O `GET` da proposta diz a fase em `fase_dos_itens` | `mcp:write` · agent |
 
 **Cliente, equipe e rotina**
 
@@ -93,8 +94,10 @@ caminho e não o método):
 
 - **Apagar** contato, empresa, proposta ou anexo. Contato tem fluxo de LGPD
   (anonimização) na tela; apagar por integração é irreversível demais.
-- **Enviar a proposta ao cliente**, gerar o PDF, registrar a decisão e revisar.
-  São efeitos para fora, com a marca da empresa; ficam com quem opera a tela.
+- **Enviar a proposta ao cliente**, gerar o PDF, registrar a decisão da proposta
+  INTEIRA e revisar. São efeitos para fora, com a marca da empresa; ficam com
+  quem opera a tela. A resposta do cliente item a item entra por
+  `PATCH /api/v1/proposals/{id}/itens`, que só muda status.
 - O histórico de execuções das automações (`/automation-rules/runs`).
 
 Ainda falta, quando o caso aparecer:
