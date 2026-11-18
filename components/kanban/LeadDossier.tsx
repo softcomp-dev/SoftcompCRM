@@ -362,6 +362,7 @@ export function LeadDossier({
           leadId={lead.id}
           pipelineId={pipelineId}
           podeCriar={podeCriarProposta}
+          podeDecidirItens={podeEditarTarefas}
         />
       </SheetContent>
     </Sheet>

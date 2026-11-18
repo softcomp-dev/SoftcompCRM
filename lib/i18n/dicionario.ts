@@ -3173,6 +3173,8 @@ export const DICIONARIO: Traducoes = {
   "Recusado": { es: "Rechazado" },
   "Em produção": { es: "En producción" },
   "Status do item": { es: "Estado del ítem" },
+  "Itens da proposta": { es: "Ítems de la propuesta" },
+  "Valor unitário": { es: "Valor unitario" },
   "O cliente aceitou só parte? Marque cada item na coluna Status: a proposta se resolve quando nenhum item ficar pendente, e o negócio passa a valer a soma dos aceitos.": {
     es: "¿El cliente aceptó solo una parte? Marque cada ítem en la columna Estado: la propuesta se resuelve cuando ningún ítem quede pendiente, y el negocio pasa a valer la suma de los aceptados.",
   },
