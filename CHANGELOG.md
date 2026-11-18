@@ -8,6 +8,52 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+## [1.104.23] — 2026-11-18
+
+### Adicionado
+
+- **Cada produto da proposta tem o seu status, e o cliente pode aceitar só parte** Quem negocia vários produtos com o mesmo cliente agora vê, no card do negócio, a tabela dos
+  itens da proposta com **Descrição**, **Valor unitário**, **Quantidade**, **Total** e
+  **Status**. Com a proposta enviada, marque cada item como **Pendente**, **Aceito** ou
+  **Recusado**. Quando nenhum item fica pendente, a proposta se resolve sozinha: aceita se
+  algum produto foi aceito, recusada se todos foram recusados. O valor do negócio passa a
+  ser a soma dos itens aceitos.
+
+  Depois que a cotação aceita vira pedido (marque o negócio como **Pedido** no campo
+  "Número da cotação ou do pedido"), cada item aceito pode ir para **Em produção** e
+  **Entregue**. Os botões "Marcar como aceita/recusada" continuam valendo para a proposta
+  inteira.
+
+  O sistema de gestão pode fazer o mesmo pela API, com token: `PATCH
+  /api/v1/proposals/{id}/itens`. O agente de IA ganha duas capacidades: ver os itens e o
+  status de cada um, e registrar o que o cliente fechou. A segunda só entra no agente se
+  alguém a marcar. O PDF da proposta passa a mostrar o status de cada item e o total aceito
+  depois que o cliente responde.
+
+  A atualização aplica a migration sozinha. Os itens de propostas já aceitas ou recusadas
+  recebem o status da decisão.
+
+### Corrigido
+
+- **A API de integração explica melhor quando recusa um pedido** Quem integra outro sistema ao CRM pela API passa a receber respostas de erro mais claras:
+
+  - Depois de várias tentativas com um token errado, a resposta é `429 rate_limited` com o
+    cabeçalho `Retry-After`, que diz quantos segundos esperar. Antes vinha `forbidden`, sem
+    dizer que bastava esperar.
+  - Uma regra de automação enviada com um campo inválido (por exemplo, um evento que não
+    existe) é recusada com `422 validation_failed`, como no resto da API. Um JSON ilegível
+    continua com `400`.
+  - Ao publicar uma versão de agente de IA, a recusa diz o motivo: falta canal, falta
+    credencial, a credencial está desativada ou não foi validada, e assim por diante. Antes
+    a mensagem era sempre "Validação de publish falhou."
+  - Pedir as etapas de um funil ou as versões de um agente que não existe na organização
+    responde `404`. Antes vinha uma lista vazia, igual à de um funil sem etapas.
+  - Quando falta uma informação que vale para o pedido inteiro (por exemplo, abrir conversa
+    sem `contact_id` nem `phone_number`), a mensagem do erro diz o que falta.
+
+  A documentação da API (Swagger) foi atualizada junto: o exemplo de motivo de perda passou
+  a ser `price`, e a lista de motivos aceitos está na própria operação.
+
 ## [1.104.22] — 2026-11-17
 
 Esta versão não trouxe fragmento em `.changes/`: as mudanças não foram descritas para quem opera.
@@ -15304,7 +15350,8 @@ Primeira versão marcada do DeskcommCRM. O projeto vinha sendo desenvolvido publ
 
 - **Node 22 é obrigatório para desenvolvimento.** A suíte de invariantes instancia o cliente do Supabase, que exige o `WebSocket` global — nativo apenas a partir do Node 22. Isso não afeta quem apenas hospeda: a VPS roda a imagem pronta.
 
-[Não lançado]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.22...HEAD
+[Não lançado]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.23...HEAD
+[1.104.23]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.22...v1.104.23
 [1.104.22]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.21...v1.104.22
 [1.104.21]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.20...v1.104.21
 [1.104.20]: https://github.com/softcomp-dev/SoftcompCRM/compare/v1.104.19...v1.104.20
