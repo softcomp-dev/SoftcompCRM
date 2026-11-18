@@ -62,8 +62,9 @@ info:
       Leia uma vez e guarde os ids; não leia a cada pedido.
 
     ## Peculiaridades conhecidas (medidas no código)
-    - Excesso de tentativas com token inválido responde **429**, e falha ao consultar
-      o token responde **500**, ambos com `code: "forbidden"`.
+    - Excesso de tentativas com token inválido responde **429** `rate_limited` com
+      `Retry-After` (em segundos). Falha ao consultar o token responde **500** com
+      `code: "forbidden"`.
     - Algumas rotas usam `validation_error` e outras `validation_failed` para o mesmo
       tipo de recusa. Trate os dois como erro de validação.
     - Id de caminho que **não tem forma de UUID** (por exemplo
@@ -851,7 +852,8 @@ paths:
         "403": { $ref: "#/components/responses/Proibido" }
         "422":
           description: |
-            URL de webhook insegura (endereço interno, sem https), fonte de webhook de
+            Corpo fora do schema (`validation_failed`, com os campos em `details`), URL de
+            webhook insegura (endereço interno, sem https), fonte de webhook de
             outra organização, campo de data inválido ou cifra do segredo indisponível
             (`encryption_unavailable`).
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
@@ -888,7 +890,8 @@ paths:
         "403": { $ref: "#/components/responses/Proibido" }
         "422":
           description: |
-            URL de webhook insegura (endereço interno, sem https), fonte de webhook de
+            Corpo fora do schema (`validation_failed`, com os campos em `details`), URL de
+            webhook insegura (endereço interno, sem https), fonte de webhook de
             outra organização, campo de data inválido ou cifra do segredo indisponível
             (`encryption_unavailable`).
           content: { application/json: { schema: { $ref: "#/components/schemas/Erro" } } }
@@ -1224,8 +1227,9 @@ paths:
       summary: Listar etapas de um funil
       description: |
         Etapas ativas do funil, na ordem do quadro, incluindo as de ganho e de perda.
-        Funil de outra organização devolve lista vazia. O `POST` deste caminho (criar
-        etapa) só aceita sessão de navegador.
+        Funil inexistente ou de outra organização responde `404`; funil desta organização
+        sem etapas ativas devolve lista vazia. O `POST` deste caminho (criar etapa) só
+        aceita sessão de navegador.
       x-escopos: [mcp:read]
       x-papel-minimo-do-token: agent
       parameters:
@@ -1247,6 +1251,7 @@ paths:
                   - { id: 3d5f7b9c-1e3a-4b5c-8f7a-9b1d3f5a7c92, name: Entregue, position: 3000, is_won: true, is_lost: false }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
         "429": { $ref: "#/components/responses/LimiteExcedido" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
@@ -1470,8 +1475,10 @@ paths:
       description: |
         Fecha o negócio como perdido numa chamada só — por exemplo, quando o pedido é
         cancelado no ERP. A etapa de perda do funil é escolhida aqui. O motivo é
-        obrigatório e precisa ser do vocabulário do funil (os motivos padrão ou os
-        que o funil declarou). A mesma observação de reabertura do `win` vale aqui.
+        obrigatório e precisa ser do vocabulário do funil: um dos motivos padrão
+        (`requested_by_customer`, `price`, `no_response`, `product_unavailable`,
+        `cancelled_by_store`, `cancelled_by_customer`, `payment_failed`, `other`) ou
+        um que o funil declarou. Fora disso, `422 lost_reason_invalid`. A mesma observação de reabertura do `win` vale aqui.
       x-escopos: [mcp:write]
       x-papel-minimo-do-token: agent
       parameters:
@@ -1485,7 +1492,7 @@ paths:
               required: [lost_reason]
               properties:
                 lost_reason: { type: string, minLength: 1, maxLength: 500 }
-            example: { lost_reason: preco }
+            example: { lost_reason: price }
       responses:
         "200":
           description: Negócio perdido.
@@ -2412,7 +2419,7 @@ paths:
       tags: [Agentes de IA]
       operationId: listarVersoesDoAgente
       summary: Listar versões
-      description: Versões do agente, da mais nova para a mais antiga. Agente inexistente devolve lista vazia.
+      description: Versões do agente, da mais nova para a mais antiga. Agente inexistente ou de outra organização responde `404`; agente arquivado continua legível.
       x-escopos: [mcp:read]
       x-papel-minimo-do-token: manager
       parameters: [{ $ref: "#/components/parameters/IdUuid" }]
@@ -2423,6 +2430,7 @@ paths:
           content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: "#/components/schemas/VersaoGravada" } } } } } }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/Proibido" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
         "500": { $ref: "#/components/responses/ErroInterno" }
     post:
       tags: [Agentes de IA]
@@ -2998,7 +3006,7 @@ paths:
       description: |
         Servidor [MCP](https://modelcontextprotocol.io) em Streamable HTTP, **sem
         sessão** (cada requisição é independente). Expõe o CRM como ferramentas
-        (umas 80) — é a porta pensada para agentes de IA, e serve a qualquer
+        (a lista vem de `tools/list`, e depende dos módulos ligados) — é a porta pensada para agentes de IA, e serve a qualquer
         programa que fale JSON-RPC. Para funil e cards há rotas REST equivalentes
         (`/api/v1/pipelines`, `/api/v1/leads`, `/api/v1/leads/{id}/move`), mais
         simples para um ERP.
