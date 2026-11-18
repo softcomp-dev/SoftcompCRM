@@ -7351,6 +7351,8 @@ export type Database = {
           product_id: string | null;
           proposal_id: string;
           quantidade: number;
+          status: string;
+          status_changed_at: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -7364,6 +7366,8 @@ export type Database = {
           product_id?: string | null;
           proposal_id: string;
           quantidade?: number;
+          status?: string;
+          status_changed_at?: string | null;
         };
         Update: {
           created_at?: string;
@@ -7376,6 +7380,8 @@ export type Database = {
           product_id?: string | null;
           proposal_id?: string;
           quantidade?: number;
+          status?: string;
+          status_changed_at?: string | null;
         };
         Relationships: [
           {

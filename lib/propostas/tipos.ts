@@ -31,3 +31,15 @@ export interface ProposalRow {
   // D10: o nome impresso no PDF, para o documento continuar legível órfão.
   destinatario_nome: string | null;
 }
+
+/**
+ * Status do item da proposta (migration 9261) — o MESMO vocabulário do CHECK
+ * `crm_proposal_items_status_conhecido` (vigiado por
+ * `tests/invariants/vocabulario-banco-x-typescript.test.ts`).
+ *
+ * Os três primeiros são da COTAÇÃO; `em_producao` e `entregue` só existem
+ * depois que a cotação aceita vira PEDIDO. Quem decide a fase é
+ * `lib/propostas/status-do-item.ts`.
+ */
+export const STATUS_DO_ITEM_DA_PROPOSTA = ["pendente", "aceito", "recusado", "em_producao", "entregue"] as const;
+export type StatusDoItemDaProposta = (typeof STATUS_DO_ITEM_DA_PROPOSTA)[number];

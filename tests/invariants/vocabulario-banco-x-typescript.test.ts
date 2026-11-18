@@ -578,6 +578,13 @@ const PARES: Array<{
     arquivo: "lib/external-db/types.ts",
     simbolo: "TipoBanco",
   },
+  {
+    tabela: "crm_proposal_items",
+    coluna: "status",
+    // 9261: o status de cada item da proposta (cotação → pedido).
+    arquivo: "lib/propostas/tipos.ts",
+    simbolo: "STATUS_DO_ITEM_DA_PROPOSTA",
+  },
 ];
 
 /** Tira um nível de parênteses externos, se ele envolver a expressão inteira. */
