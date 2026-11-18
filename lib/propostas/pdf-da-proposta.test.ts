@@ -10,7 +10,7 @@ const mocks: Record<string, any> = vi.hoisted(() => ({
   marcaDaOrganizacaoParaPdf: vi.fn(),
 }));
 
-const estado: { camposFaltando: CampoFaltando[] } = vi.hoisted(() => ({ camposFaltando: [] }));
+const estado: { camposFaltando: CampoFaltando[]; statusDoItem?: string } = vi.hoisted(() => ({ camposFaltando: [] }));
 
 vi.mock("./documento/documento-da-proposta", async (importOriginal) => {
   const original = (await importOriginal()) as Record<string, unknown>;
@@ -59,6 +59,7 @@ function montarAdmin() {
                       preco_unitario_cents: 350000,
                       desconto_cents: 0,
                       product_id: null,
+                      status: estado.statusDoItem,
                     },
                   ],
                   error: null,
@@ -90,6 +91,7 @@ function montarAdmin() {
 beforeEach(() => {
   vi.resetAllMocks();
   estado.camposFaltando = [];
+  estado.statusDoItem = undefined;
   mocks.montarDocumentoDaProposta.mockImplementation(
     async (_db: unknown, _org: string, proposta: PropostaParaPdf) => {
       if (!proposta.template_slug) return null;
@@ -154,5 +156,31 @@ describe("montarPdfDaProposta", () => {
     expect(comOpcao.ok).toBe(false);
     if (!comOpcao.ok) expect(comOpcao.motivo).toContain("modelo da proposta");
     expect(mocks.renderDocumentoPdf).not.toHaveBeenCalled();
+  });
+});
+
+describe("montarPdfDaProposta — status dos itens (9261)", () => {
+  it("leva o status de cada item ao PDF (quem decide se mostra é o PDF)", async () => {
+    estado.statusDoItem = "aceito";
+    const resultado = await montarPdfDaProposta(montarAdmin() as never, ORG_ID, propostaBase("site"), {
+      numero: 1,
+      ano: 2026,
+      t: (texto: string) => texto,
+    });
+    expect(resultado.ok).toBe(true);
+    expect(mocks.renderDocumentoPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ itens: [expect.objectContaining({ descricao: "Site institucional", status: "aceito" })] }),
+    );
+  });
+
+  it("banco sem a coluna (antes da 9261): o item vai sem status, como antes", async () => {
+    const resultado = await montarPdfDaProposta(montarAdmin() as never, ORG_ID, propostaBase("site"), {
+      numero: 1,
+      ano: 2026,
+      t: (texto: string) => texto,
+    });
+    expect(resultado.ok).toBe(true);
+    const itens = (mocks.renderDocumentoPdf.mock.calls[0]![0] as { itens: Array<Record<string, unknown>> }).itens;
+    expect(itens[0]).not.toHaveProperty("status");
   });
 });

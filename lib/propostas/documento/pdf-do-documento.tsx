@@ -3,6 +3,8 @@ import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@
 import React from "react";
 
 import { formatarMoeda } from "../moeda";
+import { ROTULO_DO_STATUS_DO_ITEM, valorVendidoCents } from "../status-do-item";
+import type { StatusDoItemDaProposta } from "../tipos";
 import type { SecaoRenderizada } from "./renderer";
 
 const styles = StyleSheet.create({
@@ -16,6 +18,8 @@ const styles = StyleSheet.create({
   itemImagem: { width: 32, height: 32, objectFit: "cover", marginRight: 8 },
   itemTexto: { flexDirection: "row", alignItems: "center" },
   total: { marginTop: 8, fontSize: 12, fontWeight: 700, textAlign: "right" },
+  totalProposto: { marginTop: 2, fontSize: 9, color: "#666", textAlign: "right" },
+  itemRecusado: { color: "#999" },
   footer: { position: "absolute", bottom: 24, left: 32, right: 32, fontSize: 8, color: "#666" },
 });
 
@@ -25,6 +29,18 @@ export interface ItemDoPdf {
   precoUnitarioCents: number;
   descontoCents: number;
   imagemUrl?: string | null;
+  /** 9261 — status do item. Ausente ou só `pendente`: o PDF não mostra status. */
+  status?: StatusDoItemDaProposta;
+}
+
+/**
+ * 9261 — o PDF só fala de status DEPOIS que o cliente respondeu. No envio todo
+ * item é pendente, e o documento que o cliente recebe continua igual ao de
+ * sempre; na prévia de uma proposta já decidida, cada linha diz o que foi
+ * aceito, recusado, produzido ou entregue.
+ */
+export function pdfMostraStatusDosItens(itens: readonly ItemDoPdf[]): boolean {
+  return itens.some((it) => it.status !== undefined && it.status !== "pendente");
 }
 
 export interface DocumentoPdfInput {
@@ -70,20 +86,42 @@ export function blocosDoDocumento(secoes: SecaoRenderizada[]): BlocoDoPdf[] {
 }
 
 function Itens({ d, accent }: { d: DocumentoPdfInput; accent: string | undefined }): React.ReactElement {
+  const comStatus = pdfMostraStatusDosItens(d.itens);
+  const vendido = comStatus
+    ? valorVendidoCents(
+        d.itens.map((it) => ({
+          status: it.status ?? "pendente",
+          quantidade: it.quantidade,
+          preco_unitario_cents: it.precoUnitarioCents,
+          desconto_cents: it.descontoCents,
+        })),
+      )
+    : d.totalCents;
   return (
     <View style={{ marginTop: 8 }}>
-      {d.itens.map((it, i) => (
-        <View key={i} style={styles.linhaItem}>
-          <View style={styles.itemTexto}>
-            {it.imagemUrl ? <Image src={it.imagemUrl} style={styles.itemImagem} /> : null}
-            <Text>
-              {it.descricao} (x{it.quantidade})
-            </Text>
+      {d.itens.map((it, i) => {
+        const recusado = it.status === "recusado";
+        return (
+          <View key={i} style={[styles.linhaItem, recusado ? styles.itemRecusado : {}]}>
+            <View style={styles.itemTexto}>
+              {it.imagemUrl ? <Image src={it.imagemUrl} style={styles.itemImagem} /> : null}
+              <Text>
+                {it.descricao} (x{it.quantidade})
+                {comStatus && it.status ? ` — ${ROTULO_DO_STATUS_DO_ITEM[it.status]}` : ""}
+              </Text>
+            </View>
+            <Text>{formatarMoeda(it.quantidade * it.precoUnitarioCents - it.descontoCents, d.moeda)}</Text>
           </View>
-          <Text>{formatarMoeda(it.quantidade * it.precoUnitarioCents - it.descontoCents, d.moeda)}</Text>
-        </View>
-      ))}
-      <Text style={[styles.total, accent ? { color: accent } : {}]}>Total: {formatarMoeda(d.totalCents, d.moeda)}</Text>
+        );
+      })}
+      {comStatus && vendido !== d.totalCents ? (
+        <>
+          <Text style={[styles.total, accent ? { color: accent } : {}]}>Total aceito: {formatarMoeda(vendido, d.moeda)}</Text>
+          <Text style={styles.totalProposto}>Total proposto: {formatarMoeda(d.totalCents, d.moeda)}</Text>
+        </>
+      ) : (
+        <Text style={[styles.total, accent ? { color: accent } : {}]}>Total: {formatarMoeda(d.totalCents, d.moeda)}</Text>
+      )}
     </View>
   );
 }

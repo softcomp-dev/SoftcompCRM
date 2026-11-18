@@ -21,6 +21,7 @@ import {
   type PropostaParaDocumento,
 } from "./documento/documento-da-proposta";
 import { renderDocumentoPdf } from "./documento/pdf-do-documento";
+import type { StatusDoItemDaProposta } from "./tipos";
 import { marcaDaOrganizacaoParaPdf } from "./marca-da-organizacao-para-pdf";
 
 /** A proposta como o PDF a lê — as colunas que `crm_proposals` precisa entregar. */
@@ -57,6 +58,8 @@ interface ItemDaPropostaParaPdf {
   preco_unitario_cents: number | null;
   desconto_cents: number;
   product_id: string | null;
+  /** 9261 — o `select("*")` traz; ausente em banco que ainda não aplicou a migration. */
+  status?: StatusDoItemDaProposta;
 }
 
 /**
@@ -159,6 +162,8 @@ export async function montarPdfDaProposta(
     precoUnitarioCents: it.preco_unitario_cents ?? 0,
     descontoCents: it.desconto_cents,
     imagemUrl: it.product_id ? (imagensPorProduto.get(it.product_id) ?? null) : null,
+    // 9261 — o PDF só mostra status quando algum item já foi respondido.
+    ...(it.status ? { status: it.status } : {}),
   }));
 
   const buffer = await renderDocumentoPdf({
