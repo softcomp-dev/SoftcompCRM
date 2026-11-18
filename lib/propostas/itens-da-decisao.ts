@@ -1,6 +1,7 @@
 // lib/propostas/itens-da-decisao.ts
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { Actor } from "@/lib/api/handlers/types";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
 import { logger } from "@/lib/logger";
 
@@ -50,7 +51,7 @@ export interface SincronizarValorInput {
   propostaId: string;
   leadId: string | null;
   contactId: string | null;
-  userId: string;
+  actor: Actor;
 }
 
 /**
@@ -62,7 +63,7 @@ export interface SincronizarValorInput {
  * Best-effort: a decisão já foi gravada; falha aqui vira log, nunca 500.
  */
 export async function sincronizarValorVendido(admin: SupabaseClient, input: SincronizarValorInput): Promise<void> {
-  const { organizationId, propostaId, leadId, contactId, userId } = input;
+  const { organizationId, propostaId, leadId, contactId, actor } = input;
   if (!leadId) return;
   try {
     const { data: itens, error: itensErr } = await admin
@@ -98,7 +99,7 @@ export async function sincronizarValorVendido(admin: SupabaseClient, input: Sinc
       type: "proposal_value_changed",
       sourceModule: "proposals",
       sourceId: propostaId,
-      actor: { type: "user", id: userId },
+      actor,
       reason: `Valor do negócio atualizado de ${antes ?? "—"} para ${valor} centavos (itens aceitos da proposta)`,
     });
   } catch (erro) {

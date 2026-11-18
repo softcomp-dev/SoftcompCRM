@@ -64,14 +64,14 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       propostaId: id,
       leadId: (proposta as { lead_id: string | null }).lead_id,
       contactId: (proposta as { contact_id: string | null }).contact_id,
-      userId: authz.user.id,
+      actor: { type: "user", id: authz.user.id },
     });
   }
 
   await aplicarEfeitosDaDecisao({
     db: supabase,
     organizationId: authz.org.orgId,
-    userId: authz.user.id,
+    actor: { type: "user", id: authz.user.id },
     requestId,
     proposta: proposta as { id: string; lead_id: string | null; contact_id: string | null; retorno_id: string | null },
     decisao: parsed.data.decisao,

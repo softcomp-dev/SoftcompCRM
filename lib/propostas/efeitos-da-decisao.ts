@@ -1,6 +1,7 @@
 // lib/propostas/efeitos-da-decisao.ts
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { Actor } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import { cancelaRetornoNoCrm } from "@/lib/followup/retorno-crm";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
@@ -16,7 +17,10 @@ export interface PropostaDecidida {
 export interface EfeitosDaDecisaoInput {
   db: SupabaseClient;
   organizationId: string;
-  userId: string;
+  /** Quem decidiu: pessoa (tela), integração (token) ou agente (MCP). */
+  actor: Actor;
+  /** Linha de `api_tokens` quando a decisão veio por token (auditoria). */
+  apiTokenId?: string | null;
   requestId: string;
   proposta: PropostaDecidida;
   decisao: "aceita" | "recusada";
@@ -32,7 +36,7 @@ export interface EfeitosDaDecisaoInput {
  * deixar o mesmo rastro.
  */
 export async function aplicarEfeitosDaDecisao(input: EfeitosDaDecisaoInput): Promise<void> {
-  const { db, organizationId, userId, requestId, proposta, decisao, motivo } = input;
+  const { db, organizationId, actor, apiTokenId, requestId, proposta, decisao, motivo } = input;
 
   // value_cents do lead NÃO muda aqui (spec §16.2 — negócio perdido guarda
   // quanto valia; zerar apagaria o histórico de quanto se deixou na mesa).
@@ -46,7 +50,7 @@ export async function aplicarEfeitosDaDecisao(input: EfeitosDaDecisaoInput): Pro
       type: decisao === "aceita" ? "proposal_accepted" : "proposal_declined",
       sourceModule: "proposals",
       sourceId: proposta.id,
-      actor: { type: "user", id: userId },
+      actor,
       reason: decisao === "aceita" ? "Proposta aceita pelo cliente" : `Proposta recusada${motivo ? `: ${motivo}` : ""}`,
     });
   }
@@ -60,7 +64,7 @@ export async function aplicarEfeitosDaDecisao(input: EfeitosDaDecisaoInput): Pro
   if (proposta.retorno_id) {
     try {
       await cancelaRetornoNoCrm(
-        { admin: db, orgId: organizationId, actor: { type: "user", id: userId } },
+        { admin: db, orgId: organizationId, actor },
         proposta.retorno_id,
         { motivo: `Proposta ${decisao} — retorno automático não é mais necessário` },
       );
@@ -75,10 +79,12 @@ export async function aplicarEfeitosDaDecisao(input: EfeitosDaDecisaoInput): Pro
 
   void audit({
     action: decisao === "aceita" ? "proposal.aceita" : "proposal.recusada",
-    actorUserId: userId,
+    actorUserId: actor.type === "user" ? actor.id : null,
+    actorApiTokenId: apiTokenId ?? null,
     organizationId,
     resourceType: "crm_proposals",
     resourceId: proposta.id,
     requestId,
+    ...(actor.type === "user" ? {} : { metadata: { actor_type: actor.type, actor_id: actor.id } }),
   });
 }

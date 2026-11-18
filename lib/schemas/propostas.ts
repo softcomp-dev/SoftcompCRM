@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STATUS_DO_ITEM_DA_PROPOSTA } from "@/lib/propostas/tipos";
 
 /**
  * O CONTRATO DA PROPOSTA — um só, lido pela tela E pela rota (padrão
@@ -23,3 +24,15 @@ export const propostaCreateSchema = z.object({
   itens: z.array(propostaItemSchema).default([]),
 });
 export type PropostaCreateInput = z.infer<typeof propostaCreateSchema>;
+
+/**
+ * 9261 — corpo de `PATCH /api/v1/proposals/{id}/itens` (tela e token): o
+ * status novo de um ou mais itens. A fase de cada um é regra do servidor
+ * (`lib/propostas/status-do-item.ts`).
+ */
+export const statusDosItensSchema = z.object({
+  itens: z
+    .array(z.object({ id: z.string().uuid(), status: z.enum(STATUS_DO_ITEM_DA_PROPOSTA) }))
+    .min(1)
+    .max(200),
+});
