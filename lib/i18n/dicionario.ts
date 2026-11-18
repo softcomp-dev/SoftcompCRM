@@ -3169,6 +3169,16 @@ export const DICIONARIO: Traducoes = {
   },
   "Não foi possível aplicar a proposta.": { es: "No se pudo aplicar la propuesta." },
   "Nenhuma proposta ainda": { es: "Todavía no hay propuestas" },
+  // 9261 — status por item da proposta (cotação → pedido).
+  "Recusado": { es: "Rechazado" },
+  "Em produção": { es: "En producción" },
+  "Status do item": { es: "Estado del ítem" },
+  "O cliente aceitou só parte? Marque cada item na coluna Status: a proposta se resolve quando nenhum item ficar pendente, e o negócio passa a valer a soma dos aceitos.": {
+    es: "¿El cliente aceptó solo una parte? Marque cada ítem en la columna Estado: la propuesta se resuelve cuando ningún ítem quede pendiente, y el negocio pasa a valer la suma de los aceptados.",
+  },
+  "Quando a cotação virar pedido, marque o negócio como Pedido (em Editar negócio) para acompanhar a produção e a entrega de cada item.": {
+    es: "Cuando la cotización se convierta en pedido, marque el negocio como Pedido (en Editar negocio) para seguir la producción y la entrega de cada ítem.",
+  },
   "O assistente aprende com as conversas reais e propõe melhorias aqui. Você decide o que entra — nada é aplicado sozinho.": {
     es: "El asistente aprende de las conversaciones reales y propone mejoras aquí. Tú decides qué entra; nada se aplica solo.",
   },

@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { resolverItensDaProposta } from "@/lib/propostas/itens";
+import { faseDoItem } from "@/lib/propostas/status-do-item";
 import { propostaItemSchema } from "@/lib/schemas/propostas";
 import { resolverAvisoDeRevisaoSeProntaOuEncerrada } from "@/lib/propostas/aviso-de-revisao";
 import { extractBearer } from "@/lib/mcp/auth";
@@ -84,7 +85,24 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
     preco_catalogo_atual_cents: it.product_id ? (precoAtualPorProduto.get(it.product_id) ?? null) : null,
   }));
 
-  return ok({ ...proposta, itens: itensComDrift }, { requestId });
+  // 9261 — em que fase o status dos itens pode mudar (cotação, pedido ou
+  // nenhuma). A regra mora no servidor (`faseDoItem`) para a tela e o card
+  // não a repetirem; o tipo do documento vem do negócio.
+  let tipoDoDocumento: string | null = null;
+  if (proposta.lead_id) {
+    const { data: lead } = await supabase
+      .from("crm_leads")
+      .select("sales_document_kind")
+      .eq("organization_id", authz.org.orgId)
+      .eq("id", proposta.lead_id)
+      .maybeSingle();
+    tipoDoDocumento = (lead as { sales_document_kind: string | null } | null)?.sales_document_kind ?? null;
+  }
+
+  return ok(
+    { ...proposta, itens: itensComDrift, fase_dos_itens: faseDoItem(proposta.status, tipoDoDocumento) },
+    { requestId },
+  );
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {

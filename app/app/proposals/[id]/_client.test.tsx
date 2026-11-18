@@ -413,3 +413,58 @@ describe("ProposalEditorClient — Enviar envia o que está NA TELA", () => {
     expect(post).not.toHaveBeenCalled();
   });
 });
+
+describe("ProposalEditorClient — status por item (9261)", () => {
+  const ITEM = { product_id: null, quantidade: 4, preco_unitario_cents: 929, desconto_cents: 0 };
+  const itens = (a: string, b: string) => [
+    { ...ITEM, id: "i1", descricao: "1020 REDONDO LAMINADO", position: 1000, status: a },
+    { ...ITEM, id: "i2", descricao: "1045 REDONDO LAMINADO", position: 2000, status: b },
+  ];
+
+  it("rascunho: não há coluna de status", async () => {
+    responderProposta({ data: { ...PROPOSTA_BASE, status: "rascunho", ultima_falha_envio: null, fase_dos_itens: null, itens: itens("pendente", "pendente") } });
+    render(<ProposalEditorClient id="p1" podeEditar={true} />);
+    await screen.findByDisplayValue("1020 REDONDO LAMINADO");
+    expect(screen.queryByRole("columnheader", { name: "Status" })).not.toBeInTheDocument();
+  });
+
+  it("cotação enviada: cada item tem seletor só com pendente, aceito e recusado", async () => {
+    responderProposta({ data: { ...PROPOSTA_BASE, status: "enviada", ultima_falha_envio: null, fase_dos_itens: "cotacao", itens: itens("pendente", "aceito") } });
+    render(<ProposalEditorClient id="p1" podeEditar={true} />);
+    const seletores = await screen.findAllByRole("combobox", { name: "Status do item" });
+    expect(seletores).toHaveLength(2);
+    const opcoes = [...(seletores[0] as HTMLSelectElement).options].map((o) => o.textContent);
+    expect(opcoes).toEqual(["Pendente", "Aceito", "Recusado"]);
+  });
+
+  it("mudar o status de um item chama a rota de itens com o item e o status escolhidos", async () => {
+    responderProposta({ data: { ...PROPOSTA_BASE, status: "enviada", ultima_falha_envio: null, fase_dos_itens: "cotacao", itens: itens("pendente", "pendente") } });
+    vi.mocked(apiClient.patch).mockResolvedValueOnce({
+      data: { id: "p1", status: "enviada", fase: "cotacao", itens: [{ id: "i1", status: "aceito" }, { id: "i2", status: "pendente" }] },
+    });
+    render(<ProposalEditorClient id="p1" podeEditar={true} />);
+    const [primeiro] = await screen.findAllByRole("combobox", { name: "Status do item" });
+    fireEvent.change(primeiro!, { target: { value: "aceito" } });
+    await waitFor(() =>
+      expect(apiClient.patch).toHaveBeenCalledWith("/api/v1/proposals/p1/itens", { itens: [{ id: "i1", status: "aceito" }] }),
+    );
+    await waitFor(() => expect((screen.getAllByRole("combobox", { name: "Status do item" })[0] as HTMLSelectElement).value).toBe("aceito"));
+  });
+
+  it("pedido: o item aceito anda para produção e entrega; o recusado é só selo", async () => {
+    responderProposta({ data: { ...PROPOSTA_BASE, status: "aceita", ultima_falha_envio: null, fase_dos_itens: "pedido", itens: itens("aceito", "recusado") } });
+    render(<ProposalEditorClient id="p1" podeEditar={true} />);
+    const seletores = await screen.findAllByRole("combobox", { name: "Status do item" });
+    expect(seletores).toHaveLength(1);
+    expect([...(seletores[0] as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["Aceito", "Em produção", "Entregue"]);
+    expect(screen.getByText("Recusado")).toBeInTheDocument();
+  });
+
+  it("aceita num negócio que ainda é cotação: selos, e a dica de marcar o negócio como Pedido", async () => {
+    responderProposta({ data: { ...PROPOSTA_BASE, status: "aceita", ultima_falha_envio: null, fase_dos_itens: null, itens: itens("aceito", "recusado") } });
+    render(<ProposalEditorClient id="p1" podeEditar={true} />);
+    expect(await screen.findByText("Aceito")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Status do item" })).not.toBeInTheDocument();
+    expect(screen.getByText(/marque o negócio como Pedido/)).toBeInTheDocument();
+  });
+});

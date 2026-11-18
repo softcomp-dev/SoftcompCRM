@@ -8,8 +8,10 @@ import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import type { ApiSuccess } from "@/lib/api/wrappers";
+import { StatusDoItem, type RespostaDosItens } from "@/components/propostas/StatusDoItem";
 import { formatCents } from "@/lib/money";
-import type { ProposalStatus } from "@/lib/propostas/tipos";
+import type { FaseDoItem } from "@/lib/propostas/status-do-item";
+import type { ProposalStatus, StatusDoItemDaProposta } from "@/lib/propostas/tipos";
 import { AssistantPanel } from "./_components/AssistantPanel";
 import { DocumentoCanvas } from "./_components/DocumentoCanvas";
 
@@ -23,6 +25,8 @@ interface ProposalItem {
   position: number;
   /** N4 — preço ATUAL do catálogo (só quando product_id não é nulo). */
   preco_catalogo_atual_cents?: number | null;
+  /** 9261 — status do item; o item novo do rascunho ainda não tem. */
+  status?: StatusDoItemDaProposta;
 }
 
 interface Proposta {
@@ -40,6 +44,8 @@ interface Proposta {
   ultima_falha_envio: string | null;
   /** C1 — modelo CONFIRMADO. Nulo/vazio: a rota de envio recusa com 422. */
   template_slug: string | null;
+  /** 9261 — em que fase o status dos itens muda (calculado no servidor). */
+  fase_dos_itens?: FaseDoItem | null;
 }
 
 interface Produto {
@@ -421,6 +427,30 @@ export function ProposalEditorClient({ id, podeEditar, podeRevisar = false }: { 
   }
 
   const editavel = podeEditar && proposta.status === "rascunho";
+  // 9261 — no rascunho todo item é pendente e a coluna só ocuparia espaço.
+  const mostraStatusDosItens = proposta.status !== "rascunho";
+
+  /**
+   * Um item mudou de status. Se a proposta se resolveu com ele (o último item
+   * decidido aceita ou recusa a proposta) ou o valor mudou, recarrega tudo;
+   * senão aplica só o que voltou.
+   */
+  async function aoMudarStatusDoItem(resposta: RespostaDosItens) {
+    if (resposta.status !== proposta?.status) {
+      try {
+        const res = await apiClient.get<ApiSuccess<Proposta>>(`/api/v1/proposals/${id}`);
+        ultimaGravacao.current = assinaturaDoRascunho(res.data);
+        setProposta(res.data);
+      } catch (e) {
+        showApiError(e);
+      }
+      return;
+    }
+    const porId = new Map(resposta.itens.map((it) => [it.id, it.status]));
+    setProposta((p) =>
+      p && { ...p, itens: p.itens.map((it) => (it.id && porId.has(it.id) ? { ...it, status: porId.get(it.id) } : it)) },
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
@@ -560,6 +590,7 @@ export function ProposalEditorClient({ id, podeEditar, podeRevisar = false }: { 
               <th scope="col" className="p-3 text-right">{t("Preço unit.")}</th>
               <th scope="col" className="p-3 text-right">{t("Desconto")}</th>
               <th scope="col" className="p-3 text-right">{t("Subtotal")}</th>
+              {mostraStatusDosItens && <th scope="col" className="p-3 text-left">{t("Status")}</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -622,12 +653,37 @@ export function ProposalEditorClient({ id, podeEditar, podeRevisar = false }: { 
                   <td className="p-3 text-right font-medium tabular-nums">
                     {subtotal === null ? t("A definir") : formatCents(Math.max(0, subtotal), proposta.moeda)}
                   </td>
+                  {mostraStatusDosItens && (
+                    <td className="p-3">
+                      {it.id && (
+                        <StatusDoItem
+                          propostaId={id}
+                          itemId={it.id}
+                          status={it.status ?? "pendente"}
+                          fase={proposta.fase_dos_itens ?? null}
+                          podeEditar={podeEditar}
+                          onMudou={(r) => void aoMudarStatusDoItem(r)}
+                        />
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {proposta.status === "enviada" && podeEditar && (
+        <p className="text-xs text-text-muted">
+          {t("O cliente aceitou só parte? Marque cada item na coluna Status: a proposta se resolve quando nenhum item ficar pendente, e o negócio passa a valer a soma dos aceitos.")}
+        </p>
+      )}
+      {proposta.status === "aceita" && !proposta.fase_dos_itens && (
+        <p className="text-xs text-text-muted">
+          {t("Quando a cotação virar pedido, marque o negócio como Pedido (em Editar negócio) para acompanhar a produção e a entrega de cada item.")}
+        </p>
+      )}
 
       {editavel && (
         <AssistantPanel

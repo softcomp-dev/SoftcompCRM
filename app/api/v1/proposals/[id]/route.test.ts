@@ -428,6 +428,16 @@ describe("GET /api/v1/proposals/[id]", () => {
     expect((await mundo.GET()).status).toBe(500);
   });
 
+  it.each([
+    ["rascunho", null],
+    ["enviada", "cotacao"],
+  ] as const)("devolve a fase dos itens (9261): proposta %s → %s", async (status, fase) => {
+    const mundo = montarMundoDeEdicao({ status });
+    const res = await mundo.GET();
+    expect(res.status).toBe(200);
+    expect((await res.json()).data.fase_dos_itens).toBe(fase);
+  });
+
   it("valida UUID do path sem consultar", async () => {
     const mundo = montarMundoDeEdicao();
     expect((await mundo.GET("inválido")).status).toBe(422);
