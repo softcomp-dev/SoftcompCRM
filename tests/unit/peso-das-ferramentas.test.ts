@@ -117,6 +117,11 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
   "crm_close_human_case": { tokens: 246, motivo: BASE },
   "crm_resume_ai_attendance": { tokens: 228, motivo: BASE },
   "crm_draft_proposal": { tokens: 1059, motivo: BASE },
+  // 9261 — status dos itens da proposta, medidas na criação (2026-11-18). Só
+  // montam com a capacidade "propostas" ligada; a escrita é `critico` (entra
+  // marcada à mão, nunca por pacote).
+  "crm_get_proposal_items": { tokens: 343, motivo: "capacidade nova (9261): ler os itens da proposta e o status de cada um, medida na criação (2026-11-18)" },
+  "crm_update_proposal_items_status": { tokens: 582, motivo: "capacidade nova (9261): registrar o que o cliente fechou item a item; a descrição precisa dizer 'só com confirmação explícita' e as duas fases, medida na criação (2026-11-18)" },
   "crm_request_human_handoff": { tokens: 583, motivo: BASE },
   "get_lead_context": { tokens: 46, motivo: BASE },
   "send_message": { tokens: 137, motivo: BASE },
@@ -138,8 +143,10 @@ const TETO: Readonly<Record<string, { tokens: number; motivo: string }>> = {
 };
 
 // 29952 até 2026-11-05; +142 com `ler_documento` (#4133), que só é montada no
-// modo `leitura_direta` — nunca junto de `search_knowledge`.
-const TETO_TOTAL = 30094;
+// modo `leitura_direta` — nunca junto de `search_knowledge`. +925 com as duas
+// ferramentas do status dos itens da proposta (9261), que só montam com a
+// capacidade "propostas" ligada.
+const TETO_TOTAL = 31019;
 
 const VARIANTE = "schedule_followup (com negócio)";
 

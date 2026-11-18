@@ -126,6 +126,11 @@ const ESCRITA_QUE_E_TRABALHO_DE_ATENDENTE: ReadonlyArray<string> = [
   // envia — só o manager envia). O dano máximo é um rascunho a mais para
   // descartar.
   "crm_draft_proposal",
+  // 9261 — `PATCH /api/v1/proposals/[id]/itens` exige `agent`, na tela e por
+  // token: paridade com a própria rota. Registra o que o CLIENTE confirmou item
+  // a item; a regra recusa fora de fase e fica `critico` no catálogo, então só
+  // entra no agente marcada à mão. O Operador não a recebe (`FORA_DO_OPERADOR`).
+  "crm_update_proposal_items_status",
   // `app/api/v1/conversations/[id]/drafts/` — POST exige `agent` (auth-dual).
   // Paridade medida com a própria rota: quem integra e quem atende criam
   // rascunho com o MESMO papel. O poder concedido é o MENOR possível — a tool

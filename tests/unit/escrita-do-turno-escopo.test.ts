@@ -37,6 +37,9 @@ const RETORNO_DO_TURNO = "dddddddd-1111-4111-8111-111111111111";
 const RETORNO_DE_B = "dddddddd-2222-4222-8222-222222222222";
 const CASO_DO_TURNO = "bbbbbbbb-1111-4111-8111-111111111111";
 const CASO_DE_B = "bbbbbbbb-2222-4222-8222-222222222222";
+const PROPOSTA_DO_TURNO = "eeeeeeee-1111-4111-8111-111111111111";
+const PROPOSTA_DE_B = "eeeeeeee-2222-4222-8222-222222222222";
+const ITEM_DA_PROPOSTA = "eeeeeeee-3333-4333-8333-333333333333";
 
 type Linha = Record<string, unknown>;
 
@@ -56,6 +59,10 @@ const TABELAS: Record<string, Linha[]> = {
   agent_cases: [
     { id: CASO_DE_B, organization_id: ORG, conversation_id: CONVERSA_DE_B },
     { id: CASO_DO_TURNO, organization_id: ORG, conversation_id: CONVERSA_DO_TURNO },
+  ],
+  crm_proposals: [
+    { id: PROPOSTA_DE_B, organization_id: ORG, contact_id: DE_B },
+    { id: PROPOSTA_DO_TURNO, organization_id: ORG, contact_id: DO_TURNO },
   ],
   crm_leads: [
     { id: NEGOCIO_DE_B, organization_id: ORG, contact_id: DE_B, pipeline_id: FUNIL, status: "open", last_activity_at: "2020-01-01T00:00:00Z", created_at: "2020-01-01T00:00:00Z" },
@@ -133,6 +140,12 @@ const CASOS: Array<{ nome: string; args: (alvo: string) => Linha; doTurno: strin
     "crm_resume_ai_attendance",
   ].map((nome) => ({ nome, args: (a: string) => ({ conversation_id: a }), doTurno: CONVERSA_DO_TURNO, deB: CONVERSA_DE_B })),
   { nome: "crm_draft_proposal", args: (a) => ({ lead_id: NEGOCIO_DO_TURNO, conversation_id: a }), doTurno: CONVERSA_DO_TURNO, deB: CONVERSA_DE_B },
+  {
+    nome: "crm_update_proposal_items_status",
+    args: (a) => ({ lead_id: NEGOCIO_DO_TURNO, proposta_id: a, itens: [{ id: ITEM_DA_PROPOSTA, status: "aceito" }] }),
+    doTurno: PROPOSTA_DO_TURNO,
+    deB: PROPOSTA_DE_B,
+  },
   { nome: "crm_cancel_followup", args: (a) => ({ followup_id: a }), doTurno: RETORNO_DO_TURNO, deB: RETORNO_DE_B },
   ...["crm_add_case_note", "crm_close_human_case"].map((nome) => ({
     nome,

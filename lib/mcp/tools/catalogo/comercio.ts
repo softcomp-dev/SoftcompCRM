@@ -50,6 +50,31 @@ export const TOOLS_COMERCIO = declararTools([
     capacidade: "propostas",
   },
   {
+    name: "crm_get_proposal_items",
+    category: "read",
+    rotulo: "Ver os itens da proposta e o status de cada um",
+    explicacao:
+      "Mostra os produtos da proposta do cliente e em que pé está cada um (pendente, aceito, recusado, em produção, entregue), para o assistente responder o que já foi fechado e o que falta.",
+    oQueToca: "Propostas comerciais",
+    risco: "seguro",
+    // `reter` (acompanhar o cliente depois da venda), e não `vender`/`atender`:
+    // nos dois o default do agente passaria do teto de capacidades
+    // (`tests/unit/pacote-reserva-vaga-da-critica.test.ts`).
+    pacotes: ["reter"],
+    capacidade: "propostas",
+  },
+  {
+    name: "crm_update_proposal_items_status",
+    category: "write",
+    rotulo: "Registrar o que o cliente fechou, item a item",
+    explicacao:
+      "Marca cada produto da proposta como aceito ou recusado conforme o cliente confirmar, e acompanha produção e entrega no pedido. O último item decidido aceita ou recusa a proposta e muda o valor do negócio.",
+    oQueToca: "Propostas comerciais e valor do negócio",
+    risco: "critico",
+    pacotes: ["vender"],
+    capacidade: "propostas",
+  },
+  {
     name: "crm_list_privacy_requests",
     category: "read",
     rotulo: "Ver pedidos de privacidade",

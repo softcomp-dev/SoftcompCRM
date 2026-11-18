@@ -146,7 +146,13 @@ export function capacidadesEntreguesAoOperador(input: {
  * mesma decisão (levantar o que perguntar), e o Operador não tem a conversa
  * para perguntar nada.
  */
-export const FORA_DO_OPERADOR: readonly string[] = ['crm_draft_proposal', 'crm_preparar_proposta'];
+export const FORA_DO_OPERADOR: readonly string[] = [
+  'crm_draft_proposal',
+  'crm_preparar_proposta',
+  // 9261 — registrar o que o cliente fechou item a item exige a FRASE dele
+  // sobre cada produto; o Operador só tem o resumo de intenções do turno.
+  'crm_update_proposal_items_status',
+];
 
 /**
  * A configuração com que a MÃO do Operador é montada: a lista dele

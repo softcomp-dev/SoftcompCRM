@@ -90,10 +90,11 @@ describe("a ponte do turno respeita `apenasHumano`", () => {
     // vacuamente e o agente ficaria sem ferramenta nenhuma. A folga conta as
     // exclusões deliberadas que este teste monta: o handoff (toggle desligado
     // aqui), o rascunho e o preparo da proposta (fora pela chave da versão e
-    // pela capacidade, as duas desligadas aqui), e as de módulo opcional, que
-    // nenhum módulo ligado aqui oferece.
+    // pela capacidade, as duas desligadas aqui), as duas do status dos itens
+    // da proposta (9261, também da capacidade "propostas") e as de módulo
+    // opcional, que nenhum módulo ligado aqui oferece.
     expect(Object.keys(montadas).length).toBeGreaterThan(
-      allTools.length - apenasHumano.length - semModulo - 4,
+      allTools.length - apenasHumano.length - semModulo - 6,
     );
     expect(montadas).toHaveProperty("crm_search_contacts");
   });

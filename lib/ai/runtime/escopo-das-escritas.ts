@@ -46,6 +46,8 @@ export type DonoDoCampo =
   | "alvo_de_tag"
   /** `lead_id`: quem guarda é `negocioDaEscritaDoTurno`, em `tools.ts`. */
   | "negocio"
+  /** `crm_proposals.contact_id` (9261 — status dos itens da proposta). */
+  | "proposta"
   /** Não é registro de cliente: funil, etapa, usuário, fluxo. */
   | "configuracao";
 
@@ -94,6 +96,9 @@ export const ESCOPO_DAS_ESCRITAS: Readonly<Record<string, Readonly<Record<string
   crm_close_demand: { lead_id: "negocio" },
   crm_propose_reactivation: { lead_id: "negocio" },
   crm_draft_proposal: { lead_id: "negocio", conversation_id: "conversa" },
+  // 9261 — a proposta tem de ser do contato do turno; o negócio, quem guarda é
+  // `negocioDaEscritaDoTurno`, e o handler confere que a proposta é dele.
+  crm_update_proposal_items_status: { lead_id: "negocio", proposta_id: "proposta" },
   // #3316 — proposta de campo lida num documento: só o card (o proposto entra
   // em `lead_field_proposals`, nunca no card; confirma quem atende na tela).
   crm_propose_lead_fields_from_document: {
@@ -162,6 +167,8 @@ async function campoEhDoContato(
       return existeDoContato(supabase, "conversations", organizationId, contato, id);
     case "compromisso":
       return existeDoContato(supabase, "calendar_appointments", organizationId, contato, id);
+    case "proposta":
+      return existeDoContato(supabase, "crm_proposals", organizationId, contato, id);
     case "retorno":
       return existeDoContato(supabase, "cron_jobs", organizationId, contato, id, {
         kind: "at",
