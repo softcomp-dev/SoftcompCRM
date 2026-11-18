@@ -16,5 +16,11 @@ Depois que a cotação aceita vira pedido (marque o negócio como **Pedido** no 
 **Entregue**. Os botões "Marcar como aceita/recusada" continuam valendo para a proposta
 inteira.
 
+O sistema de gestão pode fazer o mesmo pela API, com token: `PATCH
+/api/v1/proposals/{id}/itens`. O agente de IA ganha duas capacidades: ver os itens e o
+status de cada um, e registrar o que o cliente fechou. A segunda só entra no agente se
+alguém a marcar. O PDF da proposta passa a mostrar o status de cada item e o total aceito
+depois que o cliente responde.
+
 A atualização aplica a migration sozinha. Os itens de propostas já aceitas ou recusadas
 recebem o status da decisão.
