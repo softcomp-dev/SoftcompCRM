@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   requireSupportWrite: vi.fn(),
   emitLeadActivity: vi.fn(),
   cancelaRetornoNoCrm: vi.fn(),
+  fecharItensPendentes: vi.fn(),
+  sincronizarValorVendido: vi.fn(),
 }));
 
 vi.mock("@/lib/propostas/porta", () => ({ sePropostasDesligadas: vi.fn(async () => null) }));
@@ -19,6 +21,11 @@ vi.mock("@/lib/audit", () => ({ audit: mocks.audit }));
 vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: mocks.requireSupportWrite }));
 vi.mock("@/lib/leads/activity-emitter", () => ({ emitLeadActivity: mocks.emitLeadActivity }));
 vi.mock("@/lib/followup/retorno-crm", () => ({ cancelaRetornoNoCrm: mocks.cancelaRetornoNoCrm }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ admin: true }) }));
+vi.mock("@/lib/propostas/itens-da-decisao", () => ({
+  fecharItensPendentes: mocks.fecharItensPendentes,
+  sincronizarValorVendido: mocks.sincronizarValorVendido,
+}));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -202,5 +209,34 @@ describe("POST /api/v1/proposals/[id]/decide", () => {
     const res = await mundo.POST({ decisao: "aceita" });
     expect(res.status).toBe(403);
     expect(mundo.propostaAtualizada).toBeNull();
+  });
+
+  describe("itens da proposta (migration 9261)", () => {
+    it("aceita: os itens pendentes viram aceitos e o valor do negócio vira a soma do que foi vendido", async () => {
+      const mundo = montarMundoDeDecisao({ status: "enviada" });
+      const res = await mundo.POST({ decisao: "aceita" });
+      expect(res.status).toBe(200);
+      expect(mocks.fecharItensPendentes).toHaveBeenCalledWith({ admin: true }, ORG_ID, PROPOSAL_ID, "aceita");
+      expect(mocks.sincronizarValorVendido).toHaveBeenCalledWith(
+        { admin: true },
+        expect.objectContaining({ organizationId: ORG_ID, propostaId: PROPOSAL_ID, leadId: LEAD_ID }),
+      );
+    });
+
+    it("recusada: os pendentes viram recusados e o valor do negócio não é recalculado", async () => {
+      const mundo = montarMundoDeDecisao({ status: "enviada" });
+      const res = await mundo.POST({ decisao: "recusada" });
+      expect(res.status).toBe(200);
+      expect(mocks.fecharItensPendentes).toHaveBeenCalledWith({ admin: true }, ORG_ID, PROPOSAL_ID, "recusada");
+      expect(mocks.sincronizarValorVendido).not.toHaveBeenCalled();
+    });
+
+    it("proposta que não estava enviada: nenhum item é tocado", async () => {
+      const mundo = montarMundoDeDecisao({ status: "rascunho" });
+      const res = await mundo.POST({ decisao: "aceita" });
+      expect(res.status).toBe(409);
+      expect(mocks.fecharItensPendentes).not.toHaveBeenCalled();
+      expect(mocks.sincronizarValorVendido).not.toHaveBeenCalled();
+    });
   });
 });

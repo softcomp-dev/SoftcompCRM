@@ -6,6 +6,8 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { aplicarEfeitosDaDecisao } from "@/lib/propostas/efeitos-da-decisao";
+import { fecharItensPendentes, sincronizarValorVendido } from "@/lib/propostas/itens-da-decisao";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { sePropostasDesligadas } from "@/lib/propostas/porta";
@@ -49,6 +51,21 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   if (error) return fail("internal_error", t("Falha ao registrar a decisão."), 500, { requestId });
   if (!proposta) {
     return fail("proposal_context_stale", t("Só é possível decidir sobre uma proposta enviada."), 409, { requestId });
+  }
+
+  // 9261 — o item ainda pendente segue a decisão inteira; o que já foi
+  // decidido um a um fica. Os itens só se escrevem pelo cliente de serviço
+  // (a policy congela item fora de rascunho).
+  const admin = createAdminClient();
+  await fecharItensPendentes(admin, authz.org.orgId, id, parsed.data.decisao);
+  if (parsed.data.decisao === "aceita") {
+    await sincronizarValorVendido(admin, {
+      organizationId: authz.org.orgId,
+      propostaId: id,
+      leadId: (proposta as { lead_id: string | null }).lead_id,
+      contactId: (proposta as { contact_id: string | null }).contact_id,
+      userId: authz.user.id,
+    });
   }
 
   await aplicarEfeitosDaDecisao({

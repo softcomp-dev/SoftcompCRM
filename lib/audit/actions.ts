@@ -889,6 +889,8 @@ export const AUDIT_ACTIONS = [
   "proposal.discarded",
   "proposal.aceita",
   "proposal.recusada",
+  // 9261: status de item(ns) da proposta mudou (cotação ou pedido).
+  "proposal.item_status_changed",
   // Cron de vencimento — lote, sem resourceId de uma linha só.
   "proposal.expired_batch",
   // Últimos dois sinais do laço de retorno — cron em lote.

@@ -204,6 +204,11 @@ export type ActivityType =
   | "proposal_expired"
   | "proposal_value_changed"
   /**
+   * 9261 — o status de um ou mais itens da proposta mudou (aceito, recusado,
+   * em produção, entregue). O `reason` diz quais itens e para onde.
+   */
+  | "proposal_item_status_changed"
+  /**
    * N2 — o envio tentou agendar o follow-up automático e NÃO conseguiu por um
    * motivo que não é "já existe retorno" (esse tem atividade própria, a do
    * retorno que já serve). Sem esta linha, "a proposta foi enviada e nenhum
@@ -378,6 +383,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   proposal_declined: "Proposta recusada",
   proposal_expired: "Proposta venceu sem decisão",
   proposal_value_changed: "Valor do negócio atualizado pela proposta",
+  proposal_item_status_changed: "Status de item da proposta atualizado",
   proposal_followup_skipped: "Follow-up automático não agendado",
   // Rótulos com o veredito, nunca o mecanismo: quem lê a timeline quer saber
   // que o contato saiu da operação (ou voltou), não o nome da coluna.
