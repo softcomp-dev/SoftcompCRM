@@ -50,15 +50,15 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user, org: activeOrg } = authz;
 
-  let raw: unknown = {};
+  let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    raw = {};
+    return fail("invalid_request", t("Corpo JSON inválido."), 400, { requestId });
   }
   const parsed = updateAutomationRuleSchema.safeParse(raw);
   if (!parsed.success) {
-    return fail("invalid_request", t("Dados inválidos."), 400, {
+    return fail("validation_failed", t("Dados inválidos."), 422, {
       requestId,
       details: parsed.error.flatten(),
     });
@@ -231,15 +231,15 @@ async function editarPorToken(req: NextRequest, requestId: string, id: string): 
   const tetoEstourado = await tetoDeEscritaDoToken(authz, "automation_rules", requestId);
   if (tetoEstourado) return tetoEstourado;
 
-  let raw: unknown = {};
+  let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    raw = {};
+    return fail("invalid_request", "Corpo JSON inválido.", 400, { requestId });
   }
   const parsed = updateAutomationRuleSchema.safeParse(raw);
   if (!parsed.success) {
-    return fail("invalid_request", "Dados inválidos.", 400, { requestId, details: parsed.error.flatten() });
+    return fail("validation_failed", "Dados inválidos.", 422, { requestId, details: parsed.error.flatten() });
   }
   const dados = {
     ...parsed.data,

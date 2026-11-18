@@ -335,6 +335,26 @@ describe("POST /api/v1/automation-rules — Bearer", () => {
     expect((await POST(req("POST", "/api/v1/automation-rules", corpoNovo, { ...AUTH, "idempotency-key": "x" }))).status).toBe(400);
   });
 
+  it("corpo fora do schema → 422 validation_failed; JSON ilegível → 400 (como documenta o Swagger)", async () => {
+    tokenOk();
+    const { POST } = await import("./route");
+    const { PATCH } = await import("./[id]/route");
+
+    const invalido = await POST(req("POST", "/api/v1/automation-rules", { ...corpoNovo, trigger_event: "nao.existe" }));
+    expect(invalido.status).toBe(422);
+    expect((await invalido.json()).error.code).toBe("validation_failed");
+
+    const ilegivel = new NextRequest("http://localhost/api/v1/automation-rules", {
+      method: "POST",
+      body: "{nao-json",
+      headers: { "content-type": "application/json", ...AUTH },
+    });
+    expect((await POST(ilegivel)).status).toBe(400);
+
+    const patchInvalido = await PATCH(req("PATCH", `/api/v1/automation-rules/${REGRA}`, { trigger_event: "nao.existe" }), ctx(REGRA));
+    expect(patchInvalido.status).toBe(422);
+  });
+
   it("sessão (cookie) cria como sempre: requireRole('manager'), created_by_user_id da pessoa", async () => {
     vi.mocked(requireRole).mockResolvedValue({
       ok: true,
