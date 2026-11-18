@@ -55,6 +55,35 @@ describe("validateRequest()", () => {
   });
 });
 
+describe("regra do objeto inteiro (.refine na raiz)", () => {
+  const umDosDois = z
+    .object({ contact_id: z.string().uuid().optional(), phone_number: z.string().optional() })
+    .refine((d) => !!d.contact_id || !!d.phone_number, { message: "Informe contact_id ou phone_number." });
+
+  it("vira a mensagem e vai em details.formErrors quando nenhum campo falhou", async () => {
+    try {
+      await validateRequest(umDosDois, jsonRequest({}));
+      throw new Error("should have thrown");
+    } catch (err) {
+      const e = err as ApiError;
+      expect(e.status).toBe(422);
+      expect(e.message).toBe("Informe contact_id ou phone_number.");
+      expect(e.details!.formErrors).toEqual(["Informe contact_id ou phone_number."]);
+    }
+  });
+
+  it("erro de campo mantém a mensagem genérica e sem formErrors", () => {
+    try {
+      validateBody(schema, { name: "", age: 1 });
+      throw new Error("should have thrown");
+    } catch (err) {
+      const e = err as ApiError;
+      expect(e.message).toBe("Validation failed");
+      expect(e.details!.formErrors).toBeUndefined();
+    }
+  });
+});
+
 describe("validateBody()", () => {
   it("returns parsed for valid body", () => {
     expect(validateBody(schema, { name: "Ada", age: 30 })).toEqual({ name: "Ada", age: 30 });
