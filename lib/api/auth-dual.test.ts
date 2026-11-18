@@ -129,6 +129,17 @@ describe("resolveAuthDual", () => {
     }
   });
 
+  it("teto de tokens inválidos responde 429 rate_limited com Retry-After", async () => {
+    vi.mocked(validateBearerToken).mockRejectedValue(new McpAuthError(-32004, 429, "Too many failed token attempts."));
+    const r = await resolveAuthDual(req({ authorization: "Bearer dsk_x_y" }), OPCOES);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.response.status).toBe(429);
+      expect((await r.response.json()).error.code).toBe("rate_limited");
+      expect(Number(r.response.headers.get("Retry-After"))).toBeGreaterThan(0);
+    }
+  });
+
   it("sem Authorization, usa a sessão", async () => {
     sessaoOk();
 

@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import type { Actor } from "@/lib/api/handlers/types";
-import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
+import { resolveAuthDual, respostaDaRecusaDoToken, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { chaveDaRequisicao, comIdempotencia } from "@/lib/api/idempotency";
 import { falhaDoHandlerParaToken } from "@/lib/api/integracao-por-token";
 import { requireRole } from "@/lib/auth/require-role";
@@ -66,15 +66,7 @@ async function resolveContactsAuth(req: NextRequest, requestId: string): Promise
       auth = await validateBearerToken(authHeader);
     } catch (err) {
       if (err instanceof McpAuthError) {
-        return {
-          ok: false,
-          response: fail(
-            err.codigo ?? (err.httpStatus === 401 ? "unauthenticated" : "forbidden"),
-            err.message,
-            err.httpStatus,
-            { requestId },
-          ),
-        };
+        return { ok: false, response: respostaDaRecusaDoToken(err, requestId) };
       }
       throw err;
     }

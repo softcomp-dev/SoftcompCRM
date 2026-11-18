@@ -30,6 +30,7 @@ import { type NextRequest } from "next/server";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import type { Actor } from "@/lib/api/handlers/types";
 import { fail } from "@/lib/api/wrappers";
+import { TOKEN_FAILURE_LIMITS } from "@/lib/auth/rate-limit";
 import { requireRole } from "@/lib/auth/require-role";
 import type { Role } from "@/lib/auth/types";
 import type { Idioma } from "@/lib/i18n/idiomas";
@@ -86,6 +87,29 @@ export interface AuthDualOptions {
 }
 
 /**
+ * A resposta REST para um token recusado por `validateBearerToken`.
+ *
+ * O 429 é o teto de tentativas com token inválido (`tokenFailureLimited`): ele
+ * responde `rate_limited` com `Retry-After`, como todo 429 da API. Antes saía
+ * `forbidden` e sem `Retry-After`, e o integrador não tinha como saber quanto
+ * esperar — nem que era espera, e não falta de permissão.
+ */
+export function respostaDaRecusaDoToken(err: McpAuthError, requestId: string): Response {
+  if (err.httpStatus === 429) {
+    return fail("rate_limited", err.message, 429, {
+      requestId,
+      headers: { "Retry-After": String(TOKEN_FAILURE_LIMITS.windowSec) },
+    });
+  }
+  return fail(
+    err.codigo ?? (err.httpStatus === 401 ? "unauthenticated" : "forbidden"),
+    err.message,
+    err.httpStatus,
+    { requestId },
+  );
+}
+
+/**
  * Aceita sessão OU token de servidor, devolvendo sempre a mesma forma para o
  * handler. O chamador não precisa saber por onde a identidade entrou.
  */
@@ -101,15 +125,7 @@ export async function resolveAuthDual(
       auth = await validateBearerToken(authHeader);
     } catch (err) {
       if (err instanceof McpAuthError) {
-        return {
-          ok: false,
-          response: fail(
-            err.codigo ?? (err.httpStatus === 401 ? "unauthenticated" : "forbidden"),
-            err.message,
-            err.httpStatus,
-            { requestId },
-          ),
-        };
+        return { ok: false, response: respostaDaRecusaDoToken(err, requestId) };
       }
       throw err;
     }
