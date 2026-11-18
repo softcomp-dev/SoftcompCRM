@@ -68,6 +68,19 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
     .order("version_number", { ascending: false });
 
   if (error) return fail("internal_error", "Erro ao listar versions.", 500, { requestId });
+
+  // Sem versões pode ser agente desta organização ainda vazio, ou agente que não
+  // existe aqui. O segundo é 404 — antes saía 200 com `[]`. Arquivado conta como
+  // existente: o histórico dele continua legível.
+  if ((data ?? []).length === 0) {
+    const { data: agente } = await supabase
+      .from("ai_agents")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("id", id)
+      .maybeSingle();
+    if (!agente) return fail("not_found", "Agent não encontrado.", 404, { requestId });
+  }
   return ok(data ?? [], { requestId });
 }
 

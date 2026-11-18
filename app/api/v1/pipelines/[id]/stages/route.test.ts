@@ -245,9 +245,22 @@ describe("GET /api/v1/pipelines/[id]/stages", () => {
     const req = new NextRequest(`http://localhost/api/v1/pipelines/${PIPE}/stages`, { method: "GET" });
     const res = await GET(req, ctx);
 
+    // Funil de outra organização é, para esta, um funil que não existe: 404, e
+    // nenhuma etapa alheia vaza (antes saía 200 com `[]`, que não distinguia
+    // "funil sem etapas" de "pipeline_id errado").
+    expect(res.status).toBe(404);
+    expect(JSON.stringify(await res.json())).not.toContain(OUTRA_ORG);
+  });
+
+  it("funil desta organização sem etapas vivas → 200 com lista vazia", async () => {
+    authOk();
+    makeDb({ stages: [] });
+    const { GET } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/v1/pipelines/${PIPE}/stages`, { method: "GET" });
+    const res = await GET(req, ctx);
+
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: Array<{ id: string }> };
-    expect(body.data).toEqual([]);
+    expect(((await res.json()) as { data: unknown[] }).data).toEqual([]);
   });
 });
 

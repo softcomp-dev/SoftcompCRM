@@ -103,6 +103,20 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .order("position", { ascending: true });
   if (error) return fail("internal_error", t("Falha ao listar etapas."), 500, { requestId });
 
+  // Lista vazia é ambígua: funil sem etapas vivas, ou funil que não existe
+  // nesta organização. O segundo é 404 — antes saía 200 com `[]`, e o
+  // integrador que errou o `pipeline_id` não tinha como saber. A consulta extra
+  // só acontece no caso vazio.
+  if ((data ?? []).length === 0) {
+    const { data: funil } = await supabase
+      .from("crm_pipelines")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("id", id)
+      .maybeSingle();
+    if (!funil) return fail("not_found", t("Funil não encontrado."), 404, { requestId });
+  }
+
   // #3603 — a lista read-only de «quais fluxos disparam ao entrar nesta etapa».
   // Nenhuma consulta por etapa, e as MESMAS portas do motor
   // (`lib/followup/fluxos-da-etapa.ts`). Se esta leitura falhar, a resposta sai
